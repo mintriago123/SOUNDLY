@@ -1,10 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 
 export default function HomePage() {
   const [isPlaying, setIsPlaying] = useState(false);
+  const [barHeights, setBarHeights] = useState<number[]>([]);
+
+  // Generar las alturas aleatorias solo en el cliente para evitar hydration errors
+  useEffect(() => {
+    setBarHeights([...Array(5)].map(() => Math.random() * 40 + 20));
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#100725] via-[#220639] to-[#491358] relative overflow-hidden">
@@ -29,12 +35,12 @@ export default function HomePage() {
         </div>
         
         <div className="flex space-x-4">
-          <Link href="auth/login" className="text-white hover:text-gray-300 transition-colors">
+          <Link href="/auth/login" className="text-white hover:text-gray-300 transition-colors">
             <button className="px-6 py-2 border border-[#6e1f86] text-[#ba319f] rounded-full hover:bg-[#6e1f86] hover:text-white transition-all duration-300 font-medium">
               Login
             </button>
           </Link>
-          <Link href="auth/register">
+          <Link href="/auth/register">
             <button className="px-6 py-2 bg-gradient-to-r from-[#6e1f86] to-[#ba319f] text-white rounded-full hover:shadow-lg hover:shadow-[#ba319f]/25 transition-all duration-300 font-medium">
               Register
             </button>
@@ -111,22 +117,24 @@ export default function HomePage() {
       </main>
 
       {/* Floating music visualizer */}
-      <div className="fixed bottom-8 right-8 z-20">
-        <div className="flex space-x-1 items-end">
-          {[...Array(5)].map((_, i) => (
-            <div
-              key={i}
-              className={`w-2 bg-gradient-to-t from-[#6e1f86] to-[#ba319f] rounded-full ${
-                isPlaying ? 'animate-pulse' : ''
-              }`}
-              style={{
-                height: `${Math.random() * 40 + 20}px`,
-                animationDelay: `${i * 0.1}s`
-              }}
-            ></div>
-          ))}
+      {barHeights.length > 0 && (
+        <div className="fixed bottom-8 right-8 z-20">
+          <div className="flex space-x-1 items-end">
+            {barHeights.map((height, i) => (
+              <div
+                key={i}
+                className={`w-2 bg-gradient-to-t from-[#6e1f86] to-[#ba319f] rounded-full ${
+                  isPlaying ? 'animate-pulse' : ''
+                }`}
+                style={{
+                  height: `${height}px`,
+                  animationDelay: `${i * 0.1}s`
+                }}
+              ></div>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

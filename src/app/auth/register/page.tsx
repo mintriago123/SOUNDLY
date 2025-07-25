@@ -37,7 +37,11 @@ export default function PaginaRegistroSimple() {
       }
 
       // El trigger handle_new_user() se encarga de crear el perfil automáticamente
-      // No necesitamos hacer upsert manual aquí
+      // Solo necesitamos esperar un momento para que el trigger termine
+      if (data?.user) {
+        console.log('Usuario creado por auth:', data.user);
+        console.log('El trigger debería crear el perfil automáticamente');
+      }
       
       setExito('¡Revisa tu correo y valida tu cuenta antes de continuar!');
       

@@ -36,14 +36,76 @@ export default function UserDashboard() {
         return;
       }
 
+      console.log('Usuario autenticado:', user);
+
       // Obtener datos del usuario
-      const { data: userData } = await supabase
+      const { data: userData, error: userError } = await supabase
         .from('usuarios')
         .select('*')
         .eq('id', user.id)
         .single();
 
-      setUsuario(userData);
+      console.log('Datos del usuario desde BD:', userData, userError);
+
+      // Si no existe el perfil, podría ser que el trigger esté tardando
+      if (!userData && userError) {
+        console.log('Perfil no encontrado, podría ser que el trigger esté tardando...');
+        
+        // Intentar una vez más en caso de que el trigger no haya terminado
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Esperar 1 segundo
+        
+        const { data: userData2 } = await supabase
+          .from('usuarios')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+        
+        if (userData2) {
+          console.log('Perfil encontrado después de esperar:', userData2);
+          setUsuario(userData2);
+        } else {
+          console.log('Perfil aún no existe, creando manualmente...');
+          
+          try {
+            const { data: nuevoUsuario, error: createError } = await supabase
+              .from('usuarios')
+              .insert({
+                id: user.id,
+                email: user.email || '',
+                rol: 'usuario',
+                estado: 'activo',
+                nombre: user.user_metadata?.nombre || user.email?.split('@')[0] || 'Usuario'
+              })
+              .select()
+              .single();
+
+            if (createError) {
+              console.error('Error creando perfil:', createError);
+              
+              // Si es error de clave duplicada, intentar obtener el registro existente
+              if (createError.code === '23505') {
+                const { data: existingUser } = await supabase
+                  .from('usuarios')
+                  .select('*')
+                  .eq('id', user.id)
+                  .single();
+                
+                if (existingUser) {
+                  console.log('Usuario ya existía:', existingUser);
+                  setUsuario(existingUser);
+                }
+              }
+            } else {
+              console.log('Perfil creado exitosamente:', nuevoUsuario);
+              setUsuario(nuevoUsuario);
+            }
+          } catch (err) {
+            console.error('Error al crear perfil:', err);
+          }
+        }
+      } else {
+        setUsuario(userData);
+      }
 
       // Obtener estadísticas del usuario
       const [cancionesRes, playlistsRes, favoritosRes, historialRes] = await Promise.all([

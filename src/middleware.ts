@@ -2,8 +2,6 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
-  console.log('🚀 Middleware ejecutándose para:', request.nextUrl.pathname)
-  
   let response = NextResponse.next({
     request: {
       headers: request.headers,
@@ -56,18 +54,10 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // IMPORTANTE: Actualizar la sesión en cada request
+  // Verificar si el usuario está autenticado
   const {
     data: { user },
-    error
   } = await supabase.auth.getUser()
-
-  // Debug más detallado
-  console.log('🔍 Pathname:', request.nextUrl.pathname)
-  console.log('🍪 Cookies disponibles:', request.cookies.getAll().map(c => c.name))
-  console.log('👤 Usuario autenticado:', !!user)
-  console.log('📧 Email del usuario:', user?.email || 'No autenticado')
-  console.log('❌ Error de auth:', error?.message || 'Sin error')
 
   const { pathname } = request.nextUrl
 
@@ -82,7 +72,6 @@ export async function middleware(request: NextRequest) {
 
   // Si el usuario está intentando acceder a una ruta protegida sin estar autenticado
   if (protectedRoutes.some(route => pathname.startsWith(route)) && !user) {
-    console.log('🚫 Acceso denegado a ruta protegida, redirigiendo a login')
     const redirectUrl = new URL('/auth/login', request.url)
     redirectUrl.searchParams.set('redirectTo', pathname)
     return NextResponse.redirect(redirectUrl)
@@ -90,7 +79,6 @@ export async function middleware(request: NextRequest) {
 
   // Si el usuario está autenticado y trata de acceder a rutas de auth, redirigir al dashboard
   if (authRoutes.includes(pathname) && user) {
-    console.log('✅ Usuario autenticado intentando acceder a auth, redirigiendo al dashboard')
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
@@ -106,16 +94,14 @@ export async function middleware(request: NextRequest) {
 
       if (error || !userData || userData.rol !== 'admin') {
         // Si no es admin, redirigir al dashboard normal
-        console.log('🚫 Usuario no es admin, redirigiendo al dashboard normal')
         return NextResponse.redirect(new URL('/dashboard', request.url))
       }
     } catch (error) {
-      console.error('❌ Error verificando rol de admin:', error)
+      console.error('Error verificando rol de admin:', error)
       return NextResponse.redirect(new URL('/dashboard', request.url))
     }
   }
 
-  console.log('✨ Middleware completado, permitiendo acceso')
   return response
 }
 

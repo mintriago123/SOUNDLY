@@ -1,21 +1,41 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #1a0b2e;
+  --foreground: #ffffff;
+  --primary: #8b5cf6;
+  --primary-dark: #7c3aed;
+  --secondary: #a855f7;
+  --accent: #c084fc;
+  --muted: #4c1d95;
+  --card: #2d1b69;
+  --border: #553c9a;
 }
 
-@theme inline {
+:root {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-secondary: var(--secondary);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #1a0b2e;
+    --foreground: #ffffff;
+  }
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --background: #faf7ff;
+    --foreground: #1a0b2e;
+    --primary: #8b5cf6;
+    --card: #ffffff;
+    --muted: #e9d5ff;
+    --border: #d8b4fe;
   }
 }
 
@@ -23,4 +43,13 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Gradientes para fondos */
+.gradient-purple {
+  background: linear-gradient(135deg, #1a0b2e 0%, #2d1b69 50%, #4c1d95 100%);
+}
+
+.gradient-button {
+  background: linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%);
 }

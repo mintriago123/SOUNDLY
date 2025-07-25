@@ -4,15 +4,11 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useSupabase } from './SupabaseProvider';
+import Sidebar from './Sidebar';
+import { Usuario } from '@/types/user';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
-}
-
-interface Usuario {
-  id: string;
-  rol: 'admin' | 'usuario';
-  email?: string;
 }
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
@@ -67,24 +63,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     router.push('/');
   };
 
-  // Opciones del menú para usuarios regulares
-  const opcionesUsuario = [
-    { nombre: 'Mi Biblioteca', href: '/dashboard/biblioteca', icono: '🎵' },
-    { nombre: 'Playlists', href: '/dashboard/playlists', icono: '📋' },
-    { nombre: 'Favoritos', href: '/dashboard/favoritos', icono: '❤️' },
-    { nombre: 'Reproductor', href: '/dashboard/reproductor', icono: '▶️' },
-    { nombre: 'Perfil', href: '/dashboard/perfil', icono: '👤' },
-  ];
-
-  // Opciones adicionales para administradores
-  const opcionesAdmin = [
-    ...opcionesUsuario,
-    { nombre: 'Gestión de Usuarios', href: '/dashboard/admin/usuarios', icono: '👥' },
-    { nombre: 'Gestión de Contenido', href: '/dashboard/admin/contenido', icono: '🎼' },
-    { nombre: 'Estadísticas', href: '/dashboard/admin/estadisticas', icono: '📊' },
-    { nombre: 'Configuración', href: '/dashboard/admin/configuracion', icono: '⚙️' },
-  ];
-
   if (cargando) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -97,21 +75,19 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     return null;
   }
 
-  const opciones = usuario.rol === 'admin' ? opcionesAdmin : opcionesUsuario;
-
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
+      {/* Header - Solo visible en móvil */}
+      <header className="bg-white shadow-sm border-b md:hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            {/* Logo y título */}
+            {/* Logo y botón de menú */}
             <div className="flex items-center space-x-3">
               <button
-                className="md:hidden"
                 onClick={() => setMenuAbierto(!menuAbierto)}
+                className="p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100"
               >
-                <span className="text-2xl">☰</span>
+                <span className="text-xl">☰</span>
               </button>
               <Link href="/dashboard" className="flex items-center space-x-2">
                 <span className="text-2xl">🎵</span>
@@ -119,65 +95,40 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               </Link>
             </div>
 
-            {/* Info del usuario y cerrar sesión */}
-            <div className="flex items-center space-x-4">
-              <div className="text-sm text-gray-600">
-                <span className="font-medium">{usuario.email}</span>
-                {usuario.rol === 'admin' && (
-                  <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
-                    Admin
-                  </span>
-                )}
-              </div>
-              <button
-                onClick={cerrarSesion}
-                className="text-sm text-red-600 hover:text-red-800 font-medium"
-              >
-                Cerrar Sesión
-              </button>
+            {/* Badges de rol */}
+            <div className="flex items-center space-x-2">
+              {usuario.rol === 'admin' && (
+                <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
+                  👑 Admin
+                </span>
+              )}
+              {usuario.rol === 'premium' && (
+                <span className="px-2 py-1 bg-gradient-to-r from-purple-100 to-pink-100 text-purple-800 rounded-full text-xs">
+                  💎 Premium
+                </span>
+              )}
+              {(!usuario.rol || usuario.rol === 'usuario') && (
+                <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs">
+                  🎵 Gratis
+                </span>
+              )}
             </div>
           </div>
         </div>
       </header>
 
       <div className="flex">
-        {/* Sidebar */}
-        <aside className={`
-          ${menuAbierto ? 'translate-x-0' : '-translate-x-full'} 
-          md:translate-x-0 transition-transform duration-200 ease-in-out
-          fixed md:static inset-y-0 left-0 z-50
-          w-64 bg-white shadow-lg border-r border-gray-200
-          mt-16 md:mt-0
-        `}>
-          <nav className="p-4">
-            <ul className="space-y-2">
-              {opciones.map((opcion, index) => (
-                <li key={index}>
-                  <Link
-                    href={opcion.href}
-                    className="flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors"
-                    onClick={() => setMenuAbierto(false)}
-                  >
-                    <span className="text-lg">{opcion.icono}</span>
-                    <span className="font-medium">{opcion.nombre}</span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </nav>
-        </aside>
-
-        {/* Overlay para móvil */}
-        {menuAbierto && (
-          <div 
-            className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
-            onClick={() => setMenuAbierto(false)}
-          />
-        )}
+        {/* Sidebar Component */}
+        <Sidebar 
+          isOpen={menuAbierto} 
+          onClose={() => setMenuAbierto(false)}
+          userRole={usuario.rol}
+          userName={usuario.email?.split('@')[0] || 'Usuario'}
+        />
 
         {/* Contenido principal */}
-        <main className="flex-1 p-6">
-          <div className="max-w-7xl mx-auto">
+        <main className="flex-1 md:ml-64 min-h-screen">
+          <div className="p-6">
             {children}
           </div>
         </main>

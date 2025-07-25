@@ -80,6 +80,9 @@ export async function middleware(request: NextRequest) {
   // Rutas que requieren rol de admin
   const adminRoutes = ['/dashboard/admin']
 
+  // Rutas que requieren rol de artista
+  const artistRoutes = ['/dashboard/artista']
+
   // Si el usuario está intentando acceder a una ruta protegida sin estar autenticado
   if (protectedRoutes.some(route => pathname.startsWith(route)) && !user) {
     console.log('🚫 Acceso denegado a ruta protegida, redirigiendo a login')
@@ -111,6 +114,27 @@ export async function middleware(request: NextRequest) {
       }
     } catch (error) {
       console.error('❌ Error verificando rol de admin:', error)
+      return NextResponse.redirect(new URL('/dashboard', request.url))
+    }
+  }
+
+  // Verificar rutas de artista
+  if (artistRoutes.some(route => pathname.startsWith(route)) && user) {
+    try {
+      // Obtener datos del usuario desde la tabla usuarios para verificar el rol
+      const { data: userData, error } = await supabase
+        .from('usuarios')
+        .select('rol')
+        .eq('id', user.id)
+        .single()
+
+      if (error || !userData || userData.rol !== 'artista') {
+        // Si no es artista, redirigir al dashboard normal
+        console.log('🚫 Usuario no es artista, redirigiendo al dashboard normal')
+        return NextResponse.redirect(new URL('/dashboard', request.url))
+      }
+    } catch (error) {
+      console.error('❌ Error verificando rol de artista:', error)
       return NextResponse.redirect(new URL('/dashboard', request.url))
     }
   }

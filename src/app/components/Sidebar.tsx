@@ -56,6 +56,7 @@ interface MenuItem {
   description?: string;
   premiumOnly?: boolean;
   adminOnly?: boolean;
+  artistOnly?: boolean;
   subItems?: SubMenuItem[];
 }
 
@@ -128,6 +129,36 @@ const menuItems: MenuItem[] = [
     premiumOnly: true
   },
   
+  // Items para Artistas
+  {
+    name: 'Mi Música',
+    href: '/dashboard/artista/musica',
+    icon: MusicalNoteIcon,
+    description: 'Gestionar mis canciones',
+    artistOnly: true
+  },
+  {
+    name: 'Estadísticas',
+    href: '/dashboard/artista/estadisticas',
+    icon: ChartBarIcon,
+    description: 'Análisis de mis canciones',
+    artistOnly: true
+  },
+  {
+    name: 'Perfil de Artista',
+    href: '/dashboard/artista/perfil',
+    icon: UserIcon,
+    description: 'Gestionar perfil público',
+    artistOnly: true
+  },
+  {
+    name: 'Álbumes',
+    href: '/dashboard/artista/albumes',
+    icon: ClipboardDocumentListIcon,
+    description: 'Gestionar mis álbumes',
+    artistOnly: true
+  },
+  
   // Items para Administradores
   {
     name: 'Gestión',
@@ -140,6 +171,11 @@ const menuItems: MenuItem[] = [
         name: 'Usuarios',
         href: '/dashboard/admin/usuarios',
         description: 'Gestionar usuarios'
+      },
+      {
+        name: 'Roles',
+        href: '/dashboard/admin/roles',
+        description: 'Gestionar roles de usuario'
       },
       {
         name: 'Contenido',
@@ -198,12 +234,14 @@ export default function Sidebar({
 
   const isAdmin = userRole === 'admin';
   const isPremium = userRole === 'premium' || userRole === 'admin';
+  const isArtist = userRole === 'artista' || userRole === 'admin';
   const isUser = userRole === 'usuario' || !userRole;
 
   // Filtrar items según el rol
   const filteredMenuItems = menuItems.filter(item => {
     if (item.adminOnly && !isAdmin) return false;
     if (item.premiumOnly && !isPremium) return false;
+    if (item.artistOnly && !isArtist) return false;
     return true;
   });
 

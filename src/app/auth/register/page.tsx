@@ -24,24 +24,29 @@ export default function PaginaRegistroSimple() {
     if (datos.contrasena !== datos.confirmar) return setError('Las contraseñas no coinciden');
     setCargando(true);
     setError(null);
-    const { data, error } = await supabase.auth.signUp({
-      email: datos.email,
-      password: datos.contrasena
-    });
-    setCargando(false);
-    if (error) return setError(error.message);
-
-    if (data && data.user) {
-      const { error: upsertError } = await supabase.from('usuarios').upsert({
-        id: data.user.id,
+    
+    try {
+      const { data, error } = await supabase.auth.signUp({
         email: datos.email,
-        rol: 'usuario', // Rol por defecto
-        estado: 'activo'  // Establecer estado inicial como activo
+        password: datos.contrasena
       });
-      if (upsertError) return setError("Error creando perfil: " + upsertError.message);
-    }
+      
+      if (error) {
+        setCargando(false);
+        return setError(error.message);
+      }
 
-    setExito('¡Revisa tu correo y valida tu cuenta antes de continuar!');
+      // El trigger handle_new_user() se encarga de crear el perfil automáticamente
+      // No necesitamos hacer upsert manual aquí
+      
+      setExito('¡Revisa tu correo y valida tu cuenta antes de continuar!');
+      
+    } catch (err: any) {
+      console.error('Error en registro:', err);
+      setError('Error inesperado al registrarse. Inténtalo de nuevo.');
+    } finally {
+      setCargando(false);
+    }
   };
 
   if (exito) {

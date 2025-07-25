@@ -69,6 +69,9 @@ export async function middleware(request: NextRequest) {
   
   // Rutas que requieren rol de admin
   const adminRoutes = ['/dashboard/admin']
+  
+  // Rutas que requieren rol premium o superior
+  const premiumRoutes = ['/dashboard/premium']
 
   // Si el usuario está intentando acceder a una ruta protegida sin estar autenticado
   if (protectedRoutes.some(route => pathname.startsWith(route)) && !user) {
@@ -80,6 +83,26 @@ export async function middleware(request: NextRequest) {
   // Si el usuario está autenticado y trata de acceder a rutas de auth, redirigir al dashboard
   if (authRoutes.includes(pathname) && user) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
+  }
+
+  // Verificar rutas premium
+  if (premiumRoutes.some(route => pathname.startsWith(route)) && user) {
+    try {
+      // Obtener datos del usuario desde la tabla usuarios para verificar el rol
+      const { data: userData, error } = await supabase
+        .from('usuarios')
+        .select('rol')
+        .eq('id', user.id)
+        .single()
+
+      if (error || !userData || (userData.rol !== 'premium' && userData.rol !== 'admin')) {
+        // Si no es premium o admin, redirigir a página de actualización
+        return NextResponse.redirect(new URL('/dashboard/upgrade', request.url))
+      }
+    } catch (error) {
+      console.error('Error verificando rol premium:', error)
+      return NextResponse.redirect(new URL('/dashboard/upgrade', request.url))
+    }
   }
 
   // Verificar rutas de admin

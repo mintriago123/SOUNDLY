@@ -16,6 +16,11 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "SOUNDLY",
   description: "Plataforma de musica en streaming",
+  icons: {
+    icon: "/favicon.ico", // Cambia esto por "/tu-favicon.png" si usas PNG
+    shortcut: "/favicon.ico",
+    apple: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSupabase } from '@/app/components/SupabaseProvider';
 import DashboardLayout from '@/app/components/DashboardLayout';
-import ThemeSelector from '@/app/components/ThemeSelector';
+import ThemeSelectorClean from '@/app/components/ThemeSelectorClean';
 import {
   UserIcon,
   AtSymbolIcon,
@@ -853,7 +853,7 @@ export default function PerfilPage() {
 
             {/* Selector de Tema */}
             <div className="mt-6">
-              <ThemeSelector />
+              <ThemeSelectorClean />
             </div>
           </div>
         </div>

@@ -160,48 +160,56 @@ const menuItems: MenuItem[] = [
   },
   
   // Items para Administradores
+  // {
+  //   name: 'Dashboard Admin',
+  //   href: '/dashboard/admin',
+  //   icon: HomeIcon,
+  //   description: 'Panel de administración',
+  //   adminOnly: true
+  // },
+  // {
+  //   name: 'Usuarios',
+  //   href: '/dashboard/admin/usuarios',
+  //   icon: UserGroupIcon,
+  //   description: 'Gestionar usuarios',
+  //   adminOnly: true
+  // },
   {
-    name: 'Gestión',
-    href: '/dashboard/admin',
-    icon: UserGroupIcon,
-    description: 'Panel de administración',
-    adminOnly: true,
-    subItems: [
-      {
-        name: 'Usuarios',
-        href: '/dashboard/admin/usuarios',
-        description: 'Gestionar usuarios'
-      },
-      {
-        name: 'Roles',
-        href: '/dashboard/admin/roles',
-        description: 'Gestionar roles de usuario'
-      },
-      {
-        name: 'Contenido',
-        href: '/dashboard/admin/contenido',
-        description: 'Gestionar música'
-      },
-      {
-        name: 'Estadísticas',
-        href: '/dashboard/admin/estadisticas',
-        description: 'Métricas del sistema'
-      },
-      {
-        name: 'Configuración',
-        href: '/dashboard/admin/configuracion',
-        description: 'Ajustes del sistema'
-      }
-    ]
+    name: 'Usuarios',
+    href: '/dashboard/admin/roles',
+    icon: UserIcon,
+    description: 'Gestionar roles de usuario',
+    adminOnly: true
+  },
+  // {
+  //   name: 'Contenido',
+  //   href: '/dashboard/admin/contenido',
+  //   icon: MusicalNoteIcon,
+  //   description: 'Gestionar música',
+  //   adminOnly: true
+  // },
+  {
+    name: 'Estadísticas',
+    href: '/dashboard/admin/estadisticas',
+    icon: ChartBarIcon,
+    description: 'Métricas del sistema',
+    adminOnly: true
+  },
+  {
+    name: 'Configuración',
+    href: '/dashboard/admin/configuracion',
+    icon: Cog6ToothIcon,
+    description: 'Ajustes del sistema',
+    adminOnly: true
   },
   
   // Perfil (siempre al final)
-  {
-    name: 'Mi Perfil',
-    href: '/dashboard/perfil',
-    icon: UserIcon,
-    description: 'Configuración personal'
-  }
+  // {
+  //   name: 'Mi Perfil',
+  //   href: '/dashboard/perfil',
+  //   icon: UserIcon,
+  //   description: 'Configuración personal'
+  // }
 ];
 
 export default function Sidebar({ 
@@ -233,12 +241,18 @@ export default function Sidebar({
   }, []);
 
   const isAdmin = userRole === 'admin';
-  const isPremium = userRole === 'premium' || userRole === 'admin';
-  const isArtist = userRole === 'artista' || userRole === 'admin';
+  const isPremium = userRole === 'premium';
+  const isArtist = userRole === 'artista';
   const isUser = userRole === 'usuario' || !userRole;
 
   // Filtrar items según el rol
   const filteredMenuItems = menuItems.filter(item => {
+    // Si es admin, solo mostrar items administrativos y perfil
+    if (isAdmin) {
+      return item.adminOnly || item.name === 'Mi Perfil';
+    }
+    
+    // Para otros roles, aplicar filtros normales
     if (item.adminOnly && !isAdmin) return false;
     if (item.premiumOnly && !isPremium) return false;
     if (item.artistOnly && !isArtist) return false;
@@ -283,7 +297,7 @@ export default function Sidebar({
     if (!isActive) return 'text-gray-700 hover:bg-gray-50 hover:text-gray-900';
     
     if (isAdmin) return 'bg-blue-50 text-blue-700 border border-blue-200';
-    if (isPremium) return 'bg-purple-50 text-purple-700 border border-purple-200';
+    if (isPremium && !isAdmin) return 'bg-purple-50 text-purple-700 border border-purple-200';
     return 'bg-gray-50 text-gray-700 border border-gray-200';
   };
 
@@ -291,20 +305,20 @@ export default function Sidebar({
     if (!isActive) return 'text-gray-500 group-hover:text-gray-700';
     
     if (isAdmin) return 'text-blue-600';
-    if (isPremium) return 'text-purple-600';
+    if (isPremium && !isAdmin) return 'text-purple-600';
     return 'text-gray-600';
   };
 
   const getRoleColor = () => {
     if (isAdmin) return 'bg-blue-500 text-white';
-    if (isPremium) return 'bg-gradient-to-r from-purple-500 to-pink-500 text-white';
+    if (isPremium && !isAdmin) return 'bg-gradient-to-r from-purple-500 to-pink-500 text-white';
     return 'bg-gray-500 text-white';
   };
 
   const getRoleLabel = () => {
-    if (isAdmin) return 'Panel Admin';
-    if (isPremium) return 'Premium';
-    return 'Soundly';
+    if (isAdmin) return 'Administrador';
+    if (isPremium && !isAdmin) return 'Premium';
+    return 'Usuario';
   };
 
   const getUserInitials = (name: string) => {
@@ -355,8 +369,9 @@ export default function Sidebar({
                 
                 <button
                   onClick={() => setIsCollapsed(!isCollapsed)}
-                  className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors flex-shrink-0 md:hidden"
+                  className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors flex-shrink-0"
                   aria-label="Contraer sidebar"
+                  title="Contraer sidebar"
                 >
                   <ChevronLeftIcon className="w-4 h-4 text-gray-600" />
                 </button>
@@ -398,14 +413,14 @@ export default function Sidebar({
               
               {isProfileMenuOpen && (
                 <div className="mt-2 space-y-1 bg-gray-50 dark:bg-gray-700/50 rounded-lg p-2">
-                  <Link
+                  {/* <Link
                     href="/dashboard/perfil"
                     className="w-full flex items-center px-3 py-2 text-left rounded-md hover:bg-white dark:hover:bg-gray-600 hover:shadow-sm transition-all duration-200"
                     onClick={onClose}
                   >
                     <UserIcon className="w-4 h-4 mr-2 text-gray-500 dark:text-gray-400" />
                     <span className="text-xs text-gray-700 dark:text-gray-200 font-medium">Mi Perfil</span>
-                  </Link>
+                  </Link> */}
                   <Link
                     href="/dashboard/configuracion"
                     className="w-full flex items-center px-3 py-2 text-left rounded-md hover:bg-white dark:hover:bg-gray-600 hover:shadow-sm transition-all duration-200"
@@ -522,8 +537,8 @@ export default function Sidebar({
               );
             })}
             
-            {/* Botón de Upgrade para usuarios gratuitos */}
-            {isUser && !isCollapsed && (
+            {/* Botón de Upgrade para usuarios gratuitos solamente */}
+            {isUser && !isAdmin && !isCollapsed && (
               <li className="pt-4 border-t border-gray-200 mt-4">
                 <Link
                   href="/dashboard/upgrade"

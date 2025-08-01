@@ -6,7 +6,7 @@ import { SunIcon, MoonIcon } from '@heroicons/react/24/outline';
 export default function ThemeSelector() {
   const { theme, setTheme } = useTheme();
 
-  const handleThemeChange = (newTheme: 'maykel' | 'walther') => {
+  const handleThemeChange = (newTheme: 'oscuro' | 'claro') => {
     console.log('Cambiando tema a:', newTheme);
     setTheme(newTheme);
     
@@ -25,11 +25,11 @@ export default function ThemeSelector() {
       </h3>
       
       <div className="space-y-3">
-        {/* Modo Maykel (Oscuro) */}
+        {/* Modo Oscuro */}
         <button
-          onClick={() => handleThemeChange('maykel')}
+          onClick={() => handleThemeChange('oscuro')}
           className={`w-full p-4 rounded-lg border-2 transition-all duration-200 flex items-center justify-between ${
-            theme === 'maykel'
+            theme === 'oscuro'
               ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20 ring-2 ring-purple-200'
               : 'border-gray-200 dark:border-gray-600 hover:border-purple-300 dark:hover:border-purple-400 hover:bg-gray-50 dark:hover:bg-gray-700/50'
           }`}
@@ -39,22 +39,22 @@ export default function ThemeSelector() {
               <MoonIcon className="w-4 h-4 text-white" />
             </div>
             <div className="text-left">
-              <div className="font-medium text-gray-900 dark:text-white">Modo Maykel</div>
+              <div className="font-medium text-gray-900 dark:text-white">Modo Oscuro</div>
               <div className="text-sm text-gray-600 dark:text-gray-400">Tema oscuro, perfecto para la noche</div>
             </div>
           </div>
-          {theme === 'maykel' && (
+          {theme === 'oscuro' && (
             <div className="w-5 h-5 bg-purple-500 rounded-full flex items-center justify-center">
               <div className="w-2 h-2 bg-white rounded-full"></div>
             </div>
           )}
         </button>
 
-        {/* Modo Walther (Claro) */}
+        {/* Modo Claro */}
         <button
-          onClick={() => handleThemeChange('walther')}
+          onClick={() => handleThemeChange('claro')}
           className={`w-full p-4 rounded-lg border-2 transition-all duration-200 flex items-center justify-between ${
-            theme === 'walther'
+            theme === 'claro'
               ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20 ring-2 ring-orange-200'
               : 'border-gray-200 dark:border-gray-600 hover:border-orange-300 dark:hover:border-orange-400 hover:bg-gray-50 dark:hover:bg-gray-700/50'
           }`}
@@ -64,11 +64,11 @@ export default function ThemeSelector() {
               <SunIcon className="w-4 h-4 text-white" />
             </div>
             <div className="text-left">
-              <div className="font-medium text-gray-900 dark:text-white">Modo Walther</div>
+              <div className="font-medium text-gray-900 dark:text-white">Modo Claro</div>
               <div className="text-sm text-gray-600 dark:text-gray-400">Tema claro, ideal para el día</div>
             </div>
           </div>
-          {theme === 'walther' && (
+          {theme === 'claro' && (
             <div className="w-5 h-5 bg-orange-500 rounded-full flex items-center justify-center">
               <div className="w-2 h-2 bg-white rounded-full"></div>
             </div>

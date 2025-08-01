@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, useMemo } from 'react';
 
-type Theme = 'maykel' | 'walther';
+type Theme = 'oscuro' | 'claro';
 
 interface ThemeContextType {
   theme: Theme;
@@ -13,7 +13,7 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<Theme>('walther');
+  const [theme, setTheme] = useState<Theme>('claro');
   const [mounted, setMounted] = useState(false);
 
   const applyTheme = (newTheme: Theme) => {
@@ -21,14 +21,14 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const body = document.body;
     
     // Limpiar todas las clases de tema
-    root.classList.remove('theme-maykel', 'theme-walther', 'dark');
-    body.classList.remove('theme-maykel', 'theme-walther', 'dark');
-    
+    root.classList.remove('theme-oscuro', 'theme-claro', 'dark');
+    body.classList.remove('theme-oscuro', 'theme-claro', 'dark');
+
     // Aplicar nuevo tema
     root.classList.add(`theme-${newTheme}`);
     body.classList.add(`theme-${newTheme}`);
-    
-    if (newTheme === 'maykel') {
+
+    if (newTheme === 'oscuro') {
       root.classList.add('dark');
       body.classList.add('dark');
       root.style.colorScheme = 'dark';
@@ -56,7 +56,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const stored = localStorage.getItem('soundly-theme') as Theme;
-    if (stored && (stored === 'maykel' || stored === 'walther')) {
+    if (stored && (stored === 'oscuro' || stored === 'claro')) {
       setTheme(stored);
     }
     setMounted(true);
@@ -78,7 +78,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         applyTheme(newTheme);
       }
     },
-    isDark: theme === 'maykel'
+    isDark: theme === 'oscuro'
   }), [theme, mounted]);
 
   if (!mounted) {

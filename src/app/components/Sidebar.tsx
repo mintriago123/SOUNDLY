@@ -160,39 +160,47 @@ const menuItems: MenuItem[] = [
   },
   
   // Items para Administradores
+  // {
+  //   name: 'Dashboard Admin',
+  //   href: '/dashboard/admin',
+  //   icon: HomeIcon,
+  //   description: 'Panel de administración',
+  //   adminOnly: true
+  // },
+  // {
+  //   name: 'Usuarios',
+  //   href: '/dashboard/admin/usuarios',
+  //   icon: UserGroupIcon,
+  //   description: 'Gestionar usuarios',
+  //   adminOnly: true
+  // },
   {
-    name: 'Gestión',
-    href: '/dashboard/admin',
-    icon: UserGroupIcon,
-    description: 'Panel de administración',
-    adminOnly: true,
-    subItems: [
-      {
-        name: 'Usuarios',
-        href: '/dashboard/admin/usuarios',
-        description: 'Gestionar usuarios'
-      },
-      {
-        name: 'Roles',
-        href: '/dashboard/admin/roles',
-        description: 'Gestionar roles de usuario'
-      },
-      {
-        name: 'Contenido',
-        href: '/dashboard/admin/contenido',
-        description: 'Gestionar música'
-      },
-      {
-        name: 'Estadísticas',
-        href: '/dashboard/admin/estadisticas',
-        description: 'Métricas del sistema'
-      },
-      {
-        name: 'Configuración',
-        href: '/dashboard/admin/configuracion',
-        description: 'Ajustes del sistema'
-      }
-    ]
+    name: 'Usuarios',
+    href: '/dashboard/admin/roles',
+    icon: UserIcon,
+    description: 'Gestionar roles de usuario',
+    adminOnly: true
+  },
+  // {
+  //   name: 'Contenido',
+  //   href: '/dashboard/admin/contenido',
+  //   icon: MusicalNoteIcon,
+  //   description: 'Gestionar música',
+  //   adminOnly: true
+  // },
+  {
+    name: 'Estadísticas',
+    href: '/dashboard/admin/estadisticas',
+    icon: ChartBarIcon,
+    description: 'Métricas del sistema',
+    adminOnly: true
+  },
+  {
+    name: 'Configuración',
+    href: '/dashboard/admin/configuracion',
+    icon: Cog6ToothIcon,
+    description: 'Ajustes del sistema',
+    adminOnly: true
   },
   
   // Perfil (siempre al final)
@@ -361,8 +369,9 @@ export default function Sidebar({
                 
                 <button
                   onClick={() => setIsCollapsed(!isCollapsed)}
-                  className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors flex-shrink-0 md:hidden"
+                  className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors flex-shrink-0"
                   aria-label="Contraer sidebar"
+                  title="Contraer sidebar"
                 >
                   <ChevronLeftIcon className="w-4 h-4 text-gray-600" />
                 </button>

@@ -123,18 +123,24 @@ export default function HomePage() {
             {barHeights.map((height, i) => (
               <div
                 key={i}
-                className={`w-2 bg-gradient-to-t from-[#6e1f86] to-[#ba319f] rounded-full ${
-                  isPlaying ? 'animate-pulse' : ''
-                }`}
+                className="w-2 bg-gradient-to-t from-[#6e1f86] to-[#ba319f] rounded-full"
                 style={{
                   height: `${height}px`,
-                  animationDelay: `${i * 0.1}s`
+                  animation: `pulse 1s ease-in-out ${i * 0.1}s infinite alternate`
                 }}
               ></div>
             ))}
           </div>
         </div>
       )}
+
+      {/* Custom animation keyframes */}
+      <style jsx global>{`
+        @keyframes pulse {
+          0% { height: ${barHeights[0]?.toFixed(0) || 20}px; }
+          100% { height: ${(barHeights[0] ? barHeights[0] * 1.5 : 30).toFixed(0)}px; }
+        }
+      `}</style>
     </div>
   );
 }

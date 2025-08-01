@@ -327,12 +327,12 @@ export default function Sidebar({
         />
       )}
       
-      <div className={`fixed left-0 top-0 h-full bg-gradient-to-b from-white to-gray-50 shadow-xl border-r border-gray-200 transition-all duration-300 flex flex-col z-40 ${
+      <div className={`fixed left-0 top-0 h-full bg-gradient-to-b from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 shadow-xl border-r border-gray-200 dark:border-gray-700 transition-all duration-300 flex flex-col z-40 ${
         isCollapsed ? 'w-16' : 'w-64'
       } ${isOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 ${className}`}>
         
         {/* Header del Sidebar con Avatar */}
-        <div className="p-4 border-b border-gray-100 bg-white">
+        <div className="p-4 border-b border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800">
           {!isCollapsed ? (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
@@ -397,27 +397,27 @@ export default function Sidebar({
               </button>
               
               {isProfileMenuOpen && (
-                <div className="mt-2 space-y-1 bg-gray-50 rounded-lg p-2">
+                <div className="mt-2 space-y-1 bg-gray-50 dark:bg-gray-700/50 rounded-lg p-2">
                   <Link
                     href="/dashboard/perfil"
-                    className="w-full flex items-center px-3 py-2 text-left rounded-md hover:bg-white hover:shadow-sm transition-all duration-200"
+                    className="w-full flex items-center px-3 py-2 text-left rounded-md hover:bg-white dark:hover:bg-gray-600 hover:shadow-sm transition-all duration-200"
                     onClick={onClose}
                   >
-                    <UserIcon className="w-4 h-4 mr-2 text-gray-500" />
-                    <span className="text-xs text-gray-700 font-medium">Mi Perfil</span>
+                    <UserIcon className="w-4 h-4 mr-2 text-gray-500 dark:text-gray-400" />
+                    <span className="text-xs text-gray-700 dark:text-gray-200 font-medium">Mi Perfil</span>
                   </Link>
                   <Link
                     href="/dashboard/configuracion"
-                    className="w-full flex items-center px-3 py-2 text-left rounded-md hover:bg-white hover:shadow-sm transition-all duration-200"
+                    className="w-full flex items-center px-3 py-2 text-left rounded-md hover:bg-white dark:hover:bg-gray-600 hover:shadow-sm transition-all duration-200"
                     onClick={onClose}
                   >
-                    <Cog6ToothIcon className="w-4 h-4 mr-2 text-gray-500" />
-                    <span className="text-xs text-gray-700 font-medium">Configuración</span>
+                    <Cog6ToothIcon className="w-4 h-4 mr-2 text-gray-500 dark:text-gray-400" />
+                    <span className="text-xs text-gray-700 dark:text-gray-200 font-medium">Configuración</span>
                   </Link>
                   <button
                     onClick={handleLogout}
                     disabled={isLoggingOut}
-                    className="w-full flex items-center px-3 py-2 text-left rounded-md hover:bg-white hover:shadow-sm transition-all duration-200 text-red-600 hover:text-red-700 disabled:opacity-50"
+                    className="w-full flex items-center px-3 py-2 text-left rounded-md hover:bg-white dark:hover:bg-gray-600 hover:shadow-sm transition-all duration-200 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 disabled:opacity-50"
                   >
                     <PowerIcon className="w-4 h-4 mr-2" />
                     <span className="text-xs font-medium">

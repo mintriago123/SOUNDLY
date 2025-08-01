@@ -55,16 +55,19 @@ export default function PaginaLogin() {
 
       {/* Navigation */}
       <nav className="relative z-10 flex justify-between items-center p-6 lg:p-8">
-        <div className="flex items-center space-x-2">
-          <div className="w-10 h-10 bg-gradient-to-r from-[#6e1f86] to-[#ba319f] rounded-lg flex items-center justify-center">
+        <Link 
+          href="/" 
+          className="flex items-center space-x-2 group transition-all duration-300 hover:opacity-90"
+        >
+          <div className="w-10 h-10 bg-gradient-to-r from-[#6e1f86] to-[#ba319f] rounded-lg flex items-center justify-center transition-transform duration-300 group-hover:rotate-[15deg]">
             <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
               <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
             </svg>
           </div>
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-[#ba319f] to-white bg-clip-text text-transparent">
+          <h1 className="text-2xl font-bold bg-gradient-to-r from-[#ba319f] to-white bg-clip-text text-transparent group-hover:from-[#ba319f] group-hover:to-[#6e1f86] transition-all duration-500">
             Soundly
           </h1>
-        </div>
+        </Link>
         
         <Link href="/auth/register">
           <button className="px-6 py-2 bg-gradient-to-r from-[#6e1f86] to-[#ba319f] text-white rounded-full hover:shadow-lg hover:shadow-[#ba319f]/25 transition-all duration-300 font-medium">

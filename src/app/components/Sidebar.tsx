@@ -233,12 +233,18 @@ export default function Sidebar({
   }, []);
 
   const isAdmin = userRole === 'admin';
-  const isPremium = userRole === 'premium' || userRole === 'admin';
-  const isArtist = userRole === 'artista' || userRole === 'admin';
+  const isPremium = userRole === 'premium';
+  const isArtist = userRole === 'artista';
   const isUser = userRole === 'usuario' || !userRole;
 
   // Filtrar items según el rol
   const filteredMenuItems = menuItems.filter(item => {
+    // Si es admin, solo mostrar items administrativos y perfil
+    if (isAdmin) {
+      return item.adminOnly || item.name === 'Mi Perfil';
+    }
+    
+    // Para otros roles, aplicar filtros normales
     if (item.adminOnly && !isAdmin) return false;
     if (item.premiumOnly && !isPremium) return false;
     if (item.artistOnly && !isArtist) return false;
@@ -283,7 +289,7 @@ export default function Sidebar({
     if (!isActive) return 'text-gray-700 hover:bg-gray-50 hover:text-gray-900';
     
     if (isAdmin) return 'bg-blue-50 text-blue-700 border border-blue-200';
-    if (isPremium) return 'bg-purple-50 text-purple-700 border border-purple-200';
+    if (isPremium && !isAdmin) return 'bg-purple-50 text-purple-700 border border-purple-200';
     return 'bg-gray-50 text-gray-700 border border-gray-200';
   };
 
@@ -291,20 +297,20 @@ export default function Sidebar({
     if (!isActive) return 'text-gray-500 group-hover:text-gray-700';
     
     if (isAdmin) return 'text-blue-600';
-    if (isPremium) return 'text-purple-600';
+    if (isPremium && !isAdmin) return 'text-purple-600';
     return 'text-gray-600';
   };
 
   const getRoleColor = () => {
     if (isAdmin) return 'bg-blue-500 text-white';
-    if (isPremium) return 'bg-gradient-to-r from-purple-500 to-pink-500 text-white';
+    if (isPremium && !isAdmin) return 'bg-gradient-to-r from-purple-500 to-pink-500 text-white';
     return 'bg-gray-500 text-white';
   };
 
   const getRoleLabel = () => {
-    if (isAdmin) return 'Panel Admin';
-    if (isPremium) return 'Premium';
-    return 'Soundly';
+    if (isAdmin) return 'Administrador';
+    if (isPremium && !isAdmin) return 'Premium';
+    return 'Usuario';
   };
 
   const getUserInitials = (name: string) => {
@@ -522,8 +528,8 @@ export default function Sidebar({
               );
             })}
             
-            {/* Botón de Upgrade para usuarios gratuitos */}
-            {isUser && !isCollapsed && (
+            {/* Botón de Upgrade para usuarios gratuitos solamente */}
+            {isUser && !isAdmin && !isCollapsed && (
               <li className="pt-4 border-t border-gray-200 mt-4">
                 <Link
                   href="/dashboard/upgrade"

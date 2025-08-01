@@ -204,12 +204,12 @@ const menuItems: MenuItem[] = [
   },
   
   // Perfil (siempre al final)
-  {
-    name: 'Mi Perfil',
-    href: '/dashboard/perfil',
-    icon: UserIcon,
-    description: 'Configuración personal'
-  }
+  // {
+  //   name: 'Mi Perfil',
+  //   href: '/dashboard/perfil',
+  //   icon: UserIcon,
+  //   description: 'Configuración personal'
+  // }
 ];
 
 export default function Sidebar({ 
@@ -413,14 +413,14 @@ export default function Sidebar({
               
               {isProfileMenuOpen && (
                 <div className="mt-2 space-y-1 bg-gray-50 dark:bg-gray-700/50 rounded-lg p-2">
-                  <Link
+                  {/* <Link
                     href="/dashboard/perfil"
                     className="w-full flex items-center px-3 py-2 text-left rounded-md hover:bg-white dark:hover:bg-gray-600 hover:shadow-sm transition-all duration-200"
                     onClick={onClose}
                   >
                     <UserIcon className="w-4 h-4 mr-2 text-gray-500 dark:text-gray-400" />
                     <span className="text-xs text-gray-700 dark:text-gray-200 font-medium">Mi Perfil</span>
-                  </Link>
+                  </Link> */}
                   <Link
                     href="/dashboard/configuracion"
                     className="w-full flex items-center px-3 py-2 text-left rounded-md hover:bg-white dark:hover:bg-gray-600 hover:shadow-sm transition-all duration-200"

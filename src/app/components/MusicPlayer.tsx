@@ -98,7 +98,7 @@ export default function MusicPlayer({ cancion, onNext, onPrevious, playlist }: M
   }
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-gray-900 text-white p-4 border-t shadow-lg">
+    <div className="fixed bottom-0 left-0 right-0 bg-gray-900 dark:bg-gray-800 text-white p-4 border-t shadow-lg">
       <div className="max-w-6xl mx-auto">
         {/* Audio element */}
         <audio

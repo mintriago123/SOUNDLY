@@ -11,7 +11,7 @@ interface DashboardLayoutProps {
   children: React.ReactNode;
 }
 
-export default function DashboardLayout({ children }: DashboardLayoutProps) {
+export default function DashboardLayout({ children }: Readonly<DashboardLayoutProps>) {
   const { supabase } = useSupabase();
   const router = useRouter();
   const [usuario, setUsuario] = useState<Usuario | null>(null);
@@ -58,10 +58,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     }
   };
 
-  const cerrarSesion = async () => {
-    await supabase.auth.signOut();
-    router.push('/');
-  };
+
 
   if (cargando) {
     return (
@@ -76,9 +73,16 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen" style={{ 
+      backgroundColor: 'var(--background)', 
+      color: 'var(--foreground)',
+      transition: 'background-color 0.3s ease, color 0.3s ease'
+    }}>
       {/* Header - Solo visible en móvil */}
-      <header className="bg-white shadow-sm border-b md:hidden">
+      <header className="shadow-sm border-b md:hidden" style={{
+        backgroundColor: 'var(--card)',
+        borderColor: 'var(--border)'
+      }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             {/* Logo y botón de menú */}

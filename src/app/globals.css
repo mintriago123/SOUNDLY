@@ -1,18 +1,18 @@
 @import "tailwindcss";
 
+/* Variables CSS por defecto (Modo Walther - Claro) */
 :root {
-  --background: #1a0b2e;
-  --foreground: #ffffff;
+  --background: #fefcff;
+  --foreground: #1a0b2e;
   --primary: #8b5cf6;
   --primary-dark: #7c3aed;
   --secondary: #a855f7;
   --accent: #c084fc;
-  --muted: #4c1d95;
-  --card: #2d1b69;
-  --border: #553c9a;
-}
-
-:root {
+  --muted: #f3e8ff;
+  --card: #ffffff;
+  --border: #e9d5ff;
+  --sidebar: #f9f7ff;
+  --nav: #faf7ff;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-primary: var(--primary);
@@ -21,35 +21,220 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #1a0b2e;
-    --foreground: #ffffff;
-  }
+/* Modo Maykel (Oscuro) */
+.theme-maykel,
+.dark,
+html.theme-maykel,
+html.dark {
+  --background: #0f0f23 !important;
+  --foreground: #ffffff !important;
+  --primary: #8b5cf6 !important;
+  --primary-dark: #7c3aed !important;
+  --secondary: #a855f7 !important;
+  --accent: #c084fc !important;
+  --muted: #4c1d95 !important;
+  --card: #1e1e3f !important;
+  --border: #553c9a !important;
+  --sidebar: #16162a !important;
+  --nav: #1a1a2e !important;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    --background: #faf7ff;
-    --foreground: #1a0b2e;
-    --primary: #8b5cf6;
-    --card: #ffffff;
-    --muted: #e9d5ff;
-    --border: #d8b4fe;
-  }
+/* Modo Walther (Claro) */
+.theme-walther,
+html.theme-walther {
+  --background: #fefcff !important;
+  --foreground: #1a0b2e !important;
+  --primary: #8b5cf6 !important;
+  --primary-dark: #7c3aed !important;
+  --secondary: #a855f7 !important;
+  --accent: #c084fc !important;
+  --muted: #f3e8ff !important;
+  --card: #ffffff !important;
+  --border: #e9d5ff !important;
+  --sidebar: #f9f7ff !important;
+  --nav: #faf7ff !important;
 }
 
+/* Estilos base del body */
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--background) !important;
+  color: var(--foreground) !important;
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-/* Gradientes para fondos */
-.gradient-purple {
-  background: linear-gradient(135deg, #1a0b2e 0%, #2d1b69 50%, #4c1d95 100%);
+/* Estilos globales para elementos comunes - Modo Claro */
+.theme-walther,
+.theme-walther * {
+  --tw-bg-opacity: 1;
 }
 
-.gradient-button {
-  background: linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%);
+.theme-walther .bg-gray-50 {
+  background-color: #fefcff !important;
+}
+
+.theme-walther .bg-gray-100 {
+  background-color: #f9f7ff !important;
+}
+
+.theme-walther .bg-gray-200 {
+  background-color: #f3e8ff !important;
+}
+
+.theme-walther .bg-gray-800 {
+  background-color: #ffffff !important;
+}
+
+.theme-walther .bg-gray-900 {
+  background-color: #fefcff !important;
+}
+
+.theme-walther .text-gray-900 {
+  color: #1a0b2e !important;
+}
+
+.theme-walther .text-gray-800 {
+  color: #2d1b69 !important;
+}
+
+.theme-walther .text-gray-700 {
+  color: #4c1d95 !important;
+}
+
+.theme-walther .text-gray-600 {
+  color: #553c9a !important;
+}
+
+.theme-walther .text-gray-500 {
+  color: #7c3aed !important;
+}
+
+.theme-walther .text-gray-400 {
+  color: #8b5cf6 !important;
+}
+
+.theme-walther .text-white {
+  color: #1a0b2e !important;
+}
+
+.theme-walther .border-gray-200 {
+  border-color: #e9d5ff !important;
+}
+
+.theme-walther .border-gray-300 {
+  border-color: #d8b4fe !important;
+}
+
+.theme-walther .border-gray-600 {
+  border-color: #c084fc !important;
+}
+
+.theme-walther .border-gray-700 {
+  border-color: #a855f7 !important;
+}
+
+/* Estilos globales para elementos comunes - Modo Oscuro */
+.theme-maykel .bg-gray-50,
+.dark .bg-gray-50 {
+  background-color: #1e1e3f !important;
+}
+
+.theme-maykel .bg-gray-100,
+.dark .bg-gray-100 {
+  background-color: #2d1b69 !important;
+}
+
+.theme-maykel .bg-gray-200,
+.dark .bg-gray-200 {
+  background-color: #4c1d95 !important;
+}
+
+.theme-maykel .bg-gray-800,
+.dark .bg-gray-800 {
+  background-color: #1e1e3f !important;
+}
+
+.theme-maykel .bg-gray-900,
+.dark .bg-gray-900 {
+  background-color: #0f0f23 !important;
+}
+
+.theme-maykel .bg-white,
+.dark .bg-white {
+  background-color: #1e1e3f !important;
+}
+
+.theme-maykel .text-gray-900,
+.dark .text-gray-900 {
+  color: #ffffff !important;
+}
+
+.theme-maykel .text-gray-800,
+.dark .text-gray-800 {
+  color: #e5e7eb !important;
+}
+
+.theme-maykel .text-gray-700,
+.dark .text-gray-700 {
+  color: #d1d5db !important;
+}
+
+.theme-maykel .text-gray-600,
+.dark .text-gray-600 {
+  color: #9ca3af !important;
+}
+
+.theme-maykel .text-gray-500,
+.dark .text-gray-500 {
+  color: #6b7280 !important;
+}
+
+.theme-maykel .text-gray-400,
+.dark .text-gray-400 {
+  color: #9ca3af !important;
+}
+
+.theme-maykel .text-white,
+.dark .text-white {
+  color: #ffffff !important;
+}
+
+.theme-maykel .border-gray-200,
+.dark .border-gray-200 {
+  border-color: #553c9a !important;
+}
+
+.theme-maykel .border-gray-300,
+.dark .border-gray-300 {
+  border-color: #4c1d95 !important;
+}
+
+.theme-maykel .border-gray-600,
+.dark .border-gray-600 {
+  border-color: #374151 !important;
+}
+
+.theme-maykel .border-gray-700,
+.dark .border-gray-700 {
+  border-color: #553c9a !important;
+}
+
+/* Transiciones suaves para el cambio de tema */
+* {
+  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease !important;
+}
+
+/* Forzar aplicación de temas */
+.theme-walther body,
+html.theme-walther body {
+  background-color: #fefcff !important;
+  color: #1a0b2e !important;
+}
+
+.theme-maykel body,
+.dark body,
+html.theme-maykel body,
+html.dark body {
+  background-color: #0f0f23 !important;
+  color: #ffffff !important;
 }

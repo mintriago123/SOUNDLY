@@ -4,20 +4,17 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSupabase } from '@/app/components/SupabaseProvider';
 import DashboardLayout from '@/app/components/DashboardLayout';
+import ThemeSelector from '@/app/components/ThemeSelector';
 import {
   UserIcon,
   AtSymbolIcon,
-  PhoneIcon,
-  MapPinIcon,
-  CameraIcon,
   CheckCircleIcon,
   ExclamationCircleIcon,
   MusicalNoteIcon,
   SparklesIcon,
-  CalendarIcon,
   ArrowLeftIcon,
-  HeartIcon,
-  PlayIcon
+  CameraIcon,
+  HeartIcon
 } from '@heroicons/react/24/outline';
 
 interface UserProfile {
@@ -42,11 +39,7 @@ export default function PerfilPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [formData, setFormData] = useState({
-    nombre: '',
-    telefono: '',
-    direccion: '',
-    biografia: '',
-    artista_favorito: ''
+    nombre: ''
   });
   const [stats, setStats] = useState({
     totalCanciones: 0,
@@ -92,11 +85,7 @@ export default function PerfilPage() {
 
         setProfile(combinedProfile);
         setFormData({
-          nombre: data.nombre || '',
-          telefono: data.telefono || '',
-          direccion: data.direccion || '',
-          biografia: data.biografia || '',
-          artista_favorito: data.artista_favorito || ''
+          nombre: data.nombre || ''
         });
 
         // Obtener estadísticas del usuario
@@ -159,10 +148,6 @@ export default function PerfilPage() {
       return 'El nombre es obligatorio';
     }
     
-    if (formData.telefono && formData.telefono.trim() && formData.telefono.replace(/\D/g, '').length < 10) {
-      return 'El teléfono debe tener al menos 10 dígitos';
-    }
-    
     return null;
   };
 
@@ -186,11 +171,7 @@ export default function PerfilPage() {
       }
 
       const updateData: any = {
-        nombre: formData.nombre.trim(),
-        telefono: formData.telefono.trim(),
-        direccion: formData.direccion.trim(),
-        biografia: formData.biografia.trim(),
-        artista_favorito: formData.artista_favorito.trim()
+        nombre: formData.nombre.trim()
       };
 
       const { error } = await supabase
@@ -444,16 +425,20 @@ export default function PerfilPage() {
 
           {/* Formulario de edición */}
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
-                <UserIcon className="w-6 h-6 mr-2" />
+            <div className="rounded-xl shadow-sm border p-6" style={{
+              backgroundColor: 'var(--card)',
+              borderColor: 'var(--border)',
+              color: 'var(--foreground)'
+            }}>
+              <h2 className="text-xl font-semibold mb-6 flex items-center" style={{ color: 'var(--foreground)' }}>
+                <UserIcon className="w-6 h-6 mr-2" style={{ color: 'var(--foreground)' }} />
                 Información Personal
               </h2>
 
               <form onSubmit={handleSubmit} className="space-y-6">
                 {/* Nombre completo */}
                 <div>
-                  <label htmlFor="nombre" className="block text-sm font-medium text-gray-700 mb-2">
+                  <label htmlFor="nombre" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Nombre de Usuario *
                   </label>
                   <div className="relative">
@@ -464,7 +449,7 @@ export default function PerfilPage() {
                       name="nombre"
                       value={formData.nombre}
                       onChange={handleInputChange}
-                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                       placeholder="Tu nombre de usuario"
                       required
                     />
@@ -473,7 +458,7 @@ export default function PerfilPage() {
 
                 {/* Email (solo lectura) */}
                 <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Email (Solo lectura)
                   </label>
                   <div className="relative">
@@ -481,98 +466,18 @@ export default function PerfilPage() {
                     <input
                       type="email"
                       id="email"
-                      value={profile.email || ''}
-                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
+                      value={profile?.email || ''}
+                      className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400 rounded-lg bg-gray-50 text-gray-500"
                       disabled
                     />
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                     El email está vinculado a tu cuenta de autenticación
                   </p>
                 </div>
 
-                {/* Teléfono */}
-                <div>
-                  <label htmlFor="telefono" className="block text-sm font-medium text-gray-700 mb-2">
-                    Teléfono (Opcional)
-                  </label>
-                  <div className="relative">
-                    <PhoneIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                    <input
-                      type="tel"
-                      id="telefono"
-                      name="telefono"
-                      value={formData.telefono}
-                      onChange={handleInputChange}
-                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                      placeholder="Tu número de teléfono"
-                    />
-                  </div>
-                </div>
-
-                {/* Ubicación */}
-                <div>
-                  <label htmlFor="direccion" className="block text-sm font-medium text-gray-700 mb-2">
-                    Ubicación (Opcional)
-                  </label>
-                  <div className="relative">
-                    <MapPinIcon className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
-                    <textarea
-                      id="direccion"
-                      name="direccion"
-                      value={formData.direccion}
-                      onChange={handleInputChange}
-                      rows={2}
-                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
-                      placeholder="Ciudad, país"
-                    />
-                  </div>
-                </div>
-
-                {/* Biografía */}
-                <div>
-                  <label htmlFor="biografia" className="block text-sm font-medium text-gray-700 mb-2">
-                    Biografía Musical (Opcional)
-                  </label>
-                  <div className="relative">
-                    <MusicalNoteIcon className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
-                    <textarea
-                      id="biografia"
-                      name="biografia"
-                      value={formData.biografia}
-                      onChange={handleInputChange}
-                      rows={3}
-                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
-                      placeholder="Cuéntanos sobre tus gustos musicales..."
-                      maxLength={500}
-                    />
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Máximo 500 caracteres. {formData.biografia.length}/500
-                  </p>
-                </div>
-
-                {/* Artista favorito */}
-                <div>
-                  <label htmlFor="artista_favorito" className="block text-sm font-medium text-gray-700 mb-2">
-                    Artista Favorito (Opcional)
-                  </label>
-                  <div className="relative">
-                    <HeartIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                    <input
-                      type="text"
-                      id="artista_favorito"
-                      name="artista_favorito"
-                      value={formData.artista_favorito}
-                      onChange={handleInputChange}
-                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                      placeholder="Nombre de tu artista favorito"
-                    />
-                  </div>
-                </div>
-
                 {/* Botón de guardar */}
-                <div className="flex justify-end pt-6 border-t border-gray-200">
+                <div className="flex justify-end pt-6 border-t border-gray-200 dark:border-gray-700">
                   <button
                     type="submit"
                     disabled={isSaving}
@@ -592,6 +497,11 @@ export default function PerfilPage() {
                   </button>
                 </div>
               </form>
+            </div>
+
+            {/* Selector de Tema */}
+            <div className="mt-6">
+              <ThemeSelector />
             </div>
           </div>
         </div>

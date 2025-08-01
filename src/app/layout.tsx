@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import SupabaseProvider from "./components/SupabaseProvider";
+import { ThemeProvider } from "./components/ThemeProviderEnhanced";
 
 /**
  * Configuración de fuentes de Google Fonts
@@ -62,9 +63,11 @@ export default function RootLayout({
   return (
     <html lang="es">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        <SupabaseProvider>
-          {children}
-        </SupabaseProvider>
+        <ThemeProvider>
+          <SupabaseProvider>
+            {children}
+          </SupabaseProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

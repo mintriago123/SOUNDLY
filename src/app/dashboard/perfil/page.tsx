@@ -14,7 +14,13 @@ import {
   SparklesIcon,
   ArrowLeftIcon,
   CameraIcon,
-  HeartIcon
+  HeartIcon,
+  PhoneIcon,
+  MapPinIcon,
+  DocumentTextIcon,
+  EyeIcon,
+  GlobeAltIcon,
+  CalendarDaysIcon
 } from '@heroicons/react/24/outline';
 
 interface UserProfile {
@@ -29,6 +35,12 @@ interface UserProfile {
   biografia?: string;
   generos_favoritos?: string[];
   artista_favorito?: string;
+  pais?: string;
+  ciudad?: string;
+  fecha_nacimiento?: string;
+  perfil_publico?: boolean;
+  mostrar_estadisticas?: boolean;
+  permitir_seguimientos?: boolean;
 }
 
 export default function PerfilPage() {
@@ -39,7 +51,17 @@ export default function PerfilPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [formData, setFormData] = useState({
-    nombre: ''
+    nombre: '',
+    biografia: '',
+    telefono: '',
+    pais: '',
+    ciudad: '',
+    artista_favorito: '',
+    generos_favoritos: [] as string[],
+    fecha_nacimiento: '',
+    perfil_publico: true,
+    mostrar_estadisticas: true,
+    permitir_seguimientos: true
   });
   const [stats, setStats] = useState({
     totalCanciones: 0,
@@ -47,6 +69,23 @@ export default function PerfilPage() {
     totalFavoritos: 0,
     tiempoEscucha: '0h 0m'
   });
+
+  // Géneros musicales disponibles
+  const generosDisponibles = [
+    'Pop', 'Rock', 'Hip Hop', 'Reggaeton', 'Salsa', 'Bachata', 'Merengue',
+    'Jazz', 'Blues', 'Country', 'Folk', 'Electrónica', 'House', 'Techno',
+    'Reggae', 'Cumbia', 'Vallenato', 'Mariachi', 'Tango', 'Balada',
+    'Funk', 'Soul', 'R&B', 'Gospel', 'Metal', 'Punk', 'Indie', 'Alternative'
+  ];
+
+  // Países disponibles (algunos principales)
+  const paisesDisponibles = [
+    'Argentina', 'Bolivia', 'Brasil', 'Chile', 'Colombia', 'Costa Rica',
+    'Cuba', 'Ecuador', 'El Salvador', 'España', 'Guatemala', 'Honduras',
+    'México', 'Nicaragua', 'Panamá', 'Paraguay', 'Perú', 'Puerto Rico',
+    'República Dominicana', 'Uruguay', 'Venezuela', 'Estados Unidos',
+    'Canadá', 'Francia', 'Italia', 'Alemania', 'Reino Unido'
+  ];
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -85,7 +124,17 @@ export default function PerfilPage() {
 
         setProfile(combinedProfile);
         setFormData({
-          nombre: data.nombre || ''
+          nombre: data.nombre || '',
+          biografia: data.biografia || '',
+          telefono: data.telefono || '',
+          pais: data.pais || '',
+          ciudad: data.ciudad || '',
+          artista_favorito: data.artista_favorito || '',
+          generos_favoritos: data.generos_favoritos || [],
+          fecha_nacimiento: data.fecha_nacimiento || '',
+          perfil_publico: data.perfil_publico ?? true,
+          mostrar_estadisticas: data.mostrar_estadisticas ?? true,
+          permitir_seguimientos: data.permitir_seguimientos ?? true
         });
 
         // Obtener estadísticas del usuario
@@ -130,14 +179,36 @@ export default function PerfilPage() {
     loadProfile();
   }, [supabase]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value, type } = e.target;
+    
+    if (type === 'checkbox') {
+      const checkbox = e.target as HTMLInputElement;
+      setFormData(prev => ({
+        ...prev,
+        [name]: checkbox.checked
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
     
     // Limpiar mensaje de error cuando el usuario empiece a escribir
+    if (message?.type === 'error') {
+      setMessage(null);
+    }
+  };
+
+  const handleGeneroToggle = (genero: string) => {
+    setFormData(prev => ({
+      ...prev,
+      generos_favoritos: prev.generos_favoritos.includes(genero)
+        ? prev.generos_favoritos.filter(g => g !== genero)
+        : [...prev.generos_favoritos, genero].slice(0, 5) // Máximo 5 géneros
+    }));
+
     if (message?.type === 'error') {
       setMessage(null);
     }
@@ -146,6 +217,18 @@ export default function PerfilPage() {
   const validateForm = (): string | null => {
     if (!formData.nombre.trim()) {
       return 'El nombre es obligatorio';
+    }
+    
+    if (formData.biografia && formData.biografia.length > 500) {
+      return 'La biografía no puede exceder 500 caracteres';
+    }
+
+    if (formData.telefono && !/^\+?[\d\s\-()]{7,15}$/.test(formData.telefono)) {
+      return 'El formato del teléfono no es válido';
+    }
+
+    if (formData.generos_favoritos.length > 5) {
+      return 'Puedes seleccionar máximo 5 géneros favoritos';
     }
     
     return null;
@@ -171,7 +254,17 @@ export default function PerfilPage() {
       }
 
       const updateData: any = {
-        nombre: formData.nombre.trim()
+        nombre: formData.nombre.trim(),
+        biografia: formData.biografia.trim(),
+        telefono: formData.telefono.trim(),
+        pais: formData.pais,
+        ciudad: formData.ciudad.trim(),
+        artista_favorito: formData.artista_favorito.trim(),
+        generos_favoritos: formData.generos_favoritos,
+        fecha_nacimiento: formData.fecha_nacimiento,
+        perfil_publico: formData.perfil_publico,
+        mostrar_estadisticas: formData.mostrar_estadisticas,
+        permitir_seguimientos: formData.permitir_seguimientos
       };
 
       const { error } = await supabase
@@ -374,6 +467,40 @@ export default function PerfilPage() {
                     <span className="font-medium ml-1">{profile.artista_favorito}</span>
                   </div>
                 )}
+
+                {profile.pais && (
+                  <div className="flex items-center text-sm text-gray-600">
+                    <GlobeAltIcon className="w-4 h-4 mr-2 text-blue-500" />
+                    <span>País: </span>
+                    <span className="font-medium ml-1">
+                      {profile.pais}
+                      {profile.ciudad && `, ${profile.ciudad}`}
+                    </span>
+                  </div>
+                )}
+
+                {profile.generos_favoritos && profile.generos_favoritos.length > 0 && (
+                  <div className="text-sm text-gray-600">
+                    <div className="flex items-start">
+                      <MusicalNoteIcon className="w-4 h-4 mr-2 text-purple-500 mt-0.5" />
+                      <div>
+                        <span>Géneros favoritos: </span>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {profile.generos_favoritos.slice(0, 3).map((genero) => (
+                            <span key={genero} className="bg-purple-100 text-purple-700 px-2 py-1 rounded-full text-xs">
+                              {genero}
+                            </span>
+                          ))}
+                          {profile.generos_favoritos.length > 3 && (
+                            <span className="text-xs text-gray-500">
+                              +{profile.generos_favoritos.length - 3} más
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -474,6 +601,231 @@ export default function PerfilPage() {
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                     El email está vinculado a tu cuenta de autenticación
                   </p>
+                </div>
+
+                {/* Biografía */}
+                <div>
+                  <label htmlFor="biografia" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Biografía Musical
+                  </label>
+                  <div className="relative">
+                    <DocumentTextIcon className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+                    <textarea
+                      id="biografia"
+                      name="biografia"
+                      value={formData.biografia}
+                      onChange={handleInputChange}
+                      rows={4}
+                      maxLength={500}
+                      className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+                      placeholder="Cuéntanos sobre tu pasión por la música..."
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    {formData.biografia.length}/500 caracteres
+                  </p>
+                </div>
+
+                {/* Información de contacto */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Teléfono */}
+                  <div>
+                    <label htmlFor="telefono" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Teléfono
+                    </label>
+                    <div className="relative">
+                      <PhoneIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                      <input
+                        type="tel"
+                        id="telefono"
+                        name="telefono"
+                        value={formData.telefono}
+                        onChange={handleInputChange}
+                        className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        placeholder="+1 234 567 8900"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Fecha de nacimiento */}
+                  <div>
+                    <label htmlFor="fecha_nacimiento" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Fecha de Nacimiento
+                    </label>
+                    <div className="relative">
+                      <CalendarDaysIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                      <input
+                        type="date"
+                        id="fecha_nacimiento"
+                        name="fecha_nacimiento"
+                        value={formData.fecha_nacimiento}
+                        onChange={handleInputChange}
+                        className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Ubicación */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* País */}
+                  <div>
+                    <label htmlFor="pais" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      País
+                    </label>
+                    <div className="relative">
+                      <GlobeAltIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                      <select
+                        id="pais"
+                        name="pais"
+                        value={formData.pais}
+                        onChange={handleInputChange}
+                        className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      >
+                        <option value="">Selecciona tu país</option>
+                        {paisesDisponibles.map((pais) => (
+                          <option key={pais} value={pais}>{pais}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Ciudad */}
+                  <div>
+                    <label htmlFor="ciudad" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Ciudad
+                    </label>
+                    <div className="relative">
+                      <MapPinIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                      <input
+                        type="text"
+                        id="ciudad"
+                        name="ciudad"
+                        value={formData.ciudad}
+                        onChange={handleInputChange}
+                        className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        placeholder="Tu ciudad"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Artista favorito */}
+                <div>
+                  <label htmlFor="artista_favorito" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Artista Favorito
+                  </label>
+                  <div className="relative">
+                    <HeartIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <input
+                      type="text"
+                      id="artista_favorito"
+                      name="artista_favorito"
+                      value={formData.artista_favorito}
+                      onChange={handleInputChange}
+                      className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      placeholder="¿Cuál es tu artista favorito?"
+                    />
+                  </div>
+                </div>
+
+                {/* Géneros favoritos */}
+                <div>
+                  <div className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                    Géneros Musicales Favoritos (máximo 5)
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {generosDisponibles.map((genero) => (
+                      <label key={genero} className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={formData.generos_favoritos.includes(genero)}
+                          onChange={() => handleGeneroToggle(genero)}
+                          disabled={!formData.generos_favoritos.includes(genero) && formData.generos_favoritos.length >= 5}
+                          className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
+                        />
+                        <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">{genero}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                    {formData.generos_favoritos.length}/5 géneros seleccionados
+                  </p>
+                </div>
+
+                {/* Configuraciones de privacidad */}
+                <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+                    Configuraciones de Privacidad
+                  </h3>
+                  
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <EyeIcon className="w-5 h-5 text-gray-400 mr-3" />
+                        <div>
+                          <label htmlFor="perfil_publico" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                            Perfil Público
+                          </label>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                            Permite que otros usuarios vean tu perfil
+                          </p>
+                        </div>
+                      </div>
+                      <input
+                        type="checkbox"
+                        id="perfil_publico"
+                        name="perfil_publico"
+                        checked={formData.perfil_publico}
+                        onChange={handleInputChange}
+                        className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <SparklesIcon className="w-5 h-5 text-gray-400 mr-3" />
+                        <div>
+                          <label htmlFor="mostrar_estadisticas" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                            Mostrar Estadísticas
+                          </label>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                            Muestra tus estadísticas de escucha en tu perfil
+                          </p>
+                        </div>
+                      </div>
+                      <input
+                        type="checkbox"
+                        id="mostrar_estadisticas"
+                        name="mostrar_estadisticas"
+                        checked={formData.mostrar_estadisticas}
+                        onChange={handleInputChange}
+                        className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <UserIcon className="w-5 h-5 text-gray-400 mr-3" />
+                        <div>
+                          <label htmlFor="permitir_seguimientos" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                            Permitir Seguimientos
+                          </label>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                            Permite que otros usuarios te sigan
+                          </p>
+                        </div>
+                      </div>
+                      <input
+                        type="checkbox"
+                        id="permitir_seguimientos"
+                        name="permitir_seguimientos"
+                        checked={formData.permitir_seguimientos}
+                        onChange={handleInputChange}
+                        className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
+                      />
+                    </div>
+                  </div>
                 </div>
 
                 {/* Botón de guardar */}

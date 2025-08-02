@@ -9,11 +9,7 @@ yarn-error.log*
 out/
 
 # Variables de entorno
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+.env*
 
 # Archivos del sistema
 .DS_Store

@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import SupabaseProvider from "./components/SupabaseProvider";
-import { ThemeProvider } from "./components/ThemeProviderEnhanced";
+import SupabaseProvider from "@/components/SupabaseProvider";
+import { ThemeProvider } from "@/components/ThemeProviderEnhanced";
 
 /**
  * Configuración de fuentes de Google Fonts

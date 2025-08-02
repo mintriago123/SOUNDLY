@@ -69,7 +69,7 @@ export async function middleware(request: NextRequest) {
   const authRoutes = ['/auth/login', '/auth/register']
   
   // Rutas que requieren rol de admin
-  const adminRoutes = ['/dashboard/admin']
+  const adminRoutes = ['/admin/dashboard']
 
   // Rutas que requieren rol de artista
   const artistRoutes = ['/dashboard/artista']
@@ -98,11 +98,11 @@ export async function middleware(request: NextRequest) {
 
       if (error || !userData || userData.rol !== 'admin') {
         // Si no es admin, redirigir al dashboard normal
-        return NextResponse.redirect(new URL('/dashboard', request.url))
+        return NextResponse.redirect(new URL('/admin/dashboard', request.url))
       }
     } catch (error) {
       console.error('❌ Error verificando rol de admin:', error)
-      return NextResponse.redirect(new URL('/dashboard', request.url))
+      return NextResponse.redirect(new URL('/admin/dashboard', request.url))
     }
   }
 

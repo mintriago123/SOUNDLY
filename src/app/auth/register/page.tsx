@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useSupabase } from '@/app/components/SupabaseProvider';
+import { useSupabase } from '@/components/SupabaseProvider';
 
 export default function PaginaRegistroSimple() {
   const router = useRouter();

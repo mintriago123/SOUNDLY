@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { useSupabase } from '@/app/components/SupabaseProvider';
+import { useSupabase } from '@/components/SupabaseProvider';
 
 export default function PaginaLogin() {
   const router = useRouter();
@@ -16,10 +16,7 @@ export default function PaginaLogin() {
   const [barHeights, setBarHeights] = useState<number[]>([]);
   const [mostrarContrasena, setMostrarContrasena] = useState(false);
 
-  // Obtener la URL de redirección si existe
-  const redirectTo = searchParams.get('redirectTo') || '/dashboard';
-
-  // Generar las alturas aleatorias para el visualizador de música
+  // Generar visualizador musical
   useEffect(() => {
     setBarHeights([...Array(5)].map(() => Math.random() * 40 + 20));
   }, []);
@@ -34,42 +31,71 @@ export default function PaginaLogin() {
     setCargando(true);
     setError(null);
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email: datos.email,
       password: datos.contrasena,
     });
 
-    setCargando(false);
-    if (error) return setError(error.message);
+    if (error) {
+      setCargando(false);
+      return setError(error.message);
+    }
 
-    router.push(redirectTo);
+    const userId = data.user.id;
+
+    // Buscar el rol del usuario
+    const { data: perfil, error: errorPerfil } = await supabase
+      .from('usuarios')
+      .select('rol')
+      .eq('id', userId)
+      .single();
+
+    setCargando(false);
+
+    if (errorPerfil || !perfil) {
+      return setError('No se pudo obtener el rol del usuario.');
+    }
+
+    const rol = perfil.rol;
+
+    // Redirigir según el rol
+    switch (rol) {
+      case 'admin':
+        router.push('/admin/dashboard');
+        break;
+      case 'artista':
+        router.push('/artista/dashboard');
+        break;
+      case 'premium':
+        router.push('/premium/dashboard');
+        break;
+      default:
+        router.push('/dashboard');
+    }
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#100725] via-[#220639] to-[#491358] relative overflow-hidden">
-      {/* Background animated elements */}
+      {/* Background animado */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute -top-1/2 -right-1/2 w-96 h-96 bg-gradient-to-br from-[#6e1f86] to-[#ba319f] rounded-full opacity-20 blur-3xl animate-pulse"></div>
         <div className="absolute -bottom-1/2 -left-1/2 w-96 h-96 bg-gradient-to-tr from-[#ba319f] to-[#6e1f86] rounded-full opacity-20 blur-3xl animate-pulse delay-1000"></div>
         <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-gradient-to-r from-[#491358] to-[#6e1f86] rounded-full opacity-10 blur-2xl animate-bounce"></div>
       </div>
 
-      {/* Navigation */}
+      {/* Navbar */}
       <nav className="relative z-10 flex justify-between items-center p-6 lg:p-8">
-        <Link 
-          href="/" 
-          className="flex items-center space-x-2 group transition-all duration-300 hover:opacity-90"
-        >
+        <Link href="/" className="flex items-center space-x-2 group transition-all duration-300 hover:opacity-90">
           <div className="w-10 h-10 bg-gradient-to-r from-[#6e1f86] to-[#ba319f] rounded-lg flex items-center justify-center transition-transform duration-300 group-hover:rotate-[15deg]">
             <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
               <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
             </svg>
           </div>
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-[#ba319f] to-white bg-clip-text text-transparent group-hover:from-[#ba319f] group-hover:to-[#6e1f86] transition-all duration-500">
+          <h1 className="text-2xl font-bold bg-gradient-to-r from-[#ba319f] to-white bg-clip-text text-transparent">
             Soundly
           </h1>
         </Link>
-        
+
         <Link href="/auth/register">
           <button className="px-6 py-2 bg-gradient-to-r from-[#6e1f86] to-[#ba319f] text-white rounded-full hover:shadow-lg hover:shadow-[#ba319f]/25 transition-all duration-300 font-medium">
             Registrarse
@@ -86,13 +112,6 @@ export default function PaginaLogin() {
             </h2>
             <p className="text-gray-300 mt-2">Accede a tu cuenta para disfrutar de Soundly</p>
           </div>
-
-          {/* Mostrar mensaje si fue redirigido */}
-          {searchParams.get('redirectTo') && (
-            <div className="bg-[#6e1f86]/20 border border-[#ba319f]/30 text-[#ba319f] px-4 py-3 rounded-lg text-sm text-center mb-6">
-              <p>Necesitas iniciar sesión para acceder a esa página</p>
-            </div>
-          )}
 
           <form className="space-y-6" onSubmit={manejarEnvio}>
             <div className="space-y-4">
@@ -111,7 +130,7 @@ export default function PaginaLogin() {
                   onChange={manejarCambio}
                 />
               </div>
-              
+
               <div className="relative">
                 <label htmlFor="contrasena" className="block text-sm font-medium text-gray-300 mb-1">
                   Contraseña
@@ -186,7 +205,7 @@ export default function PaginaLogin() {
         </div>
       </main>
 
-      {/* Floating music visualizer */}
+      {/* Visualizador musical */}
       {barHeights.length > 0 && (
         <div className="fixed bottom-8 right-8 z-20">
           <div className="flex space-x-1 items-end">
@@ -204,7 +223,6 @@ export default function PaginaLogin() {
         </div>
       )}
 
-      {/* Custom animation keyframes */}
       <style jsx global>{`
         @keyframes pulse {
           0% { height: ${barHeights[0]?.toFixed(0) || 20}px; }

@@ -260,7 +260,7 @@ const menuItems: MenuItem[] = [
   // Items para Usuario Básico
   {
     name: 'Dashboard',
-    href: '/dashboard',
+    href: '/usuario/dashboard',
     icon: HomeIcon,
     description: 'Panel principal'
   },

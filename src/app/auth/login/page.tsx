@@ -70,7 +70,7 @@ export default function PaginaLogin() {
         router.push('/premium/dashboard');
         break;
       default:
-        router.push('/dashboard');
+        router.push('/usuario/dashboard');
     }
   };
 

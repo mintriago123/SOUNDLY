@@ -21,7 +21,8 @@ import {
   MusicalNoteIcon,
   HeartIcon,
   CloudArrowDownIcon,
-  SparklesIcon
+  SparklesIcon,
+  ComputerDesktopIcon
 } from '@heroicons/react/24/outline';
 
 // Componente para el icono de infinito personalizado
@@ -67,7 +68,7 @@ interface SubMenuItem {
 }
 
 const menuItems: MenuItem[] = [
-  // Items para Administrador
+    // Items para Administrador
   {
     name: 'Dashboard',
     href: '/admin/dashboard',
@@ -83,31 +84,45 @@ const menuItems: MenuItem[] = [
     adminOnly: true
   },
   {
-    name: 'Roles y Permisos',
-    href: '/admin/roles',
-    icon: UserIcon,
-    description: 'Gestionar roles de usuario',
+    name: 'Contenido Musical',
+    href: '/admin/biblioteca',
+    icon: MusicalNoteIcon,
+    description: 'Gestionar canciones y contenido',
     adminOnly: true
   },
   {
-    name: 'Mi Biblioteca',
-    href: '/admin/biblioteca',
-    icon: MusicalNoteIcon,
-    description: 'Tu colección musical',
+    name: 'Moderación',
+    href: '/admin/moderacion',
+    icon: ClipboardDocumentListIcon,
+    description: 'Reportes y moderación de contenido',
+    adminOnly: true
+  },
+  {
+    name: 'Analíticas',
+    href: '/admin/analiticas',
+    icon: ChartBarIcon,
+    description: 'Estadísticas y métricas',
+    adminOnly: true
+  },
+  {
+    name: 'Config. Sistema',
+    href: '/admin/configuracion-sistema',
+    icon: ComputerDesktopIcon,
+    description: 'Configuración del sistema',
     adminOnly: true
   },
   {
     name: 'Playlists',
     href: '/admin/playlists',
     icon: ClipboardDocumentListIcon,
-    description: 'Listas de reproducción',
+    description: 'Gestión de listas de reproducción',
     adminOnly: true
   },
   {
     name: 'Favoritos',
     href: '/admin/favoritos',
     icon: HeartIcon,
-    description: 'Canciones favoritas',
+    description: 'Gestión de favoritos',
     adminOnly: true
   },
   {

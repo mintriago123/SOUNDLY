@@ -1,76 +1,200 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabase';
 import DashboardLayout from '@/components/DashboardLayout';
 
-export default function DashboardPage() {
+interface AdminStats {
+  totalUsuarios: number;
+  totalCanciones: number;
+  totalArtistas: number;
+  totalReproduccionesHoy: number;
+  nuevosUsuariosHoy: number;
+  cancionesPendientes: number;
+  reportesPendientes: number;
+  ingresosMensuales: number;
+}
+
+export default function AdminDashboard() {
+  const [stats, setStats] = useState<AdminStats>({
+    totalUsuarios: 0,
+    totalCanciones: 0,
+    totalArtistas: 0,
+    totalReproduccionesHoy: 0,
+    nuevosUsuariosHoy: 0,
+    cancionesPendientes: 0,
+    reportesPendientes: 0,
+    ingresosMensuales: 0,
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchAdminStats();
+  }, []);
+
+  const fetchAdminStats = async () => {
+    try {
+      setLoading(true);
+
+      const [
+        { count: totalUsuarios },
+        { count: totalCanciones },
+        { count: totalArtistas },
+        { count: cancionesPendientes },
+        { count: reportesPendientes },
+        { count: nuevosUsuariosHoy },
+      ] = await Promise.all([
+        supabase.from('usuarios').select('*', { count: 'exact', head: true }),
+        supabase.from('canciones').select('*', { count: 'exact', head: true }),
+        supabase.from('usuarios').select('*', { count: 'exact', head: true }).eq('rol', 'artista'),
+        supabase.from('canciones').select('*', { count: 'exact', head: true }).eq('estado', 'borrador'),
+        supabase.from('reportes').select('*', { count: 'exact', head: true }).eq('estado', 'pendiente'),
+        supabase.from('usuarios').select('*', { count: 'exact', head: true }).gte('created_at', new Date().toISOString().split('T')[0]),
+      ]);
+
+      setStats({
+        totalUsuarios: totalUsuarios || 0,
+        totalCanciones: totalCanciones || 0,
+        totalArtistas: totalArtistas || 0,
+        totalReproduccionesHoy: 0, // A implementar
+        nuevosUsuariosHoy: nuevosUsuariosHoy || 0,
+        cancionesPendientes: cancionesPendientes || 0,
+        reportesPendientes: reportesPendientes || 0,
+        ingresosMensuales: 0, // A implementar
+      });
+    } catch (error) {
+      console.error('Error fetching admin stats:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        {/* Header de bienvenida */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">
-            ¡Bienvenido a tu Dashboard! 🎵
-          </h2>
-          <p className="text-gray-600">
-            Desde aquí puedes gestionar tu biblioteca musical y acceder a todas las funcionalidades.
-          </p>
+        {/* Header */}
+        <div className="bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg shadow p-6 text-white">
+          <h2 className="text-3xl font-bold mb-2">Panel de Administración 🛠️</h2>
+          <p className="text-purple-100">Gestiona usuarios, contenido y supervisa el rendimiento de la plataforma SOUNDLY</p>
         </div>
 
-        {/* Cards de resumen */}
+        {/* Estadísticas principales */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <div className="text-3xl mr-4">🎵</div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Canciones</p>
-                <p className="text-2xl font-bold text-gray-900">0</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <div className="text-3xl mr-4">📋</div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Playlists</p>
-                <p className="text-2xl font-bold text-gray-900">0</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <div className="text-3xl mr-4">❤️</div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Favoritos</p>
-                <p className="text-2xl font-bold text-gray-900">0</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <div className="text-3xl mr-4">⏱️</div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Tiempo Total</p>
-                <p className="text-2xl font-bold text-gray-900">0h</p>
-              </div>
-            </div>
-          </div>
+          <StatCard title="Total Usuarios" value={stats.totalUsuarios} icon="👥" color="bg-blue-500" loading={loading} />
+          <StatCard title="Total Canciones" value={stats.totalCanciones} icon="🎵" color="bg-green-500" loading={loading} />
+          <StatCard title="Artistas Verificados" value={stats.totalArtistas} icon="🎤" color="bg-purple-500" loading={loading} />
+          <StatCard title="Nuevos Usuarios Hoy" value={stats.nuevosUsuariosHoy} icon="📈" color="bg-orange-500" loading={loading} />
         </div>
 
-        {/* Actividad reciente */}
-        <div className="bg-white rounded-lg shadow">
-          <div className="p-6 border-b border-gray-200">
-            <h3 className="text-lg font-medium text-gray-900">Actividad Reciente</h3>
-          </div>
-          <div className="p-6">
-            <div className="text-center text-gray-500 py-8">
-              <div className="text-4xl mb-4">🎼</div>
-              <p>No hay actividad reciente</p>
-              <p className="text-sm mt-2">Comienza agregando música a tu biblioteca</p>
-            </div>
+        {/* Alertas */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <AlertCard
+            title="Contenido Pendiente"
+            description={`${stats.cancionesPendientes} canciones esperan aprobación`}
+            icon="⏳"
+            actionText="Revisar Contenido"
+            actionLink="/admin/contenido"
+            urgent={stats.cancionesPendientes > 10}
+          />
+          <AlertCard
+            title="Reportes de Usuarios"
+            description={`${stats.reportesPendientes} reportes requieren atención`}
+            icon="🚩"
+            actionText="Ver Reportes"
+            actionLink="/admin/moderacion"
+            urgent={stats.reportesPendientes > 5}
+          />
+        </div>
+
+        {/* Acciones rápidas */}
+        <div className="bg-white rounded-lg shadow p-6">
+          <h3 className="text-xl font-bold text-gray-900 mb-4">Acciones Rápidas</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <QuickActionButton title="Gestionar Usuarios" description="Ver, editar y administrar cuentas" icon="👤" link="/admin/usuarios" />
+            <QuickActionButton title="Contenido Musical" description="Aprobar y gestionar música" icon="🎶" link="/admin/biblioteca" />
+            <QuickActionButton title="Configuración" description="Ajustes del sistema" icon="⚙️" link="/admin/configuracion" />
           </div>
         </div>
       </div>
     </DashboardLayout>
   );
 }
+
+// Componente de estadística
+const StatCard = ({
+  title,
+  value,
+  icon,
+  color,
+  loading,
+}: {
+  title: string;
+  value: number;
+  icon: string;
+  color: string;
+  loading: boolean;
+}) => (
+  <div className="bg-white rounded-lg shadow p-6">
+    <div className="flex items-center">
+      <div className={`${color} text-white p-3 rounded-lg text-2xl mr-4`}>{icon}</div>
+      <div>
+        <p className="text-sm font-medium text-gray-600">{title}</p>
+        <p className="text-2xl font-bold text-gray-900">{loading ? '...' : value.toLocaleString()}</p>
+      </div>
+    </div>
+  </div>
+);
+
+// Componente de alerta
+const AlertCard = ({
+  title,
+  description,
+  icon,
+  actionText,
+  actionLink,
+  urgent,
+}: {
+  title: string;
+  description: string;
+  icon: string;
+  actionText: string;
+  actionLink: string;
+  urgent: boolean;
+}) => (
+  <div className={`rounded-lg shadow p-6 ${urgent ? 'bg-red-50 border-l-4 border-red-500' : 'bg-white'}`}>
+    <div className="flex items-start">
+      <div className="text-2xl mr-3">{icon}</div>
+      <div className="flex-1">
+        <h4 className={`font-semibold ${urgent ? 'text-red-800' : 'text-gray-900'}`}>{title}</h4>
+        <p className={`text-sm mt-1 ${urgent ? 'text-red-600' : 'text-gray-600'}`}>{description}</p>
+        <a
+          href={actionLink}
+          className={`inline-block mt-3 px-4 py-2 rounded text-sm font-medium transition-colors ${
+            urgent ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-blue-600 text-white hover:bg-blue-700'
+          }`}
+        >
+          {actionText}
+        </a>
+      </div>
+    </div>
+  </div>
+);
+
+// Componente para acciones rápidas
+const QuickActionButton = ({
+  title,
+  description,
+  icon,
+  link,
+}: {
+  title: string;
+  description: string;
+  icon: string;
+  link: string;
+}) => (
+  <a href={link} className="block p-4 border border-gray-200 rounded-lg hover:border-blue-500 hover:shadow-md transition-all">
+    <div className="text-2xl mb-2">{icon}</div>
+    <h4 className="font-semibold text-gray-900">{title}</h4>
+    <p className="text-sm text-gray-600 mt-1">{description}</p>
+  </a>
+);

@@ -1,88 +1,687 @@
-import DashboardLayout from '@/components/DashboardLayout';
+'use client';
 
-export default function BibliotecaPage() {
+import { useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabase';
+import DashboardLayout from '@/components/DashboardLayout';
+import { 
+  MusicalNoteIcon, 
+  MagnifyingGlassIcon,
+  PencilIcon,
+  TrashIcon,
+  PlayIcon,
+  PauseIcon,
+  CheckIcon,
+  XMarkIcon,
+  ExclamationTriangleIcon,
+  EyeIcon
+} from '@heroicons/react/24/outline';
+
+interface Cancion {
+  id: string;
+  titulo: string;
+  artista: string;
+  album?: string;
+  genero: string;
+  duracion: number;
+  fecha_subida: string;
+  estado: 'activa' | 'inactiva' | 'pendiente' | 'reportada';
+  reproducciones: number;
+  url_archivo?: string;
+  usuario_id: string;
+  usuarios?: {
+    nombre: string;
+    email: string;
+  };
+}
+
+export default function AdminBibliotecaPage() {
+  const [canciones, setCanciones] = useState<Cancion[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterGenero, setFilterGenero] = useState<string>('todos');
+  const [filterEstado, setFilterEstado] = useState<string>('todos');
+  const [selectedCancion, setSelectedCancion] = useState<Cancion | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [editFormData, setEditFormData] = useState<Partial<Cancion>>({});
+  const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null);
+
+  const generos = [
+    'Rock', 'Pop', 'Hip Hop', 'Reggaeton', 'Jazz', 'Blues', 
+    'Electrónica', 'Clásica', 'Folk', 'Country', 'R&B', 'Indie'
+  ];
+
+  useEffect(() => {
+    fetchCanciones();
+  }, []);
+
+  const fetchCanciones = async () => {
+    try {
+      setLoading(true);
+      
+      const { data, error } = await supabase
+        .from('canciones')
+        .select(`
+          *,
+          usuarios (
+            nombre,
+            email
+          )
+        `)
+        .order('fecha_subida', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching canciones:', error);
+        setCanciones(getSimulatedSongs());
+      } else {
+        setCanciones(data || []);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      setCanciones(getSimulatedSongs());
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getSimulatedSongs = (): Cancion[] => [
+    {
+      id: '1',
+      titulo: 'Canción de Prueba 1',
+      artista: 'Artista Demo',
+      album: 'Album Demo',
+      genero: 'Rock',
+      duracion: 210,
+      fecha_subida: '2024-07-15',
+      estado: 'activa',
+      reproducciones: 1250,
+      usuario_id: '2',
+      usuarios: {
+        nombre: 'María García',
+        email: 'artista@soundly.com'
+      }
+    },
+    {
+      id: '2',
+      titulo: 'Melodía Electrónica',
+      artista: 'DJ Soundly',
+      genero: 'Electrónica',
+      duracion: 180,
+      fecha_subida: '2024-07-20',
+      estado: 'activa',
+      reproducciones: 890,
+      usuario_id: '2',
+      usuarios: {
+        nombre: 'María García',
+        email: 'artista@soundly.com'
+      }
+    },
+    {
+      id: '3',
+      titulo: 'Canción Pendiente',
+      artista: 'Nuevo Artista',
+      genero: 'Pop',
+      duracion: 195,
+      fecha_subida: '2024-08-01',
+      estado: 'pendiente',
+      reproducciones: 0,
+      usuario_id: '3',
+      usuarios: {
+        nombre: 'Carlos López',
+        email: 'premium@soundly.com'
+      }
+    },
+    {
+      id: '4',
+      titulo: 'Track Reportado',
+      artista: 'Artista Problemático',
+      genero: 'Hip Hop',
+      duracion: 220,
+      fecha_subida: '2024-07-25',
+      estado: 'reportada',
+      reproducciones: 456,
+      usuario_id: '4',
+      usuarios: {
+        nombre: 'Ana Martínez',
+        email: 'usuario@soundly.com'
+      }
+    }
+  ];
+
+  const filteredCanciones = canciones.filter(cancion => {
+    const matchesSearch = cancion.titulo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         cancion.artista.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (cancion.album && cancion.album.toLowerCase().includes(searchTerm.toLowerCase()));
+    const matchesGenero = filterGenero === 'todos' || cancion.genero === filterGenero;
+    const matchesEstado = filterEstado === 'todos' || cancion.estado === filterEstado;
+    
+    return matchesSearch && matchesGenero && matchesEstado;
+  });
+
+  const handleEdit = (cancion: Cancion) => {
+    setSelectedCancion(cancion);
+    setEditFormData(cancion);
+    setShowEditModal(true);
+  };
+
+  const handleDelete = (cancion: Cancion) => {
+    setSelectedCancion(cancion);
+    setShowDeleteModal(true);
+  };
+
+  const handleDetail = (cancion: Cancion) => {
+    setSelectedCancion(cancion);
+    setShowDetailModal(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!selectedCancion) return;
+
+    try {
+      const { error } = await supabase
+        .from('canciones')
+        .update(editFormData)
+        .eq('id', selectedCancion.id);
+
+      if (error) {
+        console.error('Error updating cancion:', error);
+        alert('Error al actualizar canción');
+        return;
+      }
+
+      // Actualizar la lista local
+      setCanciones(prev => prev.map(c => 
+        c.id === selectedCancion.id ? { ...c, ...editFormData } : c
+      ));
+
+      setShowEditModal(false);
+      setSelectedCancion(null);
+      alert('Canción actualizada correctamente');
+    } catch (error) {
+      console.error('Error:', error);
+      // Simular actualización local
+      setCanciones(prev => prev.map(c => 
+        c.id === selectedCancion.id ? { ...c, ...editFormData } : c
+      ));
+      setShowEditModal(false);
+      setSelectedCancion(null);
+      alert('Canción actualizada correctamente (simulado)');
+    }
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!selectedCancion) return;
+
+    try {
+      const { error } = await supabase
+        .from('canciones')
+        .delete()
+        .eq('id', selectedCancion.id);
+
+      if (error) {
+        console.error('Error deleting cancion:', error);
+        alert('Error al eliminar canción');
+        return;
+      }
+
+      // Actualizar la lista local
+      setCanciones(prev => prev.filter(c => c.id !== selectedCancion.id));
+
+      setShowDeleteModal(false);
+      setSelectedCancion(null);
+      alert('Canción eliminada correctamente');
+    } catch (error) {
+      console.error('Error:', error);
+      // Simular eliminación local
+      setCanciones(prev => prev.filter(c => c.id !== selectedCancion.id));
+      setShowDeleteModal(false);
+      setSelectedCancion(null);
+      alert('Canción eliminada correctamente (simulado)');
+    }
+  };
+
+  const togglePlayPause = (cancionId: string) => {
+    if (currentlyPlaying === cancionId) {
+      setCurrentlyPlaying(null);
+    } else {
+      setCurrentlyPlaying(cancionId);
+    }
+  };
+
+  const getEstadoBadgeColor = (estado: string) => {
+    switch (estado) {
+      case 'activa': return 'bg-green-100 text-green-800';
+      case 'inactiva': return 'bg-gray-100 text-gray-800';
+      case 'pendiente': return 'bg-yellow-100 text-yellow-800';
+      case 'reportada': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const formatDuration = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
+
+  const getStatsCards = () => {
+    const totalCanciones = canciones.length;
+    const cancionesActivas = canciones.filter(c => c.estado === 'activa').length;
+    const cancionesPendientes = canciones.filter(c => c.estado === 'pendiente').length;
+    const cancionesReportadas = canciones.filter(c => c.estado === 'reportada').length;
+
+    return [
+      {
+        title: 'Total Canciones',
+        value: totalCanciones,
+        icon: '🎵',
+        color: 'text-blue-600'
+      },
+      {
+        title: 'Activas',
+        value: cancionesActivas,
+        icon: '✅',
+        color: 'text-green-600'
+      },
+      {
+        title: 'Pendientes',
+        value: cancionesPendientes,
+        icon: '⏳',
+        color: 'text-yellow-600'
+      },
+      {
+        title: 'Reportadas',
+        value: cancionesReportadas,
+        icon: '🚨',
+        color: 'text-red-600'
+      }
+    ];
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
         {/* Header */}
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-2xl font-bold text-gray-900 mb-2">
-            Mi Biblioteca 🎵
+            Gestión de Biblioteca Musical 🎵
           </h2>
           <p className="text-gray-600">
-            Explora y gestiona tu colección de música
+            Administra todas las canciones de la plataforma Soundly
           </p>
         </div>
 
-        {/* Controles de biblioteca */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
-            <div className="flex gap-4">
-              <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
-                ➕ Agregar Música
-              </button>
-              <button className="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors">
-                📁 Crear Playlist
-              </button>
+        {/* Estadísticas */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          {getStatsCards().map((card, index) => (
+            <div key={index} className="bg-white rounded-lg shadow p-6">
+              <div className="flex items-center">
+                <div className="text-3xl mr-4">{card.icon}</div>
+                <div>
+                  <p className="text-sm font-medium text-gray-600">{card.title}</p>
+                  <p className={`text-2xl font-bold ${card.color}`}>{card.value}</p>
+                </div>
+              </div>
             </div>
-            <div className="flex gap-2">
+          ))}
+        </div>
+
+        {/* Filtros y búsqueda */}
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="relative">
+              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="text"
-                placeholder="Buscar en tu biblioteca..."
-                className="border border-gray-300 rounded-lg px-3 py-2 w-64 focus:ring-2 focus:ring-blue-400 outline-none"
+                placeholder="Buscar canciones..."
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
               />
-              <button className="bg-gray-100 text-gray-600 px-3 py-2 rounded-lg hover:bg-gray-200 transition-colors">
-                🔍
-              </button>
             </div>
+
+            <select
+              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={filterGenero}
+              onChange={(e) => setFilterGenero(e.target.value)}
+            >
+              <option value="todos">Todos los géneros</option>
+              {generos.map(genero => (
+                <option key={genero} value={genero}>{genero}</option>
+              ))}
+            </select>
+
+            <select
+              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={filterEstado}
+              onChange={(e) => setFilterEstado(e.target.value)}
+            >
+              <option value="todos">Todos los estados</option>
+              <option value="activa">Activa</option>
+              <option value="inactiva">Inactiva</option>
+              <option value="pendiente">Pendiente</option>
+              <option value="reportada">Reportada</option>
+            </select>
+
+            <button
+              onClick={fetchCanciones}
+              className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
+            >
+              🔄 Actualizar
+            </button>
           </div>
         </div>
 
-        {/* Vista de biblioteca */}
-        <div className="bg-white rounded-lg shadow">
-          <div className="p-6 border-b border-gray-200">
-            <div className="flex justify-between items-center">
-              <h3 className="text-lg font-medium text-gray-900">Canciones</h3>
-              <div className="flex gap-2">
-                <button className="text-gray-500 hover:text-gray-700">📊</button>
-                <button className="text-gray-500 hover:text-gray-700">📋</button>
-              </div>
-            </div>
-          </div>
-          <div className="p-6">
-            <div className="text-center text-gray-500 py-12">
-              <div className="text-6xl mb-4">🎼</div>
-              <h4 className="text-xl font-medium mb-2">Tu biblioteca está vacía</h4>
-              <p className="text-gray-400 mb-6">Agrega tu primera canción para comenzar</p>
-              <button className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors">
-                ➕ Agregar Primera Canción
-              </button>
-            </div>
+        {/* Tabla de canciones */}
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Canción
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Artista
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Género
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Estado
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Reproducciones
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Duración
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Acciones
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {loading ? (
+                  <tr>
+                    <td colSpan={7} className="px-6 py-4 text-center text-gray-500">
+                      Cargando canciones...
+                    </td>
+                  </tr>
+                ) : filteredCanciones.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-6 py-4 text-center text-gray-500">
+                      No se encontraron canciones
+                    </td>
+                  </tr>
+                ) : (
+                  filteredCanciones.map((cancion) => (
+                    <tr key={cancion.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          <button
+                            onClick={() => togglePlayPause(cancion.id)}
+                            className="mr-3 p-1 rounded-full hover:bg-gray-200"
+                          >
+                            {currentlyPlaying === cancion.id ? (
+                              <PauseIcon className="w-5 h-5 text-gray-600" />
+                            ) : (
+                              <PlayIcon className="w-5 h-5 text-gray-600" />
+                            )}
+                          </button>
+                          <div>
+                            <div className="text-sm font-medium text-gray-900">
+                              {cancion.titulo}
+                            </div>
+                            {cancion.album && (
+                              <div className="text-sm text-gray-500">
+                                {cancion.album}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div>
+                          <div className="text-sm font-medium text-gray-900">
+                            {cancion.artista}
+                          </div>
+                          {cancion.usuarios && (
+                            <div className="text-sm text-gray-500">
+                              {cancion.usuarios.nombre}
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+                          {cancion.genero}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getEstadoBadgeColor(cancion.estado)}`}>
+                          {cancion.estado}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {cancion.reproducciones.toLocaleString()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {formatDuration(cancion.duracion)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => handleDetail(cancion)}
+                            className="text-blue-600 hover:text-blue-900"
+                            title="Ver detalles"
+                          >
+                            <EyeIcon className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleEdit(cancion)}
+                            className="text-green-600 hover:text-green-900"
+                            title="Editar"
+                          >
+                            <PencilIcon className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(cancion)}
+                            className="text-red-600 hover:text-red-900"
+                            title="Eliminar"
+                          >
+                            <TrashIcon className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
 
-        {/* Reproductor rápido */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Reproductor Rápido</h3>
-          <div className="flex items-center justify-between bg-gray-50 rounded-lg p-4">
-            <div className="flex items-center space-x-4">
-              <div className="w-12 h-12 bg-gray-300 rounded-lg flex items-center justify-center">
-                🎵
+        {/* Modal de detalles */}
+        {showDetailModal && selectedCancion && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-96 overflow-y-auto">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                Detalles de la Canción
+              </h3>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Título</label>
+                  <p className="text-sm text-gray-900">{selectedCancion.titulo}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Artista</label>
+                  <p className="text-sm text-gray-900">{selectedCancion.artista}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Álbum</label>
+                  <p className="text-sm text-gray-900">{selectedCancion.album || 'No especificado'}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Género</label>
+                  <p className="text-sm text-gray-900">{selectedCancion.genero}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Duración</label>
+                  <p className="text-sm text-gray-900">{formatDuration(selectedCancion.duracion)}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Reproducciones</label>
+                  <p className="text-sm text-gray-900">{selectedCancion.reproducciones.toLocaleString()}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
+                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getEstadoBadgeColor(selectedCancion.estado)}`}>
+                    {selectedCancion.estado}
+                  </span>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de Subida</label>
+                  <p className="text-sm text-gray-900">{new Date(selectedCancion.fecha_subida).toLocaleDateString()}</p>
+                </div>
+                {selectedCancion.usuarios && (
+                  <div className="col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Subido por</label>
+                    <p className="text-sm text-gray-900">{selectedCancion.usuarios.nombre} ({selectedCancion.usuarios.email})</p>
+                  </div>
+                )}
               </div>
-              <div>
-                <p className="font-medium text-gray-900">Sin reproducción</p>
-                <p className="text-sm text-gray-500">Selecciona una canción</p>
+
+              <div className="mt-6 flex justify-end">
+                <button
+                  onClick={() => setShowDetailModal(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                >
+                  Cerrar
+                </button>
               </div>
-            </div>
-            <div className="flex items-center space-x-3">
-              <button className="text-gray-400 hover:text-gray-600">⏮️</button>
-              <button className="bg-blue-600 text-white w-10 h-10 rounded-full flex items-center justify-center hover:bg-blue-700">
-                ▶️
-              </button>
-              <button className="text-gray-400 hover:text-gray-600">⏭️</button>
             </div>
           </div>
-        </div>
+        )}
+
+        {/* Modal de edición */}
+        {showEditModal && selectedCancion && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-full max-w-md">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                Editar Canción
+              </h3>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Título
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={editFormData.titulo || ''}
+                    onChange={(e) => setEditFormData(prev => ({ ...prev, titulo: e.target.value }))}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Artista
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={editFormData.artista || ''}
+                    onChange={(e) => setEditFormData(prev => ({ ...prev, artista: e.target.value }))}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Género
+                  </label>
+                  <select
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={editFormData.genero || ''}
+                    onChange={(e) => setEditFormData(prev => ({ ...prev, genero: e.target.value }))}
+                  >
+                    {generos.map(genero => (
+                      <option key={genero} value={genero}>{genero}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Estado
+                  </label>
+                  <select
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={editFormData.estado || ''}
+                    onChange={(e) => setEditFormData(prev => ({ ...prev, estado: e.target.value as any }))}
+                  >
+                    <option value="activa">Activa</option>
+                    <option value="inactiva">Inactiva</option>
+                    <option value="pendiente">Pendiente</option>
+                    <option value="reportada">Reportada</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="mt-6 flex justify-end space-x-3">
+                <button
+                  onClick={() => setShowEditModal(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleSaveEdit}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                >
+                  Guardar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal de confirmación de eliminación */}
+        {showDeleteModal && selectedCancion && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-full max-w-md">
+              <div className="flex items-center mb-4">
+                <ExclamationTriangleIcon className="w-6 h-6 text-red-600 mr-3" />
+                <h3 className="text-lg font-medium text-gray-900">
+                  Confirmar eliminación
+                </h3>
+              </div>
+              
+              <p className="text-gray-600 mb-6">
+                ¿Estás seguro de que quieres eliminar la canción <strong>"{selectedCancion.titulo}"</strong>? 
+                Esta acción no se puede deshacer.
+              </p>
+
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={() => setShowDeleteModal(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleDeleteConfirm}
+                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                >
+                  Eliminar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </DashboardLayout>
   );

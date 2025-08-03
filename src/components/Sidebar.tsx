@@ -275,12 +275,6 @@ const menuItems: MenuItem[] = [
     icon: MusicalNoteIcon,
     description: 'Reproductor de música'
   },
-  {
-    name: 'Configuración',
-    href: '/usuario/configuracion',
-    icon: Cog6ToothIcon,
-    description: 'Ajustes de cuenta'
-  }
 ];
 
 export default function Sidebar({ 
@@ -494,13 +488,6 @@ export default function Sidebar({
                 <div className="mt-2 space-y-1 bg-gray-50 dark:bg-gray-700/50 rounded-lg p-2">
                   {isAdmin && (
                     <>
-                      <Link
-                        href="/admin/perfil"
-                        className="w-full flex items-center px-3 py-2 text-left rounded-md hover:bg-white dark:hover:bg-gray-600 hover:shadow-sm transition-all duration-200"
-                      >
-                        <UserIcon className="w-4 h-4 mr-2 text-gray-500 dark:text-gray-400" />
-                        <span className="text-xs text-gray-700 dark:text-gray-200 font-medium">Perfil</span>
-                      </Link>
 
                       <Link
                         href="/admin/configuracion-sistema"
@@ -520,15 +507,22 @@ export default function Sidebar({
                     </>
                   )}
 
-                  {isArtist && (
-                    <Link
-                      href="/artista/perfil"
-                      className="w-full flex items-center px-3 py-2 text-left rounded-md hover:bg-white dark:hover:bg-gray-600 hover:shadow-sm transition-all duration-200"
-                    >
-                      <UserIcon className="w-4 h-4 mr-2 text-gray-500 dark:text-gray-400" />
-                      <span className="text-xs text-gray-700 dark:text-gray-200 font-medium">Perfil</span>
-                    </Link>
-                  )}
+                  <Link
+                    href={
+                      isAdmin
+                        ? "/admin/perfil"
+                        : isPremium
+                        ? "/premium/perfil"
+                        : isArtist
+                        ? "/artista/perfil"
+                        : "/usuario/perfil"
+                    }
+                    className="w-full flex items-center px-3 py-2 text-left rounded-md hover:bg-white dark:hover:bg-gray-600 hover:shadow-sm transition-all duration-200"
+                    onClick={onClose}
+                  >
+                    <GlobeAltIcon className="w-4 h-4 mr-2 text-gray-500 dark:text-gray-400" />
+                    <span className="text-xs text-gray-700 dark:text-gray-200 font-medium">Perfil</span>
+                  </Link>
 
                   <Link
                     href={
@@ -538,7 +532,7 @@ export default function Sidebar({
                         ? "/premium/configuracion"
                         : isArtist
                         ? "/artista/configuracion"
-                        : "/dashboard/configuracion"
+                        : "/usuario/configuracion"
                     }
                     className="w-full flex items-center px-3 py-2 text-left rounded-md hover:bg-white dark:hover:bg-gray-600 hover:shadow-sm transition-all duration-200"
                     onClick={onClose}
@@ -555,7 +549,7 @@ export default function Sidebar({
                         ? "/premium/upgrade"
                         : isArtist
                         ? "/artista/upgrade"
-                        : "/dashboard/upgrade"
+                        : "/usuario/upgrade"
                     }
                     className="w-full flex items-center px-3 py-2 text-left rounded-md hover:bg-white dark:hover:bg-gray-600 hover:shadow-sm transition-all duration-200"
                     onClick={onClose}
@@ -563,6 +557,7 @@ export default function Sidebar({
                     <SparklesIcon className="w-4 h-4 mr-2 text-gray-500 dark:text-gray-400" />
                     <span className="text-xs text-gray-700 dark:text-gray-200 font-medium">Ver planes</span>
                   </Link>
+
 
                   <button
                     onClick={handleLogout}

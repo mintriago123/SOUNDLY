@@ -61,6 +61,15 @@ export default function MiMusica() {
   const [archivosSubiendo, setArchivosSubiendo] = useState<UploadProgress[]>([]);
   const [dragActive, setDragActive] = useState(false);
   const [albumsDisponibles, setAlbumsDisponibles] = useState<any[]>([]);
+  const [reproductorActual, setReproductorActual] = useState<{
+    cancionId: string;
+    isPlaying: boolean;
+    audio: HTMLAudioElement | null;
+  }>({
+    cancionId: '',
+    isPlaying: false,
+    audio: null
+  });
 
   useEffect(() => {
     verificarUsuarioYCargarMusica();
@@ -511,6 +520,140 @@ export default function MiMusica() {
       prev.filter(upload => upload.fileName !== fileName)
     );
   };
+
+  // Funciones del reproductor de música
+  const reproducirCancion = async (cancion: Cancion) => {
+    try {
+      // Si hay una canción reproduciéndose, pausarla
+      if (reproductorActual.audio) {
+        reproductorActual.audio.pause();
+        reproductorActual.audio.currentTime = 0;
+      }
+
+      // Si es la misma canción, solo toggle play/pause
+      if (reproductorActual.cancionId === cancion.id && reproductorActual.isPlaying) {
+        setReproductorActual(prev => ({
+          ...prev,
+          isPlaying: false
+        }));
+        return;
+      }
+
+      // Verificar que la URL del archivo existe
+      if (!cancion.archivo_audio_url) {
+        alert('Esta canción no tiene un archivo de audio asociado.');
+        return;
+      }
+
+      // Crear nuevo audio element
+      const audio = new Audio();
+      
+      // Configurar eventos antes de cargar
+      const handleLoadedData = () => {
+        audio.play().then(() => {
+          setReproductorActual({
+            cancionId: cancion.id,
+            isPlaying: true,
+            audio: audio
+          });
+        }).catch(error => {
+          console.error('Error reproduciendo audio:', error);
+          alert('Error al reproducir la canción. Verifica que el archivo sea accesible.');
+          setReproductorActual(prev => ({ ...prev, isPlaying: false }));
+        });
+      };
+
+      const handleEnded = () => {
+        setReproductorActual(prev => ({
+          ...prev,
+          isPlaying: false
+        }));
+      };
+
+      const handleError = (e: any) => {
+        console.error('Error cargando audio:', e);
+        const audio = e.target;
+        let errorMsg = 'Error al cargar la canción. ';
+        
+        switch(audio.error?.code) {
+          case audio.error?.MEDIA_ERR_ABORTED:
+            errorMsg += 'Reproducción cancelada.';
+            break;
+          case audio.error?.MEDIA_ERR_NETWORK:
+            errorMsg += 'Error de red al cargar el archivo.';
+            break;
+          case audio.error?.MEDIA_ERR_DECODE:
+            errorMsg += 'El archivo está dañado o en formato no válido.';
+            break;
+          case audio.error?.MEDIA_ERR_SRC_NOT_SUPPORTED:
+            errorMsg += 'Formato de archivo no soportado.';
+            break;
+          default:
+            errorMsg += 'El archivo puede estar dañado o no ser accesible.';
+        }
+        
+        alert(errorMsg);
+        setReproductorActual(prev => ({ ...prev, isPlaying: false }));
+      };
+
+      audio.addEventListener('loadeddata', handleLoadedData);
+      audio.addEventListener('ended', handleEnded);
+      audio.addEventListener('error', handleError);
+
+      // Cargar el archivo
+      audio.src = cancion.archivo_audio_url;
+      audio.load();
+
+    } catch (error) {
+      console.error('Error general reproduciendo canción:', error);
+      alert('Error inesperado al reproducir la canción.');
+    }
+  };
+
+  const pausarCancion = () => {
+    if (reproductorActual.audio) {
+      reproductorActual.audio.pause();
+      setReproductorActual(prev => ({
+        ...prev,
+        isPlaying: false
+      }));
+    }
+  };
+
+  const reanudarCancion = () => {
+    if (reproductorActual.audio) {
+      reproductorActual.audio.play().then(() => {
+        setReproductorActual(prev => ({
+          ...prev,
+          isPlaying: true
+        }));
+      }).catch(error => {
+        console.error('Error reanudando audio:', error);
+      });
+    }
+  };
+
+  const detenerCancion = () => {
+    if (reproductorActual.audio) {
+      reproductorActual.audio.pause();
+      reproductorActual.audio.currentTime = 0;
+      setReproductorActual({
+        cancionId: '',
+        isPlaying: false,
+        audio: null
+      });
+    }
+  };
+
+  // Limpiar audio al desmontar el componente
+  useEffect(() => {
+    return () => {
+      if (reproductorActual.audio) {
+        reproductorActual.audio.pause();
+        reproductorActual.audio.src = '';
+      }
+    };
+  }, [reproductorActual.audio]);
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -606,6 +749,54 @@ export default function MiMusica() {
         </div>
       </div>
 
+      {/* Mini Reproductor */}
+      {reproductorActual.cancionId && (
+        <div className="bg-purple-50 border-b border-purple-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between py-3">
+              <div className="flex items-center space-x-3">
+                <div className="flex items-center space-x-2">
+                  {reproductorActual.isPlaying ? (
+                    <button
+                      onClick={pausarCancion}
+                      className="p-2 rounded-full bg-purple-600 text-white hover:bg-purple-700"
+                    >
+                      <PauseIcon className="h-5 w-5" />
+                    </button>
+                  ) : (
+                    <button
+                      onClick={reanudarCancion}
+                      className="p-2 rounded-full bg-purple-600 text-white hover:bg-purple-700"
+                    >
+                      <PlayIcon className="h-5 w-5" />
+                    </button>
+                  )}
+                  <button
+                    onClick={detenerCancion}
+                    className="p-2 rounded-full bg-gray-200 text-gray-600 hover:bg-red-100 hover:text-red-600"
+                  >
+                    <XMarkIcon className="h-4 w-4" />
+                  </button>
+                </div>
+                
+                <div>
+                  <p className="text-sm font-medium text-purple-900">
+                    {canciones.find(c => c.id === reproductorActual.cancionId)?.titulo}
+                  </p>
+                  <p className="text-xs text-purple-600">
+                    {reproductorActual.isPlaying ? '♪ Reproduciendo ahora' : 'Pausado'}
+                  </p>
+                </div>
+              </div>
+              
+              <div className="text-xs text-purple-600">
+                Duración: {formatearDuracion(canciones.find(c => c.id === reproductorActual.cancionId)?.duracion || 0)}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Contenido Principal */}
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="px-4 py-6 sm:px-0">
@@ -618,6 +809,9 @@ export default function MiMusica() {
                 <div>
                   <p className="text-sm font-medium text-gray-600">Total Canciones</p>
                   <p className="text-2xl font-bold text-gray-900">{canciones.length}</p>
+                  {reproductorActual.isPlaying && (
+                    <p className="text-xs text-purple-600 mt-1">♪ Reproduciendo música</p>
+                  )}
                 </div>
               </div>
             </div>
@@ -672,6 +866,9 @@ export default function MiMusica() {
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Reproducir
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Canción
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -695,15 +892,69 @@ export default function MiMusica() {
                     {canciones.map((cancion) => (
                       <tr key={cancion.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center space-x-2">
+                            {reproductorActual.cancionId === cancion.id && reproductorActual.isPlaying ? (
+                              <button
+                                onClick={pausarCancion}
+                                className="p-2 rounded-full bg-purple-100 text-purple-600 hover:bg-purple-200 transition-colors"
+                                title="Pausar"
+                              >
+                                <PauseIcon className="h-4 w-4" />
+                              </button>
+                            ) : reproductorActual.cancionId === cancion.id && !reproductorActual.isPlaying ? (
+                              <button
+                                onClick={reanudarCancion}
+                                className="p-2 rounded-full bg-purple-100 text-purple-600 hover:bg-purple-200 transition-colors"
+                                title="Reanudar"
+                              >
+                                <PlayIcon className="h-4 w-4" />
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => reproducirCancion(cancion)}
+                                className="p-2 rounded-full bg-gray-100 text-gray-600 hover:bg-purple-100 hover:text-purple-600 transition-colors"
+                                title="Reproducir"
+                              >
+                                <PlayIcon className="h-4 w-4" />
+                              </button>
+                            )}
+                            
+                            {reproductorActual.cancionId === cancion.id && (
+                              <button
+                                onClick={detenerCancion}
+                                className="p-1 rounded text-gray-400 hover:text-red-600 transition-colors"
+                                title="Detener"
+                              >
+                                <XMarkIcon className="h-3 w-3" />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
                             <div className="flex-shrink-0 h-10 w-10">
-                              <div className="h-10 w-10 rounded bg-purple-100 flex items-center justify-center">
-                                <MusicalNoteIcon className="h-5 w-5 text-purple-600" />
+                              <div className={`h-10 w-10 rounded flex items-center justify-center transition-colors ${
+                                reproductorActual.cancionId === cancion.id 
+                                  ? 'bg-purple-200' 
+                                  : 'bg-purple-100'
+                              }`}>
+                                <MusicalNoteIcon className={`h-5 w-5 ${
+                                  reproductorActual.cancionId === cancion.id 
+                                    ? 'text-purple-700' 
+                                    : 'text-purple-600'
+                                }`} />
                               </div>
                             </div>
                             <div className="ml-4">
-                              <div className="text-sm font-medium text-gray-900">
+                              <div className={`text-sm font-medium ${
+                                reproductorActual.cancionId === cancion.id 
+                                  ? 'text-purple-900' 
+                                  : 'text-gray-900'
+                              }`}>
                                 {cancion.titulo}
+                                {reproductorActual.cancionId === cancion.id && reproductorActual.isPlaying && (
+                                  <span className="ml-2 text-xs text-purple-600">♪ Reproduciendo</span>
+                                )}
                               </div>
                               <div className="text-sm text-gray-500">
                                 {cancion.reproducciones.toLocaleString()} reproducciones

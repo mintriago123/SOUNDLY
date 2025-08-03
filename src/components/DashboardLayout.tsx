@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation';
 import { useSupabase } from './SupabaseProvider';
 import Sidebar from './Sidebar';
 import GlobalMusicPlayer from './GlobalMusicPlayer';
-import { MusicPlayerProvider } from '@/contexts/MusicPlayerContext';
 import { Usuario } from '@/types/user';
 
 interface DashboardLayoutProps {
@@ -75,77 +74,75 @@ export default function DashboardLayout({ children }: Readonly<DashboardLayoutPr
   }
 
   return (
-    <MusicPlayerProvider>
-      <div className="min-h-screen" style={{ 
-        backgroundColor: 'var(--background)', 
-        color: 'var(--foreground)',
-        transition: 'background-color 0.3s ease, color 0.3s ease'
+    <div className="min-h-screen" style={{ 
+      backgroundColor: 'var(--background)', 
+      color: 'var(--foreground)',
+      transition: 'background-color 0.3s ease, color 0.3s ease'
+    }}>
+      {/* Header - Solo visible en móvil */}
+      <header className="shadow-sm border-b md:hidden" style={{
+        backgroundColor: 'var(--card)',
+        borderColor: 'var(--border)'
       }}>
-        {/* Header - Solo visible en móvil */}
-        <header className="shadow-sm border-b md:hidden" style={{
-          backgroundColor: 'var(--card)',
-          borderColor: 'var(--border)'
-        }}>
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center h-16">
-              {/* Logo y botón de menú */}
-              <div className="flex items-center space-x-3">
-                <button
-                  onClick={() => setMenuAbierto(!menuAbierto)}
-                  className="p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-                >
-                  <span className="text-xl">☰</span>
-                </button>
-                <Link href="/dashboard" className="flex items-center space-x-2">
-                  <span className="text-2xl">🎵</span>
-                  <h1 className="text-xl font-bold text-gray-900">Soundly</h1>
-                </Link>
-              </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            {/* Logo y botón de menú */}
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={() => setMenuAbierto(!menuAbierto)}
+                className="p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+              >
+                <span className="text-xl">☰</span>
+              </button>
+              <Link href="/dashboard" className="flex items-center space-x-2">
+                <span className="text-2xl">🎵</span>
+                <h1 className="text-xl font-bold text-gray-900">Soundly</h1>
+              </Link>
+            </div>
 
-              {/* Badges de rol */}
-              <div className="flex items-center space-x-2">
-                {usuario.rol === 'admin' && (
-                  <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
-                    👑 Admin
-                  </span>
-                )}
-                {usuario.rol === 'premium' && (
-                  <span className="px-2 py-1 bg-gradient-to-r from-purple-100 to-pink-100 text-purple-800 rounded-full text-xs">
-                    💎 Premium
-                  </span>
-                )}
-                {(!usuario.rol || usuario.rol === 'usuario') && (
-                  <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs">
-                    🎵 Gratis
-                  </span>
-                )}
-              </div>
+            {/* Badges de rol */}
+            <div className="flex items-center space-x-2">
+              {usuario.rol === 'admin' && (
+                <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
+                  👑 Admin
+                </span>
+              )}
+              {usuario.rol === 'premium' && (
+                <span className="px-2 py-1 bg-gradient-to-r from-purple-100 to-pink-100 text-purple-800 rounded-full text-xs">
+                  💎 Premium
+                </span>
+              )}
+              {(!usuario.rol || usuario.rol === 'usuario') && (
+                <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs">
+                  🎵 Gratis
+                </span>
+              )}
             </div>
           </div>
-        </header>
-
-        <div className="flex">
-          {/* Sidebar Component */}
-          <Sidebar 
-            isOpen={menuAbierto} 
-            onClose={() => setMenuAbierto(false)}
-            userRole={usuario.rol}
-            userName={usuario.email?.split('@')[0] || 'Usuario'}
-          />
-
-          {/* Contenido principal */}
-          <main className="flex-1 md:ml-64 min-h-screen pb-24">
-            <div className="p-6">
-              {children}
-            </div>
-          </main>
         </div>
+      </header>
 
-        {/* Reproductor global */}
-        <GlobalMusicPlayer 
-          userIsPremium={usuario.rol === 'premium' || usuario.rol === 'artista'}
+      <div className="flex">
+        {/* Sidebar Component */}
+        <Sidebar 
+          isOpen={menuAbierto} 
+          onClose={() => setMenuAbierto(false)}
+          userRole={usuario.rol}
+          userName={usuario.email?.split('@')[0] || 'Usuario'}
         />
+
+        {/* Contenido principal */}
+        <main className="flex-1 md:ml-64 min-h-screen pb-24">
+          <div className="p-6">
+            {children}
+          </div>
+        </main>
       </div>
-    </MusicPlayerProvider>
+
+      {/* Reproductor global */}
+      <GlobalMusicPlayer 
+        userIsPremium={usuario.rol === 'premium' || usuario.rol === 'artista'}
+      />
+    </div>
   );
 }

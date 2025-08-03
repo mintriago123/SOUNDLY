@@ -69,10 +69,16 @@ export async function middleware(request: NextRequest) {
   const authRoutes = ['/auth/login', '/auth/register']
   
   // Rutas que requieren rol de admin
-  const adminRoutes = ['/admin/dashboard']
+  const adminRoutes = ['/admin']
 
   // Rutas que requieren rol de artista
-  const artistRoutes = ['/dashboard/artista']
+  const artistRoutes = ['/artista']
+
+  // Rutas que requieren rol de premium
+  const premiumRoutes = ['/premium']
+
+  // Rutas que requieren rol de usuario
+  const userRoutes = ['/usuario']
 
   // Si el usuario está intentando acceder a una ruta protegida sin estar autenticado
   if (protectedRoutes.some(route => pathname.startsWith(route)) && !user) {
@@ -81,9 +87,35 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(redirectUrl)
   }
 
-  // Si el usuario está autenticado y trata de acceder a rutas de auth, redirigir al dashboard
+  // Si el usuario está autenticado y trata de acceder a rutas de auth, redirigir según su rol
   if (authRoutes.includes(pathname) && user) {
-    return NextResponse.redirect(new URL('/dashboard', request.url))
+    try {
+      // Obtener el rol del usuario
+      const { data: userData, error } = await supabase
+        .from('usuarios')
+        .select('rol')
+        .eq('id', user.id)
+        .single()
+
+      if (error || !userData) {
+        return NextResponse.redirect(new URL('/usuario/dashboard', request.url))
+      }
+
+      // Redirigir según el rol
+      switch (userData.rol) {
+        case 'admin':
+          return NextResponse.redirect(new URL('/admin/dashboard', request.url))
+        case 'artista':
+          return NextResponse.redirect(new URL('/artista/dashboard', request.url))
+        case 'premium':
+          return NextResponse.redirect(new URL('/premium/dashboard', request.url))
+        default:
+          return NextResponse.redirect(new URL('/usuario/dashboard', request.url))
+      }
+    } catch (error) {
+      console.error('❌ Error obteniendo rol del usuario:', error)
+      return NextResponse.redirect(new URL('/usuario/dashboard', request.url))
+    }
   }
 
   // Verificar rutas de admin
@@ -97,12 +129,19 @@ export async function middleware(request: NextRequest) {
         .single()
 
       if (error || !userData || userData.rol !== 'admin') {
-        // Si no es admin, redirigir al dashboard normal
-        return NextResponse.redirect(new URL('/admin/dashboard', request.url))
+        // Si no es admin, redirigir al dashboard según su rol
+        switch (userData?.rol) {
+          case 'artista':
+            return NextResponse.redirect(new URL('/artista/dashboard', request.url))
+          case 'premium':
+            return NextResponse.redirect(new URL('/premium/dashboard', request.url))
+          default:
+            return NextResponse.redirect(new URL('/usuario/dashboard', request.url))
+        }
       }
     } catch (error) {
       console.error('❌ Error verificando rol de admin:', error)
-      return NextResponse.redirect(new URL('/admin/dashboard', request.url))
+      return NextResponse.redirect(new URL('/usuario/dashboard', request.url))
     }
   }
 
@@ -117,12 +156,75 @@ export async function middleware(request: NextRequest) {
         .single()
 
       if (error || !userData || userData.rol !== 'artista') {
-        // Si no es artista, redirigir al dashboard normal
-        return NextResponse.redirect(new URL('/dashboard', request.url))
+        // Si no es artista, redirigir al dashboard según su rol
+        switch (userData?.rol) {
+          case 'admin':
+            return NextResponse.redirect(new URL('/admin/dashboard', request.url))
+          case 'premium':
+            return NextResponse.redirect(new URL('/premium/dashboard', request.url))
+          default:
+            return NextResponse.redirect(new URL('/usuario/dashboard', request.url))
+        }
       }
     } catch (error) {
       console.error('❌ Error verificando rol de artista:', error)
-      return NextResponse.redirect(new URL('/dashboard', request.url))
+      return NextResponse.redirect(new URL('/usuario/dashboard', request.url))
+    }
+  }
+
+  // Verificar rutas de premium
+  if (premiumRoutes.some(route => pathname.startsWith(route)) && user) {
+    try {
+      // Obtener datos del usuario desde la tabla usuarios para verificar el rol
+      const { data: userData, error } = await supabase
+        .from('usuarios')
+        .select('rol')
+        .eq('id', user.id)
+        .single()
+
+      if (error || !userData || userData.rol !== 'premium') {
+        // Si no es premium, redirigir al dashboard según su rol
+        switch (userData?.rol) {
+          case 'admin':
+            return NextResponse.redirect(new URL('/admin/dashboard', request.url))
+          case 'artista':
+            return NextResponse.redirect(new URL('/artista/dashboard', request.url))
+          default:
+            return NextResponse.redirect(new URL('/usuario/dashboard', request.url))
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error verificando rol de premium:', error)
+      return NextResponse.redirect(new URL('/usuario/dashboard', request.url))
+    }
+  }
+
+  // Verificar rutas de usuario
+  if (userRoutes.some(route => pathname.startsWith(route)) && user) {
+    try {
+      // Obtener datos del usuario desde la tabla usuarios para verificar el rol
+      const { data: userData, error } = await supabase
+        .from('usuarios')
+        .select('rol')
+        .eq('id', user.id)
+        .single()
+
+      if (error || !userData || userData.rol !== 'usuario') {
+        // Si no es usuario regular, redirigir al dashboard según su rol
+        switch (userData?.rol) {
+          case 'admin':
+            return NextResponse.redirect(new URL('/admin/dashboard', request.url))
+          case 'artista':
+            return NextResponse.redirect(new URL('/artista/dashboard', request.url))
+          case 'premium':
+            return NextResponse.redirect(new URL('/premium/dashboard', request.url))
+          default:
+            return NextResponse.redirect(new URL('/usuario/dashboard', request.url))
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error verificando rol de usuario:', error)
+      return NextResponse.redirect(new URL('/usuario/dashboard', request.url))
     }
   }
 
@@ -134,5 +236,9 @@ export const config = {
     '/',
     '/auth/:path*',
     '/dashboard/:path*',
+    '/admin/:path*',
+    '/artista/:path*',
+    '/premium/:path*',
+    '/usuario/:path*',
   ],
 }

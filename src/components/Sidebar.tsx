@@ -178,13 +178,6 @@ const menuItems: MenuItem[] = [
     description: 'Música sin conexión',
     premiumOnly: true
   },
-  {
-    name: 'Configuración',
-    href: '/premium/configuracion',
-    icon: Cog6ToothIcon,
-    description: 'Ajustes de cuenta',
-    premiumOnly: true
-  },
   
   // Items para Artistas
   {

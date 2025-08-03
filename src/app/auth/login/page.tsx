@@ -53,23 +53,29 @@ export default function PaginaLogin() {
     setCargando(false);
 
     if (errorPerfil || !perfil) {
+      console.error('❌ Error obteniendo perfil:', errorPerfil);
       return setError('No se pudo obtener el rol del usuario.');
     }
 
     const rol = perfil.rol;
+    console.log('✅ Rol del usuario:', rol);
 
     // Redirigir según el rol
     switch (rol) {
       case 'admin':
+        console.log('🔄 Redirigiendo a admin dashboard');
         router.push('/admin/dashboard');
         break;
       case 'artista':
+        console.log('🔄 Redirigiendo a artista dashboard');
         router.push('/artista/dashboard');
         break;
       case 'premium':
+        console.log('🔄 Redirigiendo a premium dashboard');
         router.push('/premium/dashboard');
         break;
       default:
+        console.log('🔄 Redirigiendo a usuario dashboard (default)');
         router.push('/usuario/dashboard');
     }
   };

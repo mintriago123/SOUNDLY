@@ -94,8 +94,11 @@ export default function ReproductorPage() {
   const [modoAleatorio, setModoAleatorio] = useState(false);
   const [modoRepetir, setModoRepetir] = useState<ModoRepetir>('off');
   const [mostrarPlaylist, setMostrarPlaylist] = useState(true);
+  const [mostrarSoloFavoritas, setMostrarSoloFavoritas] = useState(false);
   const [usuario, setUsuario] = useState<any>(null);
   const [cargando, setCargando] = useState(true);
+  const [cancionesFavoritas, setCancionesFavoritas] = useState<Set<string>>(new Set());
+  const [mensajeFavorito, setMensajeFavorito] = useState<string>('');
 
   // Estados para visualizador
   const [barrasEcualizador, setBarrasEcualizador] = useState<Array<{ id: string; altura: number }>>([]);
@@ -219,6 +222,9 @@ export default function ReproductorPage() {
       
       // Cargar canciones después de establecer el usuario
       await cargarCancionesUsuario(userData);
+      
+      // Cargar favoritos del usuario
+      await cargarFavoritos(userData.id);
       
     } catch (error) {
       console.error('Error verificando usuario:', error);
@@ -386,15 +392,133 @@ export default function ReproductorPage() {
     playSong(cancionParaContexto, playlistParaContexto);
   };
 
-  const toggleFavorito = async () => {
-    if (!currentSong) return;
-    // Funcionalidad simplificada - solo log por ahora
-    console.log('Toggle favorito para:', currentSong.titulo);
+  /**
+   * Obtener conteo actualizado de favoritos para una canción
+   */
+  const obtenerConteoFavoritos = async (cancionId: string): Promise<number> => {
+    try {
+      const { count } = await supabase
+        .from('favoritos')
+        .select('*', { count: 'exact', head: true })
+        .eq('cancion_id', cancionId);
+
+      return count || 0;
+    } catch (error) {
+      console.error('Error obteniendo conteo de favoritos:', error);
+      return 0;
+    }
   };
 
   /**
-   * Formatear duración en MM:SS
+   * Cargar canciones favoritas del usuario
    */
+  const cargarFavoritos = async (userId: string) => {
+    try {
+      const { data: favoritosData, error } = await supabase
+        .from('favoritos')
+        .select('cancion_id')
+        .eq('usuario_id', userId);
+
+      if (error) {
+        console.error('Error cargando favoritos:', error);
+        return;
+      }
+
+      const favoritosSet = new Set(favoritosData?.map(fav => fav.cancion_id) || []);
+      setCancionesFavoritas(favoritosSet);
+    } catch (error) {
+      console.error('Error cargando favoritos:', error);
+    }
+  };
+
+  /**
+   * Toggle favorito de la canción actual
+   */
+  const toggleFavorito = async (cancionId?: string) => {
+    if (!usuario) return;
+    
+    const idCancion = cancionId || currentSong?.id;
+    if (!idCancion) return;
+
+    const esFavorita = cancionesFavoritas.has(idCancion);
+
+    try {
+      if (esFavorita) {
+        // Quitar de favoritos
+        const { error } = await supabase
+          .from('favoritos')
+          .delete()
+          .eq('usuario_id', usuario.id)
+          .eq('cancion_id', idCancion);
+
+        if (error) {
+          console.error('Error quitando de favoritos:', error);
+          return;
+        }
+
+        // Actualizar contador en la tabla canciones con el conteo real
+        const conteoReal = await obtenerConteoFavoritos(idCancion);
+        const { error: updateError } = await supabase
+          .from('canciones')
+          .update({ favoritos: conteoReal })
+          .eq('id', idCancion);
+
+        if (updateError) {
+          console.error('Error actualizando contador de favoritos:', updateError);
+        }
+
+        // Actualizar estado local
+        const nuevasFavoritas = new Set(cancionesFavoritas);
+        nuevasFavoritas.delete(idCancion);
+        setCancionesFavoritas(nuevasFavoritas);
+
+        // Mostrar mensaje de feedback
+        setMensajeFavorito('Canción quitada de favoritos');
+        setTimeout(() => setMensajeFavorito(''), 3000);
+
+        console.log('Canción quitada de favoritos');
+      } else {
+        // Agregar a favoritos
+        const { error } = await supabase
+          .from('favoritos')
+          .insert({
+            usuario_id: usuario.id,
+            cancion_id: idCancion,
+            fecha_agregada: new Date().toISOString()
+          });
+
+        if (error) {
+          console.error('Error agregando a favoritos:', error);
+          return;
+        }
+
+        // Actualizar contador en la tabla canciones con el conteo real
+        const conteoReal = await obtenerConteoFavoritos(idCancion);
+        const { error: updateError } = await supabase
+          .from('canciones')
+          .update({ favoritos: conteoReal })
+          .eq('id', idCancion);
+
+        if (updateError) {
+          console.error('Error actualizando contador de favoritos:', updateError);
+        }
+
+        // Actualizar estado local
+        const nuevasFavoritas = new Set(cancionesFavoritas);
+        nuevasFavoritas.add(idCancion);
+        setCancionesFavoritas(nuevasFavoritas);
+
+        // Mostrar mensaje de feedback
+        setMensajeFavorito('Canción agregada a favoritos');
+        setTimeout(() => setMensajeFavorito(''), 3000);
+
+        console.log('Canción agregada a favoritos');
+      }
+    } catch (error) {
+      console.error('Error en toggle favorito:', error);
+    }
+  };
+
   const formatearDuracion = (segundos: number) => {
     const minutos = Math.floor(segundos / 60);
     const segs = segundos % 60;
@@ -453,6 +577,21 @@ export default function ReproductorPage() {
 
   return (
     <DashboardLayout>
+      {/* Notificación de favoritos */}
+      {mensajeFavorito && (
+        <div 
+          className="fixed top-4 right-4 bg-purple-600 text-white px-6 py-3 rounded-lg shadow-lg z-50 transition-all duration-300 ease-in-out"
+          style={{ 
+            animation: 'slideInRight 0.3s ease-out',
+          }}
+        >
+          <div className="flex items-center space-x-2">
+            <span className="text-lg">💜</span>
+            <span>{mensajeFavorito}</span>
+          </div>
+        </div>
+      )}
+      
       <div className="max-w-7xl mx-auto space-y-6">
         
         {/* Header del Reproductor */}
@@ -475,6 +614,10 @@ export default function ReproductorPage() {
               <div>
                 <div className="text-2xl font-bold">{playlist.length}</div>
                 <div className="text-sm text-purple-200">En cola</div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold">{cancionesFavoritas.size}</div>
+                <div className="text-sm text-purple-200">Favoritas</div>
               </div>
               <div>
                 <div className="text-2xl font-bold">{usuario?.rol === 'premium' ? 'HD' : 'STD'}</div>
@@ -532,11 +675,19 @@ export default function ReproductorPage() {
                       {/* Acciones rápidas - Simplificadas */}
                       <div className="flex space-x-2">
                         <button
-                          onClick={toggleFavorito}
-                          className="p-3 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
-                          title="Favorito"
+                          onClick={() => toggleFavorito()}
+                          className={`p-3 rounded-full transition-colors ${
+                            cancionesFavoritas.has(currentSong.id)
+                              ? 'bg-red-100 text-red-600 hover:bg-red-200'
+                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          }`}
+                          title={cancionesFavoritas.has(currentSong.id) ? "Quitar de favoritos" : "Agregar a favoritos"}
                         >
-                          <HeartIcon className="w-5 h-5" />
+                          {cancionesFavoritas.has(currentSong.id) ? (
+                            <HeartIconSolid className="w-5 h-5" />
+                          ) : (
+                            <HeartIcon className="w-5 h-5" />
+                          )}
                         </button>
                         
                         <button className="p-3 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors">
@@ -566,6 +717,16 @@ export default function ReproductorPage() {
                       <div>
                         <span className="text-gray-500">Estado:</span>
                         <span className="ml-2 font-medium">{isPlaying ? 'Reproduciendo' : 'Pausado'}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Favorito:</span>
+                        <span className="ml-2 font-medium">
+                          {cancionesFavoritas.has(currentSong.id) ? (
+                            <span className="text-red-600">❤️ Sí</span>
+                          ) : (
+                            <span className="text-gray-400">🤍 No</span>
+                          )}
+                        </span>
                       </div>
                     </div>
                     
@@ -745,56 +906,109 @@ export default function ReproductorPage() {
                   <QueueListIcon className="w-5 h-5 mr-2 text-purple-600" />
                   Cola de Reproducción
                 </h3>
-                <button
-                  onClick={() => setMostrarPlaylist(!mostrarPlaylist)}
-                  className="text-gray-500 hover:text-gray-700"
-                >
-                  {mostrarPlaylist ? 'Ocultar' : 'Mostrar'}
-                </button>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => setMostrarSoloFavoritas(!mostrarSoloFavoritas)}
+                    className={`px-3 py-1 rounded-md text-xs transition-colors ${
+                      mostrarSoloFavoritas
+                        ? 'bg-red-100 text-red-700'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                    title={mostrarSoloFavoritas ? "Mostrar todas" : "Solo favoritas"}
+                  >
+                    {mostrarSoloFavoritas ? '❤️ Favoritas' : '🎵 Todas'}
+                  </button>
+                  <button
+                    onClick={() => setMostrarPlaylist(!mostrarPlaylist)}
+                    className="text-gray-500 hover:text-gray-700"
+                  >
+                    {mostrarPlaylist ? 'Ocultar' : 'Mostrar'}
+                  </button>
+                </div>
               </div>
               
               {mostrarPlaylist && (
                 <div className="max-h-96 overflow-y-auto">
-                  {canciones.map((cancion, indice) => {
-                    const isCurrentSong = currentSong?.id === cancion.id;
-                    return (
-                      <button
-                        key={cancion.id}
-                        onClick={() => seleccionarCancion(cancion)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            seleccionarCancion(cancion);
-                          }
-                        }}
-                        className={`w-full p-4 border-b border-gray-100 transition-colors hover:bg-gray-50 text-left ${
-                          isCurrentSong ? 'bg-purple-50 border-purple-200' : ''
-                        }`}
-                      >
-                        <div className="flex items-center space-x-3">
-                          {/* Indicador de reproducción */}
-                          <div className="w-8 text-center">
-                            {renderPlaylistIndicator(cancion, isCurrentSong, indice)}
-                          </div>
-                          
-                          {/* Información de la canción */}
-                          <div className="flex-1 min-w-0">
-                            <p className={`font-medium truncate ${
-                              isCurrentSong ? 'text-purple-700' : 'text-gray-900'
-                            }`}>
-                              {cancion.titulo}
-                            </p>
-                            <p className="text-sm text-gray-600 truncate">{cancion.artista}</p>
-                          </div>
-                          
-                          {/* Duración */}
-                          <div className="flex items-center space-x-2">
-                            <span className="text-sm text-gray-500">{formatearDuracion(cancion.duracion)}</span>
-                          </div>
+                  {(() => {
+                    const cancionesFiltradas = mostrarSoloFavoritas 
+                      ? canciones.filter(cancion => cancionesFavoritas.has(cancion.id))
+                      : canciones;
+                    
+                    if (cancionesFiltradas.length === 0) {
+                      return (
+                        <div className="p-8 text-center text-gray-500">
+                          <span className="text-4xl mb-2 block">
+                            {mostrarSoloFavoritas ? '💔' : '🎵'}
+                          </span>
+                          <p>
+                            {mostrarSoloFavoritas 
+                              ? 'No tienes canciones favoritas aún' 
+                              : 'No hay canciones disponibles'
+                            }
+                          </p>
                         </div>
-                      </button>
-                    );
-                  })}
+                      );
+                    }
+                    
+                    return cancionesFiltradas.map((cancion, indice) => {
+                      const isCurrentSong = currentSong?.id === cancion.id;
+                      return (
+                        <button
+                          key={cancion.id}
+                          onClick={() => seleccionarCancion(cancion)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              seleccionarCancion(cancion);
+                            }
+                          }}
+                          className={`w-full p-4 border-b border-gray-100 transition-colors hover:bg-gray-50 text-left ${
+                            isCurrentSong ? 'bg-purple-50 border-purple-200' : ''
+                          }`}
+                        >
+                          <div className="flex items-center space-x-3">
+                            {/* Indicador de reproducción */}
+                            <div className="w-8 text-center">
+                              {renderPlaylistIndicator(cancion, isCurrentSong, indice)}
+                            </div>
+                            
+                            {/* Información de la canción */}
+                            <div className="flex-1 min-w-0">
+                              <p className={`font-medium truncate ${
+                                isCurrentSong ? 'text-purple-700' : 'text-gray-900'
+                              }`}>
+                                {cancion.titulo}
+                              </p>
+                              <p className="text-sm text-gray-600 truncate">{cancion.artista}</p>
+                            </div>
+                            
+                            {/* Duración y favoritos */}
+                            <div className="flex items-center space-x-2">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleFavorito(cancion.id);
+                                }}
+                                className={`p-1 rounded transition-colors ${
+                                  cancionesFavoritas.has(cancion.id)
+                                    ? 'text-red-600 hover:text-red-700'
+                                    : 'text-gray-400 hover:text-gray-600'
+                                }`}
+                                title={cancionesFavoritas.has(cancion.id) ? "Quitar de favoritos" : "Agregar a favoritos"}
+                              >
+                                {cancionesFavoritas.has(cancion.id) ? (
+                                  <HeartIconSolid className="w-4 h-4" />
+                                ) : (
+                                  <HeartIcon className="w-4 h-4" />
+                                )}
+                              </button>
+                              <span className="text-sm text-gray-500">{formatearDuracion(cancion.duracion)}</span>
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    });
+                  })()}
                 </div>
               )}
             </div>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import DashboardLayout from '../../../components/DashboardLayout';
+import DashboardLayout from '@/components/DashboardLayout';
 import { useSupabase } from '@/components/SupabaseProvider';
 import { ClipboardDocumentListIcon, PlusIcon, MagnifyingGlassIcon, MusicalNoteIcon, EllipsisVerticalIcon, PlayIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 

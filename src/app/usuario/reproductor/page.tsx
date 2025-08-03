@@ -230,6 +230,21 @@ export default function ReproductorPage() {
    */
   const cargarCancionesPublicas = async () => {
     try {
+      console.log('🔍 Iniciando carga de canciones públicas...');
+      
+      // Primero, diagnosticar qué hay en la tabla canciones
+      const { data: todasLasCanciones, error: errorTodas } = await supabase
+        .from('canciones')
+        .select('*')
+        .limit(10);
+      
+      console.log('📊 Total de canciones en la tabla:', todasLasCanciones?.length || 0);
+      console.log('📋 Primeras canciones:', todasLasCanciones);
+      
+      if (errorTodas) {
+        console.error('❌ Error consultando todas las canciones:', errorTodas);
+      }
+      
       // Cargar canciones públicas de la base de datos
       const { data: cancionesData, error } = await supabase
         .from('canciones')
@@ -242,13 +257,25 @@ export default function ReproductorPage() {
         .order('reproducciones', { ascending: false })
         .limit(50); // Limitar a las 50 más populares
 
+      console.log('🎵 Canciones públicas encontradas:', cancionesData?.length || 0);
+      console.log('📝 Datos de canciones públicas:', cancionesData);
+
       if (error) {
         console.error('Error cargando canciones públicas:', error);
         return;
       }
 
       if (!cancionesData || cancionesData.length === 0) {
-        console.log('No hay canciones públicas disponibles');
+        console.log('⚠️ No hay canciones públicas disponibles');
+        
+        // Intentar cargar cualquier canción para diagnóstico
+        const { data: cualquierCancion } = await supabase
+          .from('canciones')
+          .select('*')
+          .limit(10);
+          
+        console.log('🔍 Canciones disponibles (cualquier estado):', cualquierCancion);
+        
         setPlaylist([]);
         return;
       }
@@ -961,7 +988,7 @@ export default function ReproductorPage() {
         {/* Reproductor fijo en la parte inferior - Comentado por ahora */}
         {/* 
         <div className="fixed bottom-0 left-0 right-0 z-50">
-          <MusicPlayer
+          <GlobalMusicPlayer
             cancion={cancionActual ? {
               id: cancionActual.id,
               titulo: cancionActual.titulo,

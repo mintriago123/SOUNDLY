@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
+import { useSupabase } from '@/components/SupabaseProvider';
 import Image from 'next/image';
 import { 
   MagnifyingGlassIcon,
@@ -29,6 +30,11 @@ interface Cancion {
   imagen_url?: string;
   es_favorito: boolean;
   reproducciones: number;
+  archivo_audio_url: string;
+  estado: string;
+  es_publica: boolean;
+  created_at: string;
+  usuario_subida_id: string;
 }
 
 interface FiltrosBusqueda {
@@ -38,95 +44,15 @@ interface FiltrosBusqueda {
   artista: string;
 }
 
-// Datos simulados para demostración (en producción vendrían del storage)
-const cancionesSimuladas: Cancion[] = [
-  {
-    id: '1',
-    titulo: 'Estrellas en el Cielo',
-    artista: 'Luna Nova',
-    album: 'Noches de Verano',
-    duracion: '3:45',
-    genero: 'Pop',
-    año: 2023,
-    url_storage: '/storage/musica/estrellas-cielo.mp3',
-    imagen_url: '/storage/imagenes/album-noches-verano.jpg',
-    es_favorito: false,
-    reproducciones: 12450
-  },
-  {
-    id: '2',
-    titulo: 'Ritmo del Corazón',
-    artista: 'Carlos Mendez',
-    album: 'Latidos',
-    duracion: '4:12',
-    genero: 'Reggaeton',
-    año: 2023,
-    url_storage: '/storage/musica/ritmo-corazon.mp3',
-    imagen_url: '/storage/imagenes/album-latidos.jpg',
-    es_favorito: true,
-    reproducciones: 8765
-  },
-  {
-    id: '3',
-    titulo: 'Midnight Jazz',
-    artista: 'The Blue Notes',
-    album: 'City Nights',
-    duracion: '5:23',
-    genero: 'Jazz',
-    año: 2022,
-    url_storage: '/storage/musica/midnight-jazz.mp3',
-    imagen_url: '/storage/imagenes/album-city-nights.jpg',
-    es_favorito: false,
-    reproducciones: 5432
-  },
-  {
-    id: '4',
-    titulo: 'Fuego Latino',
-    artista: 'María Rodriguez',
-    album: 'Pasión',
-    duracion: '3:28',
-    genero: 'Salsa',
-    año: 2023,
-    url_storage: '/storage/musica/fuego-latino.mp3',
-    imagen_url: '/storage/imagenes/album-pasion.jpg',
-    es_favorito: true,
-    reproducciones: 15678
-  },
-  {
-    id: '5',
-    titulo: 'Electric Dreams',
-    artista: 'Neon Pulse',
-    album: 'Synthwave',
-    duracion: '4:56',
-    genero: 'Electronic',
-    año: 2023,
-    url_storage: '/storage/musica/electric-dreams.mp3',
-    imagen_url: '/storage/imagenes/album-synthwave.jpg',
-    es_favorito: false,
-    reproducciones: 9876
-  },
-  {
-    id: '6',
-    titulo: 'Caminos de Tierra',
-    artista: 'Los Viajeros',
-    album: 'Raíces',
-    duracion: '4:01',
-    genero: 'Folk',
-    año: 2022,
-    url_storage: '/storage/musica/caminos-tierra.mp3',
-    imagen_url: '/storage/imagenes/album-raices.jpg',
-    es_favorito: false,
-    reproducciones: 6543
-  }
-];
-
 export default function BuscarMusicaPage() {
+  const { supabase } = useSupabase();
   const [termino, setTermino] = useState('');
   const [canciones, setCanciones] = useState<Cancion[]>([]);
   const [cancionesFiltradas, setCancionesFiltradas] = useState<Cancion[]>([]);
   const [cargando, setCargando] = useState(false);
   const [cancionReproduciendo, setCancionReproduciendo] = useState<string | null>(null);
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
+  const [audioActual, setAudioActual] = useState<HTMLAudioElement | null>(null);
   const [filtros, setFiltros] = useState<FiltrosBusqueda>({
     genero: '',
     año: '',
@@ -134,22 +60,122 @@ export default function BuscarMusicaPage() {
     artista: ''
   });
 
-  const generos = ['Todos', 'Pop', 'Rock', 'Jazz', 'Electronic', 'Reggaeton', 'Salsa', 'Folk', 'Hip Hop', 'Country'];
-  const años = ['Todos', '2023', '2022', '2021', '2020'];
+  const [generos, setGeneros] = useState<string[]>(['Todos']);
+  const [años, setAños] = useState<string[]>(['Todos']);
   const duraciones = ['Todos', 'Corta (< 3 min)', 'Media (3-5 min)', 'Larga (> 5 min)'];
 
+  /**
+   * Actualizar géneros y años dinámicamente basándose en las canciones
+   */
+  const actualizarFiltrosDinamicos = useCallback(() => {
+    const generosUnicos = new Set<string>();
+    const añosUnicos = new Set<number>();
+
+    canciones.forEach(cancion => {
+      if (cancion.genero) generosUnicos.add(cancion.genero);
+      if (cancion.año) añosUnicos.add(cancion.año);
+    });
+
+    setGeneros(['Todos', ...Array.from(generosUnicos).sort((a, b) => a.localeCompare(b))]);
+    setAños(['Todos', ...Array.from(añosUnicos).sort((a, b) => b - a).map(String)]);
+  }, [canciones]);
+
+  useEffect(() => {
+    actualizarFiltrosDinamicos();
+  }, [actualizarFiltrosDinamicos]);
+
+  /**
+   * Cargar canciones públicas desde la base de datos de Supabase
+   */
   const cargarCanciones = useCallback(async () => {
     setCargando(true);
     try {
-      // Simular carga desde el storage
-      await new Promise(resolve => setTimeout(resolve, 800));
-      setCanciones(cancionesSimuladas);
+      console.log('🔍 Cargando canciones desde la base de datos...');
+      
+      // Obtener canciones públicas y activas con información del usuario
+      const { data: cancionesData, error } = await supabase
+        .from('canciones')
+        .select(`
+          *,
+          usuarios(nombre, email)
+        `)
+        .eq('estado', 'activa')
+        .eq('es_publica', true)
+        .order('reproducciones', { ascending: false });
+
+      if (error) {
+        console.error('Error cargando canciones:', error);
+        return;
+      }
+
+      console.log('📊 Canciones encontradas:', cancionesData?.length || 0);
+      console.log('📋 Datos:', cancionesData);
+
+      if (!cancionesData || cancionesData.length === 0) {
+        console.log('⚠️ No hay canciones públicas disponibles');
+        setCanciones([]);
+        return;
+      }
+
+      // Procesar y formatear las canciones
+      const cancionesFormateadas = await Promise.all(
+        cancionesData.map(async (cancion: any) => {
+          let urlAudio = cancion.archivo_audio_url;
+          
+          // Si la URL no es completa, generar URL pública desde Supabase Storage
+          if (urlAudio && !urlAudio.startsWith('http')) {
+            try {
+              const { data: urlData } = supabase.storage
+                .from('music')
+                .getPublicUrl(urlAudio);
+              
+              if (urlData?.publicUrl) {
+                urlAudio = urlData.publicUrl;
+                console.log('🔗 URL pública generada para:', cancion.titulo, urlAudio);
+              }
+            } catch (error) {
+              console.error('Error generando URL para:', cancion.titulo, error);
+            }
+          }
+
+          // Formatear duración desde segundos a MM:SS
+          const formatearDuracion = (segundos: number) => {
+            if (!segundos) return '0:00';
+            const mins = Math.floor(segundos / 60);
+            const secs = segundos % 60;
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+          };
+
+          return {
+            id: cancion.id,
+            titulo: cancion.titulo,
+            artista: cancion.usuarios?.nombre || 'Artista Desconocido',
+            album: cancion.album || 'Sin álbum',
+            duracion: formatearDuracion(cancion.duracion),
+            genero: cancion.genero || 'Sin género',
+            año: cancion.año || new Date(cancion.created_at).getFullYear(),
+            url_storage: urlAudio,
+            archivo_audio_url: urlAudio,
+            imagen_url: cancion.imagen_url,
+            es_favorito: false, // Se actualizará después
+            reproducciones: cancion.reproducciones || 0,
+            estado: cancion.estado,
+            es_publica: cancion.es_publica,
+            created_at: cancion.created_at,
+            usuario_subida_id: cancion.usuario_subida_id
+          };
+        })
+      );
+
+      console.log('✅ Canciones formateadas:', cancionesFormateadas);
+      setCanciones(cancionesFormateadas);
+      
     } catch (error) {
       console.error('Error cargando canciones:', error);
     } finally {
       setCargando(false);
     }
-  }, []);
+  }, [supabase]);
 
   const aplicarFiltros = useCallback(() => {
     let resultado = [...canciones];
@@ -203,21 +229,148 @@ export default function BuscarMusicaPage() {
     setCancionesFiltradas(resultado);
   }, [termino, filtros, canciones]);
 
+  /**
+   * Búsqueda en tiempo real con debounce
+   */
+  useEffect(() => {
+    const delayedSearch = setTimeout(() => {
+      if (termino.trim().length >= 2 || termino.trim().length === 0) {
+        aplicarFiltros();
+      }
+    }, 300); // Debounce de 300ms
+
+    return () => clearTimeout(delayedSearch);
+  }, [termino, aplicarFiltros]);
+
+  /**
+   * Limpiar audio al desmontar el componente
+   */
+  useEffect(() => {
+    return () => {
+      if (audioActual) {
+        audioActual.pause();
+        audioActual.currentTime = 0;
+      }
+    };
+  }, [audioActual]);
+
+  /**
+   * Función para reproducir/pausar audio real
+   */
+  const toggleReproduccion = async (cancion: Cancion) => {
+    try {
+      // Si hay un audio reproduciéndose, pausarlo
+      if (audioActual) {
+        audioActual.pause();
+        audioActual.currentTime = 0;
+      }
+
+      // Si es la misma canción, solo pausar
+      if (cancionReproduciendo === cancion.id) {
+        setCancionReproduciendo(null);
+        setAudioActual(null);
+        return;
+      }
+
+      // Verificar que la canción tenga URL de audio
+      if (!cancion.archivo_audio_url) {
+        console.error('La canción no tiene archivo de audio:', cancion.titulo);
+        alert('Esta canción no tiene archivo de audio disponible');
+        return;
+      }
+
+      console.log('🎵 Intentando reproducir:', cancion.titulo, 'URL:', cancion.archivo_audio_url);
+
+      // Crear nuevo elemento de audio
+      const nuevoAudio = new Audio(cancion.archivo_audio_url);
+      
+      // Configurar eventos del audio
+      nuevoAudio.addEventListener('loadstart', () => {
+        console.log('📡 Iniciando carga de audio...');
+      });
+
+      nuevoAudio.addEventListener('canplay', () => {
+        console.log('✅ Audio listo para reproducir');
+      });
+
+      nuevoAudio.addEventListener('error', (e) => {
+        console.error('❌ Error cargando audio:', e);
+        alert(`Error reproduciendo: ${cancion.titulo}`);
+        setCancionReproduciendo(null);
+        setAudioActual(null);
+      });
+
+      nuevoAudio.addEventListener('ended', () => {
+        console.log('🔚 Reproducción terminada');
+        setCancionReproduciendo(null);
+        setAudioActual(null);
+      });
+
+      // Configurar volumen
+      nuevoAudio.volume = 0.7;
+
+      // Intentar reproducir
+      try {
+        await nuevoAudio.play();
+        setCancionReproduciendo(cancion.id);
+        setAudioActual(nuevoAudio);
+        console.log('🎶 Reproduciendo:', cancion.titulo);
+        
+        // Opcional: Incrementar contador de reproducciones
+        await incrementarReproducciones(cancion.id);
+        
+      } catch (playError) {
+        console.error('Error iniciando reproducción:', playError);
+        alert(`No se pudo reproducir: ${cancion.titulo}`);
+      }
+
+    } catch (error) {
+      console.error('Error en toggleReproduccion:', error);
+    }
+  };
+
+  /**
+   * Incrementar contador de reproducciones en la base de datos
+   */
+  const incrementarReproducciones = async (cancionId: string) => {
+    try {
+      // Primero obtener el valor actual
+      const { data: cancionActual } = await supabase
+        .from('canciones')
+        .select('reproducciones')
+        .eq('id', cancionId)
+        .single();
+
+      if (cancionActual) {
+        const nuevasReproducciones = (cancionActual.reproducciones || 0) + 1;
+        
+        const { error } = await supabase
+          .from('canciones')
+          .update({ reproducciones: nuevasReproducciones })
+          .eq('id', cancionId);
+
+        if (error) {
+          console.error('Error incrementando reproducciones:', error);
+        } else {
+          // Actualizar el estado local
+          setCanciones(prev => prev.map(cancion => 
+            cancion.id === cancionId 
+              ? { ...cancion, reproducciones: nuevasReproducciones }
+              : cancion
+          ));
+        }
+      }
+    } catch (error) {
+      console.error('Error en incrementarReproducciones:', error);
+    }
+  };
+
+  /**
+   * Cargar canciones al montar el componente
+   */
   useEffect(() => {
     cargarCanciones();
   }, [cargarCanciones]);
-
-  useEffect(() => {
-    aplicarFiltros();
-  }, [aplicarFiltros]);
-
-  const toggleReproduccion = (cancionId: string) => {
-    if (cancionReproduciendo === cancionId) {
-      setCancionReproduciendo(null);
-    } else {
-      setCancionReproduciendo(cancionId);
-    }
-  };
 
   const toggleFavorito = async (cancionId: string) => {
     setCanciones(prev => prev.map(cancion =>
@@ -378,20 +531,33 @@ export default function BuscarMusicaPage() {
           {cargando ? (
             <div className="p-12 text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
-              <p className="text-gray-600">Cargando música...</p>
+              <p className="text-gray-600">Buscando música en la base de datos...</p>
             </div>
           ) : (
             <>
               {cancionesFiltradas.length === 0 ? (
                 <div className="p-12 text-center">
                   <MagnifyingGlassIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No se encontraron canciones</h3>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    {termino.trim() || Object.values(filtros).some(f => f) 
+                      ? 'No se encontraron canciones' 
+                      : 'No hay canciones disponibles'
+                    }
+                  </h3>
                   <p className="text-gray-600">
-                    {termino || Object.values(filtros).some(f => f)
+                    {termino.trim() || Object.values(filtros).some(f => f)
                       ? 'Intenta cambiar los filtros o términos de búsqueda'
-                      : 'Comienza a buscar música escribiendo en el campo superior'
+                      : 'Parece que no hay canciones públicas en la base de datos aún'
                     }
                   </p>
+                  {!termino && !Object.values(filtros).some(f => f) && (
+                    <button
+                      onClick={cargarCanciones}
+                      className="mt-4 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                    >
+                      🔄 Recargar canciones
+                    </button>
+                  )}
                 </div>
               ) : (
                 <div className="divide-y divide-gray-200">
@@ -464,8 +630,9 @@ export default function BuscarMusicaPage() {
                       </button>
 
                       <button
-                        onClick={() => toggleReproduccion(cancion.id)}
+                        onClick={() => toggleReproduccion(cancion)}
                         className="p-3 bg-purple-600 text-white rounded-full hover:bg-purple-700 transition-colors"
+                        title={cancionReproduciendo === cancion.id ? 'Pausar' : 'Reproducir'}
                       >
                         {cancionReproduciendo === cancion.id ? (
                           <PauseIcon className="w-5 h-5" />

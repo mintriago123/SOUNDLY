@@ -40,8 +40,15 @@ interface Cancion {
 interface UploadProgress {
   fileName: string;
   progress: number;
-  status: 'uploading' | 'processing' | 'complete' | 'error';
+  status: 'uploading' | 'processing' | 'complete' | 'error' | 'editing';
   error?: string;
+  metadatos?: {
+    titulo: string;
+    genero: string;
+    albumId?: string;
+    duracion: number;
+  };
+  archivo?: File;
 }
 
 export default function MiMusica() {
@@ -53,6 +60,7 @@ export default function MiMusica() {
   const [mostrarModalSubida, setMostrarModalSubida] = useState(false);
   const [archivosSubiendo, setArchivosSubiendo] = useState<UploadProgress[]>([]);
   const [dragActive, setDragActive] = useState(false);
+  const [albumsDisponibles, setAlbumsDisponibles] = useState<any[]>([]);
 
   useEffect(() => {
     verificarUsuarioYCargarMusica();
@@ -81,6 +89,7 @@ export default function MiMusica() {
 
       setUsuario(userData);
       await cargarCanciones(user.id);
+      await cargarAlbumsDisponibles(user.id);
     } catch (error) {
       console.error('Error verificando usuario:', error);
     } finally {
@@ -130,6 +139,25 @@ export default function MiMusica() {
       setCanciones(cancionesCorregidas);
     } catch (error) {
       console.error('Error cargando canciones:', error);
+    }
+  };
+
+  const cargarAlbumsDisponibles = async (userId: string) => {
+    try {
+      const { data: albumsData, error } = await supabase
+        .from('albumes')
+        .select('id, titulo')
+        .eq('usuario_id', userId)
+        .order('titulo', { ascending: true });
+
+      if (error) {
+        console.error('Error cargando álbumes:', error);
+        return;
+      }
+
+      setAlbumsDisponibles(albumsData || []);
+    } catch (error) {
+      console.error('Error cargando álbumes:', error);
     }
   };
 
@@ -300,152 +328,189 @@ export default function MiMusica() {
     for (let i = 0; i < archivos.length; i++) {
       const archivo = archivos[i];
       
-      // Añadir archivo a la lista de subidas
+      // Validar archivo primero
+      const validacion = await validarArchivo(archivo);
+      if (!validacion.valido) {
+        alert(`Error en ${archivo.name}: ${validacion.error}`);
+        continue;
+      }
+
+      const metadatos = validacion.metadatos;
+      
+      // Añadir archivo a la lista con estado de edición
       const nuevoUpload: UploadProgress = {
         fileName: archivo.name,
         progress: 0,
-        status: 'uploading'
+        status: 'editing',
+        metadatos: {
+          titulo: metadatos?.titulo || archivo.name.replace(/\.[^/.]+$/, ""),
+          genero: metadatos?.genero || 'Sin clasificar',
+          albumId: '',
+          duracion: metadatos?.duracion || 180
+        },
+        archivo: archivo
       };
       
       setArchivosSubiendo(prev => [...prev, nuevoUpload]);
-
-      try {
-        // Validar archivo
-        const validacion = await validarArchivo(archivo);
-        if (!validacion.valido) {
-          setArchivosSubiendo(prev => 
-            prev.map(upload => 
-              upload.fileName === archivo.name 
-                ? { ...upload, status: 'error', error: validacion.error }
-                : upload
-            )
-          );
-          continue;
-        }
-
-        const metadatos = validacion.metadatos;
-        
-        // Log para depuración
-        console.log('Metadatos del archivo:', {
-          nombre: archivo.name,
-          tamaño: archivo.size,
-          tipo: archivo.type,
-          metadatos: metadatos
-        });
-
-        // Subir archivo a Supabase Storage
-        const nombreArchivo = `${Date.now()}-${archivo.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
-        
-        // Actualizar progreso
-        setArchivosSubiendo(prev => 
-          prev.map(upload => 
-            upload.fileName === archivo.name 
-              ? { ...upload, progress: 50, status: 'uploading' }
-              : upload
-          )
-        );
-
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('music')
-          .upload(nombreArchivo, archivo, {
-            cacheControl: '3600',
-            upsert: false
-          });
-
-        if (uploadError) {
-          console.error('Error de subida:', uploadError);
-          let errorMessage = 'Error subiendo archivo';
-          
-          if (uploadError.message.includes('Bucket not found')) {
-            errorMessage = 'El bucket "music" no existe. Configura Supabase Storage primero.';
-          } else if (uploadError.message.includes('Policy')) {
-            errorMessage = 'Sin permisos. Configura las políticas RLS del bucket.';
-          } else if (uploadError.message.includes('413')) {
-            errorMessage = 'Archivo demasiado grande';
-          } else if (uploadError.message.includes('401')) {
-            errorMessage = 'No autorizado. Verifica tu sesión.';
-          }
-          
-          setArchivosSubiendo(prev => 
-            prev.map(upload => 
-              upload.fileName === archivo.name 
-                ? { ...upload, status: 'error', error: errorMessage }
-                : upload
-            )
-          );
-          continue;
-        }
-
-        // Actualizar progreso
-        setArchivosSubiendo(prev => 
-          prev.map(upload => 
-            upload.fileName === archivo.name 
-              ? { ...upload, progress: 90 }
-              : upload
-          )
-        );
-
-        // Obtener URL pública del archivo
-        const { data: urlData } = supabase.storage
-          .from('music')
-          .getPublicUrl(nombreArchivo);
-
-        // Guardar información en la base de datos
-        const { data: cancionData, error: dbError } = await supabase
-          .from('canciones')
-          .insert({
-            titulo: metadatos.titulo || archivo.name.replace(/\.[^/.]+$/, ""),
-            usuario_subida_id: usuario.id,
-            duracion: metadatos.duracion,
-            genero: metadatos.genero || 'Sin clasificar',
-            año: metadatos.año || new Date().getFullYear(),
-            archivo_audio_url: urlData.publicUrl,
-            reproducciones: 0,
-            es_publica: true,
-            estado: 'activa',
-            favoritos: 0,
-            descargas: 0
-          })
-          .select()
-          .single();
-
-        if (dbError) {
-          setArchivosSubiendo(prev => 
-            prev.map(upload => 
-              upload.fileName === archivo.name 
-                ? { ...upload, status: 'error', error: 'Error guardando en base de datos' }
-                : upload
-            )
-          );
-          continue;
-        }
-
-        // Marcar como completado
-        setArchivosSubiendo(prev => 
-          prev.map(upload => 
-            upload.fileName === archivo.name 
-              ? { ...upload, status: 'complete', progress: 100 }
-              : upload
-          )
-        );
-
-        // Recargar lista de canciones
-        await cargarCanciones(usuario.id);
-
-      } catch (error) {
-        console.error('Error procesando archivo:', error);
-        setArchivosSubiendo(prev => 
-          prev.map(upload => 
-            upload.fileName === archivo.name 
-              ? { ...upload, status: 'error', error: 'Error procesando archivo' }
-              : upload
-          )
-        );
-      }
     }
   };
 
-  // Manejar drag and drop
+  // Actualizar metadatos de un archivo en edición
+  const actualizarMetadatos = (fileName: string, campo: string, valor: string) => {
+    setArchivosSubiendo(prev => 
+      prev.map(upload => 
+        upload.fileName === fileName && upload.metadatos
+          ? { 
+              ...upload, 
+              metadatos: { 
+                ...upload.metadatos, 
+                [campo]: valor 
+              } 
+            }
+          : upload
+      )
+    );
+  };
+
+  // Procesar archivo después de editar metadatos
+  const procesarArchivo = async (upload: UploadProgress) => {
+    if (!upload.archivo || !upload.metadatos) return;
+
+    try {
+      // Cambiar estado a subiendo
+      setArchivosSubiendo(prev => 
+        prev.map(u => 
+          u.fileName === upload.fileName 
+            ? { ...u, status: 'uploading', progress: 10 }
+            : u
+        )
+      );
+
+      // Subir archivo a Supabase Storage
+      const nombreArchivo = `${Date.now()}-${upload.archivo.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+      
+      // Actualizar progreso
+      setArchivosSubiendo(prev => 
+        prev.map(u => 
+          u.fileName === upload.fileName 
+            ? { ...u, progress: 50 }
+            : u
+        )
+      );
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('music')
+        .upload(nombreArchivo, upload.archivo, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (uploadError) {
+        console.error('Error de subida:', uploadError);
+        let errorMessage = 'Error subiendo archivo';
+        
+        if (uploadError.message.includes('Bucket not found')) {
+          errorMessage = 'El bucket "music" no existe. Configura Supabase Storage primero.';
+        } else if (uploadError.message.includes('Policy')) {
+          errorMessage = 'Sin permisos. Configura las políticas RLS del bucket.';
+        } else if (uploadError.message.includes('413')) {
+          errorMessage = 'Archivo demasiado grande';
+        } else if (uploadError.message.includes('401')) {
+          errorMessage = 'No autorizado. Verifica tu sesión.';
+        }
+        
+        setArchivosSubiendo(prev => 
+          prev.map(u => 
+            u.fileName === upload.fileName 
+              ? { ...u, status: 'error', error: errorMessage }
+              : u
+          )
+        );
+        return;
+      }
+
+      // Actualizar progreso
+      setArchivosSubiendo(prev => 
+        prev.map(u => 
+          u.fileName === upload.fileName 
+            ? { ...u, progress: 90 }
+            : u
+        )
+      );
+
+      // Obtener URL pública del archivo
+      const { data: urlData } = supabase.storage
+        .from('music')
+        .getPublicUrl(nombreArchivo);
+
+      // Preparar datos para la base de datos
+      const datosCancion: any = {
+        titulo: upload.metadatos.titulo,
+        usuario_subida_id: usuario.id,
+        duracion: upload.metadatos.duracion,
+        genero: upload.metadatos.genero,
+        año: new Date().getFullYear(),
+        archivo_audio_url: urlData.publicUrl,
+        reproducciones: 0,
+        es_publica: true,
+        estado: 'activa',
+        favoritos: 0,
+        descargas: 0
+      };
+
+      // Si se seleccionó un álbum, agregarlo
+      if (upload.metadatos.albumId) {
+        datosCancion.album_id = upload.metadatos.albumId;
+      }
+
+      // Guardar información en la base de datos
+      const { data: cancionData, error: dbError } = await supabase
+        .from('canciones')
+        .insert(datosCancion)
+        .select()
+        .single();
+
+      if (dbError) {
+        setArchivosSubiendo(prev => 
+          prev.map(u => 
+            u.fileName === upload.fileName 
+              ? { ...u, status: 'error', error: 'Error guardando en base de datos' }
+              : u
+          )
+        );
+        return;
+      }
+
+      // Marcar como completado
+      setArchivosSubiendo(prev => 
+        prev.map(u => 
+          u.fileName === upload.fileName 
+            ? { ...u, status: 'complete', progress: 100 }
+            : u
+        )
+      );
+
+      // Recargar lista de canciones
+      await cargarCanciones(usuario.id);
+
+    } catch (error) {
+      console.error('Error procesando archivo:', error);
+      setArchivosSubiendo(prev => 
+        prev.map(u => 
+          u.fileName === upload.fileName 
+            ? { ...u, status: 'error', error: 'Error procesando archivo' }
+            : u
+        )
+      );
+    }
+  };
+
+  // Cancelar subida de archivo
+  const cancelarArchivo = (fileName: string) => {
+    setArchivosSubiendo(prev => 
+      prev.filter(upload => upload.fileName !== fileName)
+    );
+  };
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -526,7 +591,12 @@ export default function MiMusica() {
             </div>
             
             <button 
-              onClick={() => setMostrarModalSubida(true)}
+              onClick={async () => {
+                setMostrarModalSubida(true);
+                if (usuario?.id) {
+                  await cargarAlbumsDisponibles(usuario.id);
+                }
+              }}
               className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700"
             >
               <PlusIcon className="h-4 w-4 mr-2" />
@@ -686,7 +756,12 @@ export default function MiMusica() {
                 </p>
                 <div className="mt-6">
                   <button 
-                    onClick={() => setMostrarModalSubida(true)}
+                    onClick={async () => {
+                      setMostrarModalSubida(true);
+                      if (usuario?.id) {
+                        await cargarAlbumsDisponibles(usuario.id);
+                      }
+                    }}
                     className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700"
                   >
                     <PlusIcon className="h-4 w-4 mr-2" />
@@ -755,22 +830,109 @@ export default function MiMusica() {
                     Limpiar completados
                   </button>
                 </div>
-                <div className="space-y-3 max-h-48 overflow-y-auto">
+                <div className="space-y-3 max-h-96 overflow-y-auto">
                   {archivosSubiendo.map((upload, index) => (
                     <div key={index} className="border rounded-lg p-3">
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-sm font-medium text-gray-900 truncate">
                           {upload.fileName}
                         </span>
-                        <div className="flex items-center">
+                        <div className="flex items-center space-x-2">
                           {upload.status === 'complete' && (
                             <CheckCircleIcon className="h-5 w-5 text-green-500" />
                           )}
                           {upload.status === 'error' && (
                             <ExclamationCircleIcon className="h-5 w-5 text-red-500" />
                           )}
+                          {upload.status === 'editing' && (
+                            <button
+                              onClick={() => cancelarArchivo(upload.fileName)}
+                              className="text-gray-400 hover:text-red-500"
+                            >
+                              <XMarkIcon className="h-4 w-4" />
+                            </button>
+                          )}
                         </div>
                       </div>
+                      
+                      {/* Formulario de edición de metadatos */}
+                      {upload.status === 'editing' && upload.metadatos && (
+                        <div className="space-y-3 bg-gray-50 p-3 rounded">
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">
+                              Título de la canción
+                            </label>
+                            <input
+                              type="text"
+                              value={upload.metadatos.titulo}
+                              onChange={(e) => actualizarMetadatos(upload.fileName, 'titulo', e.target.value)}
+                              className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-purple-500"
+                              placeholder="Título de la canción"
+                            />
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="block text-xs font-medium text-gray-700 mb-1">
+                                Género
+                              </label>
+                              <select
+                                value={upload.metadatos.genero}
+                                onChange={(e) => actualizarMetadatos(upload.fileName, 'genero', e.target.value)}
+                                className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-purple-500"
+                              >
+                                <option value="Sin clasificar">Sin clasificar</option>
+                                <option value="Pop">Pop</option>
+                                <option value="Rock">Rock</option>
+                                <option value="Hip Hop">Hip Hop</option>
+                                <option value="Electronic">Electronic</option>
+                                <option value="Jazz">Jazz</option>
+                                <option value="Classical">Classical</option>
+                                <option value="R&B">R&B</option>
+                                <option value="Country">Country</option>
+                                <option value="Folk">Folk</option>
+                                <option value="Reggae">Reggae</option>
+                                <option value="Blues">Blues</option>
+                                <option value="Otro">Otro</option>
+                              </select>
+                            </div>
+                            
+                            <div>
+                              <label className="block text-xs font-medium text-gray-700 mb-1">
+                                Álbum (opcional)
+                              </label>
+                              <select
+                                value={upload.metadatos.albumId || ''}
+                                onChange={(e) => actualizarMetadatos(upload.fileName, 'albumId', e.target.value)}
+                                className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-purple-500"
+                              >
+                                <option value="">Sin álbum</option>
+                                {albumsDisponibles.map((album) => (
+                                  <option key={album.id} value={album.id}>
+                                    {album.titulo}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+                          
+                          <div className="flex justify-end space-x-2 pt-2">
+                            <button
+                              onClick={() => cancelarArchivo(upload.fileName)}
+                              className="px-3 py-1 text-xs border border-gray-300 rounded text-gray-700 hover:bg-gray-50"
+                            >
+                              Cancelar
+                            </button>
+                            <button
+                              onClick={() => procesarArchivo(upload)}
+                              disabled={!upload.metadatos.titulo.trim()}
+                              className="px-3 py-1 text-xs bg-purple-600 text-white rounded hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                            >
+                              Subir Canción
+                            </button>
+                          </div>
+                        </div>
+                      )}
                       
                       {upload.status === 'uploading' && (
                         <>

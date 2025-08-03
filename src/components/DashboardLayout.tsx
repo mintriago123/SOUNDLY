@@ -3,9 +3,9 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useSupabase } from './SupabaseProvider';
-import Sidebar from './Sidebar';
-import GlobalMusicPlayer from './GlobalMusicPlayer';
+import { useSupabase } from '@/components/SupabaseProvider';
+import Sidebar from '@/components/Sidebar';
+import GlobalMusicPlayer from '@/components/GlobalMusicPlayer';
 import { Usuario } from '@/types/user';
 
 interface DashboardLayoutProps {

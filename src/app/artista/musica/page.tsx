@@ -102,10 +102,62 @@ export default function MiMusica() {
         return;
       }
 
-      setCanciones(cancionesData || []);
+      // Verificar y corregir duraciones sospechosas (exactamente 180 segundos)
+      const cancionesCorregidas = await Promise.all(
+        (cancionesData || []).map(async (cancion) => {
+          // Si la duración es exactamente 180 segundos (3:00), intentar obtener la real
+          if (cancion.duracion === 180 && cancion.archivo_audio_url) {
+            try {
+              const duracionReal = await obtenerDuracionDesdeURL(cancion.archivo_audio_url);
+              if (duracionReal && duracionReal !== 180) {
+                // Actualizar en la base de datos
+                await supabase
+                  .from('canciones')
+                  .update({ duracion: duracionReal })
+                  .eq('id', cancion.id);
+                
+                console.log(`Duración corregida para "${cancion.titulo}": ${duracionReal}s`);
+                return { ...cancion, duracion: duracionReal };
+              }
+            } catch (error) {
+              console.log(`No se pudo corregir duración para "${cancion.titulo}"`);
+            }
+          }
+          return cancion;
+        })
+      );
+
+      setCanciones(cancionesCorregidas);
     } catch (error) {
       console.error('Error cargando canciones:', error);
     }
+  };
+
+  // Función para obtener duración real desde URL del archivo
+  const obtenerDuracionDesdeURL = (url: string): Promise<number | null> => {
+    return new Promise((resolve) => {
+      const audio = new Audio();
+      
+      audio.addEventListener('loadedmetadata', () => {
+        const duracion = Math.floor(audio.duration);
+        if (!isNaN(duracion) && duracion > 0) {
+          resolve(duracion);
+        } else {
+          resolve(null);
+        }
+      });
+
+      audio.addEventListener('error', () => {
+        resolve(null);
+      });
+
+      // Timeout para evitar que se cuelgue
+      setTimeout(() => {
+        resolve(null);
+      }, 10000); // 10 segundos
+
+      audio.src = url;
+    });
   };
 
   const formatearDuracion = (segundos: number) => {
@@ -118,9 +170,88 @@ export default function MiMusica() {
     return new Date(fecha).toLocaleDateString('es-ES');
   };
 
-  // Validación de archivos de música
-  const validarArchivo = (archivo: File): Promise<{ valido: boolean; error?: string; duracion?: number }> => {
+  // Función para obtener metadatos completos del archivo
+  const obtenerMetadatosArchivo = (archivo: File): Promise<{
+    duracion: number;
+    titulo?: string;
+    artista?: string;
+    album?: string;
+    año?: number;
+    genero?: string;
+  }> => {
     return new Promise((resolve) => {
+      const audio = new Audio();
+      const url = URL.createObjectURL(archivo);
+      
+      // Obtener nombre del archivo sin extensión como título por defecto
+      const tituloDefault = archivo.name.replace(/\.[^/.]+$/, "");
+      
+      audio.addEventListener('loadedmetadata', () => {
+        const duracion = Math.floor(audio.duration);
+        URL.revokeObjectURL(url);
+        
+        // Si no se puede obtener la duración o es muy corta/larga, usar valores por defecto
+        if (isNaN(duracion) || duracion < 1 || duracion > 3600) {
+          resolve({
+            duracion: 180, // 3 minutos por defecto
+            titulo: tituloDefault
+          });
+        } else {
+          resolve({
+            duracion,
+            titulo: tituloDefault
+          });
+        }
+      });
+
+      audio.addEventListener('error', () => {
+        URL.revokeObjectURL(url);
+        
+        // Para archivos que no se pueden leer (como OPUS), intentar obtener duración aproximada del tamaño
+        let duracionAproximada;
+        
+        if (archivo.name.toLowerCase().includes('.opus')) {
+          // OPUS de WhatsApp suele tener bitrate de 32-48 kbps
+          const bitrateBytesPerSeg = 6000; // ~48kbps
+          duracionAproximada = Math.floor(archivo.size / bitrateBytesPerSeg);
+        } else {
+          // Para otros formatos, usar estimación general
+          const tamañoKB = archivo.size / 1024;
+          duracionAproximada = Math.floor(tamañoKB / 16); // 16KB por segundo para audio comprimido
+        }
+        
+        resolve({
+          duracion: Math.min(Math.max(duracionAproximada, 5), 3600), // Entre 5 segundos y 1 hora
+          titulo: tituloDefault
+        });
+      });
+
+      // Timeout para archivos que no cargan
+      setTimeout(() => {
+        URL.revokeObjectURL(url);
+        
+        let duracionAproximada;
+        if (archivo.name.toLowerCase().includes('.opus')) {
+          const bitrateBytesPerSeg = 6000; // ~48kbps para OPUS
+          duracionAproximada = Math.floor(archivo.size / bitrateBytesPerSeg);
+        } else {
+          const tamañoKB = archivo.size / 1024;
+          duracionAproximada = Math.floor(tamañoKB / 16);
+        }
+        
+        resolve({
+          duracion: Math.min(Math.max(duracionAproximada, 5), 3600),
+          titulo: tituloDefault
+        });
+      }, 5000); // 5 segundos de timeout
+
+      audio.src = url;
+    });
+  };
+
+  // Validación de archivos de música
+  const validarArchivo = (archivo: File): Promise<{ valido: boolean; error?: string; metadatos?: any }> => {
+    return new Promise(async (resolve) => {
       // Validar tipo de archivo - incluir más formatos
       const tiposPermitidos = [
         'audio/mpeg', 
@@ -130,7 +261,8 @@ export default function MiMusica() {
         'audio/aac',
         'audio/webm',
         'audio/mp4',
-        'audio/x-m4a'
+        'audio/x-m4a',
+        'audio/opus'
       ];
       
       // Para archivos OPUS de WhatsApp, verificar extensión
@@ -148,34 +280,18 @@ export default function MiMusica() {
         return;
       }
 
-      // Para archivos OPUS, no podemos obtener duración directamente
-      if (esOpus) {
-        resolve({ valido: true, duracion: 180 }); // Duración por defecto
-        return;
-      }
-
-      // Obtener duración del audio para otros formatos
-      const audio = new Audio();
-      const url = URL.createObjectURL(archivo);
-      
-      audio.addEventListener('loadedmetadata', () => {
-        const duracion = Math.floor(audio.duration);
-        URL.revokeObjectURL(url);
+      try {
+        // Obtener metadatos completos
+        const metadatos = await obtenerMetadatosArchivo(archivo);
         
-        if (duracion > 600) { // 10 minutos máximo
-          resolve({ valido: false, error: 'La canción es demasiado larga. Duración máxima: 10 minutos.' });
+        if (metadatos.duracion > 3600) { // 1 hora máximo
+          resolve({ valido: false, error: 'La canción es demasiado larga. Duración máxima: 1 hora.' });
         } else {
-          resolve({ valido: true, duracion });
+          resolve({ valido: true, metadatos });
         }
-      });
-
-      audio.addEventListener('error', () => {
-        URL.revokeObjectURL(url);
-        // Si hay error leyendo el audio, asumir duración por defecto
-        resolve({ valido: true, duracion: 180 });
-      });
-
-      audio.src = url;
+      } catch (error) {
+        resolve({ valido: false, error: 'No se pudo procesar el archivo de audio.' });
+      }
     });
   };
 
@@ -206,6 +322,16 @@ export default function MiMusica() {
           );
           continue;
         }
+
+        const metadatos = validacion.metadatos;
+        
+        // Log para depuración
+        console.log('Metadatos del archivo:', {
+          nombre: archivo.name,
+          tamaño: archivo.size,
+          tipo: archivo.type,
+          metadatos: metadatos
+        });
 
         // Subir archivo a Supabase Storage
         const nombreArchivo = `${Date.now()}-${archivo.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
@@ -268,11 +394,11 @@ export default function MiMusica() {
         const { data: cancionData, error: dbError } = await supabase
           .from('canciones')
           .insert({
-            titulo: archivo.name.replace(/\.[^/.]+$/, ""), // Quitar extensión
-            usuario_subida_id: usuario.id, // Cambiar artista_id por usuario_subida_id
-            duracion: validacion.duracion,
-            genero: 'Sin clasificar',
-            año: new Date().getFullYear(),
+            titulo: metadatos.titulo || archivo.name.replace(/\.[^/.]+$/, ""),
+            usuario_subida_id: usuario.id,
+            duracion: metadatos.duracion,
+            genero: metadatos.genero || 'Sin clasificar',
+            año: metadatos.año || new Date().getFullYear(),
             archivo_audio_url: urlData.publicUrl,
             reproducciones: 0,
             es_publica: true,
@@ -338,6 +464,38 @@ export default function MiMusica() {
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       handleFileSelect(e.dataTransfer.files);
     }
+  };
+
+  // Función para corregir todas las duraciones
+  const corregirTodasLasDuraciones = async () => {
+    if (!usuario) return;
+    
+    console.log('Iniciando corrección de duraciones...');
+    
+    const cancionesActualizadas = await Promise.all(
+      canciones.map(async (cancion) => {
+        if (cancion.duracion === 180 && cancion.archivo_audio_url) {
+          try {
+            const duracionReal = await obtenerDuracionDesdeURL(cancion.archivo_audio_url);
+            if (duracionReal && duracionReal !== 180) {
+              await supabase
+                .from('canciones')
+                .update({ duracion: duracionReal })
+                .eq('id', cancion.id);
+              
+              console.log(`✅ Corregida "${cancion.titulo}": ${duracionReal}s`);
+              return { ...cancion, duracion: duracionReal };
+            }
+          } catch (error) {
+            console.log(`❌ Error corrigiendo "${cancion.titulo}"`);
+          }
+        }
+        return cancion;
+      })
+    );
+    
+    setCanciones(cancionesActualizadas);
+    console.log('Corrección completada');
   };
 
   // Limpiar archivos completados
@@ -425,7 +583,17 @@ export default function MiMusica() {
           {/* Lista de Canciones */}
           <div className="bg-white rounded-lg shadow overflow-hidden">
             <div className="p-6 border-b border-gray-200">
-              <h3 className="text-lg font-medium text-gray-900">Mis Canciones</h3>
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-medium text-gray-900">Mis Canciones</h3>
+                {canciones.some(c => c.duracion === 180) && (
+                  <button
+                    onClick={corregirTodasLasDuraciones}
+                    className="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded text-blue-700 bg-blue-100 hover:bg-blue-200"
+                  >
+                    🔧 Corregir duraciones
+                  </button>
+                )}
+              </div>
             </div>
             
             {canciones.length > 0 ? (
@@ -605,12 +773,24 @@ export default function MiMusica() {
                       </div>
                       
                       {upload.status === 'uploading' && (
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div 
-                            className="bg-purple-600 h-2 rounded-full transition-all duration-300"
-                            style={{ width: `${upload.progress}%` }}
-                          ></div>
-                        </div>
+                        <>
+                          <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
+                            <div 
+                              className="bg-purple-600 h-2 rounded-full transition-all duration-300"
+                              style={{ width: `${upload.progress}%` }}
+                            ></div>
+                          </div>
+                          <p className="text-xs text-gray-500">
+                            {upload.progress < 50 ? 'Validando archivo...' : 
+                             upload.progress < 90 ? 'Subiendo a storage...' : 'Guardando en base de datos...'}
+                          </p>
+                        </>
+                      )}
+                      
+                      {upload.status === 'complete' && (
+                        <p className="text-xs text-green-600 mt-1">
+                          ✅ Archivo subido correctamente
+                        </p>
                       )}
                       
                       {upload.status === 'error' && upload.error && (

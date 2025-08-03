@@ -22,7 +22,8 @@ import {
   HeartIcon,
   CloudArrowDownIcon,
   SparklesIcon,
-  ComputerDesktopIcon
+  ComputerDesktopIcon,
+  GlobeAltIcon
 } from '@heroicons/react/24/outline';
 
 // Componente para el icono de infinito personalizado
@@ -105,13 +106,6 @@ const menuItems: MenuItem[] = [
     adminOnly: true
   },
   {
-    name: 'Config. Sistema',
-    href: '/admin/configuracion-sistema',
-    icon: ComputerDesktopIcon,
-    description: 'Configuración del sistema',
-    adminOnly: true
-  },
-  {
     name: 'Playlists',
     href: '/admin/playlists',
     icon: ClipboardDocumentListIcon,
@@ -130,13 +124,6 @@ const menuItems: MenuItem[] = [
     href: '/admin/reproductor',
     icon: MusicalNoteIcon,
     description: 'Reproductor de música',
-    adminOnly: true
-  },
-  {
-    name: 'Upgrade',
-    href: '/admin/upgrade',
-    icon: SparklesIcon,
-    description: 'Gestión de suscripciones',
     adminOnly: true
   },
 
@@ -505,23 +492,78 @@ export default function Sidebar({
               
               {isProfileMenuOpen && (
                 <div className="mt-2 space-y-1 bg-gray-50 dark:bg-gray-700/50 rounded-lg p-2">
+                  {isAdmin && (
+                    <>
+                      <Link
+                        href="/admin/perfil"
+                        className="w-full flex items-center px-3 py-2 text-left rounded-md hover:bg-white dark:hover:bg-gray-600 hover:shadow-sm transition-all duration-200"
+                      >
+                        <UserIcon className="w-4 h-4 mr-2 text-gray-500 dark:text-gray-400" />
+                        <span className="text-xs text-gray-700 dark:text-gray-200 font-medium">Perfil</span>
+                      </Link>
+
+                      <Link
+                        href="/admin/configuracion-sistema"
+                        className="w-full flex items-center px-3 py-2 text-left rounded-md hover:bg-white dark:hover:bg-gray-600 hover:shadow-sm transition-all duration-200"
+                      >
+                        <Cog6ToothIcon className="w-4 h-4 mr-2 text-gray-500 dark:text-gray-400" />
+                        <span className="text-xs text-gray-700 dark:text-gray-200 font-medium">Configuración del Sistema</span>
+                      </Link>
+
+                      <Link
+                        href="/admin/configuracion-global"
+                        className="w-full flex items-center px-3 py-2 text-left rounded-md hover:bg-white dark:hover:bg-gray-600 hover:shadow-sm transition-all duration-200"
+                      >
+                        <Cog6ToothIcon className="w-4 h-4 mr-2 text-gray-500 dark:text-gray-400" />
+                        <span className="text-xs text-gray-700 dark:text-gray-200 font-medium">Configuración Global</span>
+                      </Link>
+                    </>
+                  )}
+
                   {isArtist && (
                     <Link
                       href="/artista/perfil"
                       className="w-full flex items-center px-3 py-2 text-left rounded-md hover:bg-white dark:hover:bg-gray-600 hover:shadow-sm transition-all duration-200"
                     >
                       <UserIcon className="w-4 h-4 mr-2 text-gray-500 dark:text-gray-400" />
-                    <span className="text-xs text-gray-700 dark:text-gray-200 font-medium">Perfil</span>
-                  </Link>
+                      <span className="text-xs text-gray-700 dark:text-gray-200 font-medium">Perfil</span>
+                    </Link>
                   )}
+
                   <Link
-                    href={isAdmin ? "/admin/configuracion" : isPremium ? "/premium/configuracion" : isArtist ? "/artista/configuracion" : "/dashboard/configuracion"}
+                    href={
+                      isAdmin
+                        ? "/admin/configuracion"
+                        : isPremium
+                        ? "/premium/configuracion"
+                        : isArtist
+                        ? "/artista/configuracion"
+                        : "/dashboard/configuracion"
+                    }
                     className="w-full flex items-center px-3 py-2 text-left rounded-md hover:bg-white dark:hover:bg-gray-600 hover:shadow-sm transition-all duration-200"
                     onClick={onClose}
                   >
                     <Cog6ToothIcon className="w-4 h-4 mr-2 text-gray-500 dark:text-gray-400" />
                     <span className="text-xs text-gray-700 dark:text-gray-200 font-medium">Configuración</span>
                   </Link>
+
+                  <Link
+                    href={
+                      isAdmin
+                        ? "/admin/upgrade"
+                        : isPremium
+                        ? "/premium/upgrade"
+                        : isArtist
+                        ? "/artista/upgrade"
+                        : "/dashboard/upgrade"
+                    }
+                    className="w-full flex items-center px-3 py-2 text-left rounded-md hover:bg-white dark:hover:bg-gray-600 hover:shadow-sm transition-all duration-200"
+                    onClick={onClose}
+                  >
+                    <SparklesIcon className="w-4 h-4 mr-2 text-gray-500 dark:text-gray-400" />
+                    <span className="text-xs text-gray-700 dark:text-gray-200 font-medium">Ver planes</span>
+                  </Link>
+
                   <button
                     onClick={handleLogout}
                     disabled={isLoggingOut}
@@ -529,7 +571,7 @@ export default function Sidebar({
                   >
                     <PowerIcon className="w-4 h-4 mr-2" />
                     <span className="text-xs font-medium">
-                      {isLoggingOut ? 'Cerrando...' : 'Cerrar Sesión'}
+                      {isLoggingOut ? "Cerrando..." : "Cerrar Sesión"}
                     </span>
                   </button>
                 </div>

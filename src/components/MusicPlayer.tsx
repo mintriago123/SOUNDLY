@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { useConfiguracionGlobal, useFeatureAccess } from '@/hooks/useConfiguracionGlobal';
 
 interface MusicPlayerProps {
   cancion?: {
@@ -9,20 +10,46 @@ interface MusicPlayerProps {
     artista: string;
     duracion: number;
     url_archivo?: string;
+    bitrate?: number;
   } | null;
   onNext?: () => void;
   onPrevious?: () => void;
   playlist?: any[];
+  userIsPremium?: boolean;
 }
 
-export default function MusicPlayer({ cancion, onNext, onPrevious, playlist }: MusicPlayerProps) {
+export default function MusicPlayer({ 
+  cancion, 
+  onNext, 
+  onPrevious, 
+  playlist, 
+  userIsPremium = false 
+}: MusicPlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(1);
   const [isShuffling, setIsShuffling] = useState(false);
   const [isRepeating, setIsRepeating] = useState(false);
+  const [showEqualizer, setShowEqualizer] = useState(false);
+  const [equalizerSettings, setEqualizerSettings] = useState({
+    bass: 0,
+    mid: 0,
+    treble: 0,
+    preset: 'default'
+  });
+  
   const audioRef = useRef<HTMLAudioElement>(null);
+  
+  // Configuración global
+  const { config, isFeatureEnabled } = useConfiguracionGlobal();
+  const { canAccessFeature } = useFeatureAccess();
+  
+  // Verificar qué características están disponibles
+  const hasHighQualityAudio = canAccessFeature('high_quality_audio', userIsPremium);
+  const hasCustomEqualizer = canAccessFeature('custom_equalizer', userIsPremium);
+  const hasOfflineDownloads = canAccessFeature('offline_downloads', userIsPremium);
+  const hasLyricsDisplay = canAccessFeature('lyrics_display', userIsPremium);
 
   useEffect(() => {
     if (audioRef.current) {
@@ -67,6 +94,55 @@ export default function MusicPlayer({ cancion, onNext, onPrevious, playlist }: M
       audioRef.current.play();
     }
     setIsPlaying(!isPlaying);
+  };
+
+  const handleDownload = async () => {
+    if (!hasOfflineDownloads || !cancion?.url_archivo) {
+      alert('Función disponible solo para usuarios Premium');
+      return;
+    }
+    
+    try {
+      const response = await fetch(cancion.url_archivo);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${cancion.titulo} - ${cancion.artista}.mp3`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Error downloading song:', error);
+      alert('Error al descargar la canción');
+    }
+  };
+
+  const applyEqualizerPreset = (preset: string) => {
+    const presets = {
+      default: { bass: 0, mid: 0, treble: 0 },
+      rock: { bass: 10, mid: 5, treble: 8 },
+      pop: { bass: 5, mid: 8, treble: 5 },
+      jazz: { bass: 3, mid: 10, treble: 7 },
+      classical: { bass: 2, mid: 6, treble: 9 },
+      electronic: { bass: 15, mid: 2, treble: 12 }
+    };
+    
+    const settings = presets[preset as keyof typeof presets] || presets.default;
+    setEqualizerSettings({ ...settings, preset });
+  };
+
+  const getAudioQualityInfo = () => {
+    if (!cancion) return null;
+    
+    if (hasHighQualityAudio && cancion.bitrate) {
+      return `${cancion.bitrate}kbps HD`;
+    } else if (hasHighQualityAudio) {
+      return `Hasta ${config.max_audio_bitrate}kbps HD`;
+    }
+    
+    return 'Calidad estándar';
   };
 
   const seekTo = (time: number) => {
@@ -213,6 +289,52 @@ export default function MusicPlayer({ cancion, onNext, onPrevious, playlist }: M
               />
             </div>
 
+            {/* Información de calidad de audio */}
+            {hasHighQualityAudio && (
+              <div className="text-xs text-green-400 bg-green-900/30 px-2 py-1 rounded">
+                {getAudioQualityInfo()}
+              </div>
+            )}
+
+            {/* Botón de descarga (Premium) */}
+            {hasOfflineDownloads && (
+              <button
+                onClick={handleDownload}
+                className="text-blue-400 hover:text-blue-300 transition-colors"
+                title="Descargar para offline"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </button>
+            )}
+
+            {/* Botón del ecualizador (Premium) */}
+            {hasCustomEqualizer && (
+              <button
+                onClick={() => setShowEqualizer(!showEqualizer)}
+                className={`transition-colors ${showEqualizer ? 'text-purple-400' : 'text-gray-400 hover:text-white'}`}
+                title="Ecualizador"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19V5m0 14l-4-4 4-4m0 8l4-4-4-4" />
+                </svg>
+              </button>
+            )}
+
+            {/* Botón de letras (si está habilitado) */}
+            {hasLyricsDisplay && (
+              <button
+                className="text-gray-400 hover:text-white transition-colors"
+                title="Mostrar letras"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </button>
+            )}
+
+            {/* Información de la playlist */}
             {playlist && (
               <div className="text-xs text-gray-400">
                 Playlist: {playlist.length} canciones
@@ -220,6 +342,88 @@ export default function MusicPlayer({ cancion, onNext, onPrevious, playlist }: M
             )}
           </div>
         </div>
+
+        {/* Panel del ecualizador (Premium) */}
+        {showEqualizer && hasCustomEqualizer && (
+          <div className="mt-4 p-4 bg-gray-800 rounded-lg">
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="text-sm font-medium text-white">Ecualizador Premium</h4>
+              <div className="flex space-x-2">
+                {['default', 'rock', 'pop', 'jazz', 'classical', 'electronic'].map((preset) => (
+                  <button
+                    key={preset}
+                    onClick={() => applyEqualizerPreset(preset)}
+                    className={`text-xs px-2 py-1 rounded transition-colors ${
+                      equalizerSettings.preset === preset
+                        ? 'bg-purple-600 text-white'
+                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                    }`}
+                  >
+                    {preset.charAt(0).toUpperCase() + preset.slice(1)}
+                  </button>
+                ))}
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-3 gap-4">
+              <div className="text-center">
+                <label className="block text-xs text-gray-400 mb-2">Graves</label>
+                <input
+                  type="range"
+                  min="-20"
+                  max="20"
+                  value={equalizerSettings.bass}
+                  onChange={(e) => setEqualizerSettings(prev => ({ ...prev, bass: parseInt(e.target.value) }))}
+                  className="w-full h-1 bg-gray-700 rounded-full appearance-none slider"
+                />
+                <span className="text-xs text-gray-500">{equalizerSettings.bass}dB</span>
+              </div>
+              
+              <div className="text-center">
+                <label className="block text-xs text-gray-400 mb-2">Medios</label>
+                <input
+                  type="range"
+                  min="-20"
+                  max="20"
+                  value={equalizerSettings.mid}
+                  onChange={(e) => setEqualizerSettings(prev => ({ ...prev, mid: parseInt(e.target.value) }))}
+                  className="w-full h-1 bg-gray-700 rounded-full appearance-none slider"
+                />
+                <span className="text-xs text-gray-500">{equalizerSettings.mid}dB</span>
+              </div>
+              
+              <div className="text-center">
+                <label className="block text-xs text-gray-400 mb-2">Agudos</label>
+                <input
+                  type="range"
+                  min="-20"
+                  max="20"
+                  value={equalizerSettings.treble}
+                  onChange={(e) => setEqualizerSettings(prev => ({ ...prev, treble: parseInt(e.target.value) }))}
+                  className="w-full h-1 bg-gray-700 rounded-full appearance-none slider"
+                />
+                <span className="text-xs text-gray-500">{equalizerSettings.treble}dB</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Aviso para usuarios gratuitos */}
+        {!userIsPremium && (hasCustomEqualizer || hasOfflineDownloads || hasHighQualityAudio) && (
+          <div className="mt-3 p-3 bg-gradient-to-r from-purple-900/50 to-pink-900/50 rounded-lg border border-purple-700/30">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <span className="text-yellow-400">⭐</span>
+                <span className="text-sm text-gray-300">
+                  Desbloquea características premium como ecualizador, descargas y audio HD
+                </span>
+              </div>
+              <button className="text-xs bg-gradient-to-r from-purple-600 to-pink-600 text-white px-3 py-1 rounded-full hover:from-purple-700 hover:to-pink-700 transition-all">
+                Actualizar a Premium
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       <style jsx>{`

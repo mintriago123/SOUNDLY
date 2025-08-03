@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import SupabaseProvider from "@/components/SupabaseProvider";
 import { ThemeProvider } from "@/components/ThemeProviderEnhanced";
+import { MusicPlayerProvider } from "@/contexts/MusicPlayerContext";
 
 /**
  * Configuración de fuentes de Google Fonts
@@ -65,7 +66,9 @@ export default function RootLayout({
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <ThemeProvider>
           <SupabaseProvider>
-            {children}
+            <MusicPlayerProvider>
+              {children}
+            </MusicPlayerProvider>
           </SupabaseProvider>
         </ThemeProvider>
       </body>

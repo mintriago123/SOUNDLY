@@ -1,134 +1,127 @@
 'use client';
 
-import Link from 'next/link';
-import DashboardLayout from '../../../components/DashboardLayout';
+import DashboardLayout from '@/components/DashboardLayout';
+import PricingDisplay from '@/components/PricingDisplay';
+import { useConfiguracionGlobal } from '@/hooks/useConfiguracionGlobal';
 
 export default function UpgradePage() {
+  const { config, loading } = useConfiguracionGlobal();
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <span className="ml-3 text-gray-600">Cargando...</span>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout>
-      <div className="max-w-4xl mx-auto space-y-8">
+      <div className="space-y-6">
         {/* Header */}
-        <div className="text-center bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg p-8 text-white">
-          <div className="text-6xl mb-4">💎</div>
-          <h1 className="text-3xl font-bold mb-2">
-            ¡Desbloquea Soundly Premium!
-          </h1>
-          <p className="text-purple-100 text-lg">
-            Accede a funciones exclusivas y disfruta de la mejor experiencia musical
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            Mejora tu experiencia en {config.platform_name} 🚀
+          </h2>
+          <p className="text-gray-600">
+            Desbloquea todas las características premium y lleva tu música al siguiente nivel
           </p>
         </div>
 
-        {/* Características Premium */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <div className="text-4xl mb-4">🎵</div>
-            <h3 className="text-xl font-bold text-gray-900 mb-2">Música en HD</h3>
-            <p className="text-gray-600">
-              Disfruta de calidad de audio superior con archivos sin comprimir
-            </p>
-          </div>
+        {/* Pricing Component */}
+        <PricingDisplay />
 
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <div className="text-4xl mb-4">⬇️</div>
-            <h3 className="text-xl font-bold text-gray-900 mb-2">Descargas Ilimitadas</h3>
-            <p className="text-gray-600">
-              Descarga toda tu música favorita para escuchar sin conexión
-            </p>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <div className="text-4xl mb-4">🚫</div>
-            <h3 className="text-xl font-bold text-gray-900 mb-2">Sin Anuncios</h3>
-            <p className="text-gray-600">
-              Disfruta de tu música sin interrupciones publicitarias
-            </p>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <div className="text-4xl mb-4">∞</div>
-            <h3 className="text-xl font-bold text-gray-900 mb-2">Playlists Ilimitadas</h3>
-            <p className="text-gray-600">
-              Crea tantas playlists como quieras sin límites
-            </p>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <div className="text-4xl mb-4">📈</div>
-            <h3 className="text-xl font-bold text-gray-900 mb-2">Estadísticas Avanzadas</h3>
-            <p className="text-gray-600">
-              Analiza tus hábitos de escucha con métricas detalladas
-            </p>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <div className="text-4xl mb-4">⚡</div>
-            <h3 className="text-xl font-bold text-gray-900 mb-2">Acceso Prioritario</h3>
-            <p className="text-gray-600">
-              Velocidad de carga más rápida y acceso anticipado a nuevas funciones
-            </p>
-          </div>
-        </div>
-
-        {/* Planes de Precio */}
-        <div className="bg-white rounded-lg shadow-lg p-8">
-          <h2 className="text-2xl font-bold text-center text-gray-900 mb-8">
-            Elige tu Plan Premium
-          </h2>
+        {/* Características destacadas */}
+        <div className="bg-white rounded-lg shadow p-6">
+          <h3 className="text-xl font-semibold text-gray-900 mb-6">
+            ¿Por qué elegir Premium?
+          </h3>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Plan Mensual */}
-            <div className="border-2 border-purple-200 rounded-lg p-6 hover:border-purple-400 transition-colors">
-              <div className="text-center">
-                <h3 className="text-xl font-bold text-gray-900 mb-2">Mensual</h3>
-                <div className="text-3xl font-bold text-purple-600 mb-1">$9.99</div>
-                <div className="text-gray-500 text-sm mb-6">por mes</div>
-                
-                <button className="w-full bg-purple-600 text-white py-3 px-6 rounded-lg font-medium hover:bg-purple-700 transition-colors">
-                  Comenzar Gratis
-                </button>
-                
-                <p className="text-xs text-gray-500 mt-3">
-                  Prueba gratuita de 7 días
-                </p>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="text-center">
+              <div className="bg-blue-100 rounded-full w-12 h-12 flex items-center justify-center mx-auto mb-4">
+                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                </svg>
               </div>
+              <h4 className="font-semibold text-gray-900 mb-2">Audio de Alta Calidad</h4>
+              <p className="text-sm text-gray-600">
+                Disfruta de audio hasta {config.max_audio_bitrate}kbps para la mejor experiencia auditiva
+              </p>
             </div>
 
-            {/* Plan Anual */}
-            <div className="border-2 border-pink-400 rounded-lg p-6 bg-gradient-to-br from-pink-50 to-purple-50 relative">
-              <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                <span className="bg-pink-500 text-white text-xs font-bold px-3 py-1 rounded-full">
-                  ¡Más Popular!
-                </span>
+            <div className="text-center">
+              <div className="bg-green-100 rounded-full w-12 h-12 flex items-center justify-center mx-auto mb-4">
+                <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
               </div>
-              
-              <div className="text-center">
-                <h3 className="text-xl font-bold text-gray-900 mb-2">Anual</h3>
-                <div className="text-3xl font-bold text-pink-600 mb-1">$99.99</div>
-                <div className="text-gray-500 text-sm mb-2">por año</div>
-                <div className="text-green-600 text-sm font-medium mb-4">
-                  ¡Ahorra $20 al año!
-                </div>
-                
-                <button className="w-full bg-gradient-to-r from-pink-500 to-purple-600 text-white py-3 px-6 rounded-lg font-medium hover:from-pink-600 hover:to-purple-700 transition-all">
-                  Comenzar Gratis
-                </button>
-                
-                <p className="text-xs text-gray-500 mt-3">
-                  Prueba gratuita de 14 días
-                </p>
+              <h4 className="font-semibold text-gray-900 mb-2">Descargas Offline</h4>
+              <p className="text-sm text-gray-600">
+                Descarga tu música favorita y escúchala sin conexión a internet
+              </p>
+            </div>
+
+            <div className="text-center">
+              <div className="bg-purple-100 rounded-full w-12 h-12 flex items-center justify-center mx-auto mb-4">
+                <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
               </div>
+              <h4 className="font-semibold text-gray-900 mb-2">Sin Límites</h4>
+              <p className="text-sm text-gray-600">
+                Crea playlists ilimitadas y sigue a todos tus artistas favoritos
+              </p>
             </div>
           </div>
         </div>
 
-        {/* Botón de regreso */}
-        <div className="text-center">
-          <Link
-            href="/dashboard"
-            className="inline-flex items-center text-gray-600 hover:text-gray-800 transition-colors"
-          >
-            ← Regresar al Dashboard
-          </Link>
+        {/* FAQ */}
+        <div className="bg-white rounded-lg shadow p-6">
+          <h3 className="text-xl font-semibold text-gray-900 mb-6">
+            Preguntas Frecuentes
+          </h3>
+          
+          <div className="space-y-4">
+            <div>
+              <h4 className="font-medium text-gray-900 mb-2">
+                ¿Puedo cancelar mi suscripción en cualquier momento?
+              </h4>
+              <p className="text-sm text-gray-600">
+                Sí, puedes cancelar tu suscripción Premium en cualquier momento desde tu configuración de cuenta.
+              </p>
+            </div>
+
+            <div>
+              <h4 className="font-medium text-gray-900 mb-2">
+                ¿Qué formatos de audio soportan?
+              </h4>
+              <p className="text-sm text-gray-600">
+                Soportamos los siguientes formatos: {config.allowed_formats.join(', ').toUpperCase()}.
+              </p>
+            </div>
+
+            <div>
+              <h4 className="font-medium text-gray-900 mb-2">
+                ¿Hay algún descuento por pago anual?
+              </h4>
+              <p className="text-sm text-gray-600">
+                Sí, al elegir el plan anual ahorras un {config.premium_discount_yearly}% comparado con el pago mensual.
+              </p>
+            </div>
+
+            <div>
+              <h4 className="font-medium text-gray-900 mb-2">
+                ¿Cómo contacto al soporte?
+              </h4>
+              <p className="text-sm text-gray-600">
+                Puedes contactarnos en {config.support_email} para cualquier consulta o problema.
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     </DashboardLayout>

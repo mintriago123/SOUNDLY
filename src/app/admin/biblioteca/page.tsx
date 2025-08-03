@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import DashboardLayout from '@/components/DashboardLayout';
+import { useMusicPlayer } from '@/contexts/MusicPlayerContext';
 import { 
   MusicalNoteIcon, 
   MagnifyingGlassIcon,
@@ -45,7 +46,9 @@ export default function AdminBibliotecaPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [editFormData, setEditFormData] = useState<Partial<Cancion>>({});
-  const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null);
+
+  // Music player context
+  const { currentSong, isPlaying, playSong, pauseSong, resumeSong } = useMusicPlayer();
 
   const generos = [
     'Rock', 'Pop', 'Hip Hop', 'Reggaeton', 'Jazz', 'Blues', 
@@ -241,11 +244,39 @@ export default function AdminBibliotecaPage() {
     }
   };
 
-  const togglePlayPause = (cancionId: string) => {
-    if (currentlyPlaying === cancionId) {
-      setCurrentlyPlaying(null);
+  const togglePlayPause = (cancion: Cancion) => {
+    if (currentSong?.id === cancion.id && isPlaying) {
+      pauseSong();
+    } else if (currentSong?.id === cancion.id && !isPlaying) {
+      resumeSong();
     } else {
-      setCurrentlyPlaying(cancionId);
+      // Convertir la cancion al formato esperado por el reproductor
+      const songToPlay = {
+        id: cancion.id,
+        titulo: cancion.titulo,
+        artista: cancion.artista,
+        album: cancion.album,
+        genero: cancion.genero,
+        duracion: cancion.duracion,
+        url_archivo: cancion.url_archivo || '/placeholder-audio.mp3',
+        usuario_id: cancion.usuario_id
+      };
+      
+      // Crear playlist con las canciones filtradas activas
+      const activePlaylist = filteredCanciones
+        .filter(c => c.estado === 'activa')
+        .map(c => ({
+          id: c.id,
+          titulo: c.titulo,
+          artista: c.artista,
+          album: c.album,
+          genero: c.genero,
+          duracion: c.duracion,
+          url_archivo: c.url_archivo || '/placeholder-audio.mp3',
+          usuario_id: c.usuario_id
+        }));
+      
+      playSong(songToPlay, activePlaylist);
     }
   };
 
@@ -421,10 +452,10 @@ export default function AdminBibliotecaPage() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <button
-                            onClick={() => togglePlayPause(cancion.id)}
+                            onClick={() => togglePlayPause(cancion)}
                             className="mr-3 p-1 rounded-full hover:bg-gray-200"
                           >
-                            {currentlyPlaying === cancion.id ? (
+                            {currentSong?.id === cancion.id && isPlaying ? (
                               <PauseIcon className="w-5 h-5 text-gray-600" />
                             ) : (
                               <PlayIcon className="w-5 h-5 text-gray-600" />

@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSupabase } from '@/components/SupabaseProvider';
+import { useMusicPlayer } from '@/contexts/MusicPlayerContext';
 import DashboardLayout from '@/components/DashboardLayout';
-import MusicPlayer from '@/components/MusicPlayer';
 import { 
   MusicalNoteIcon,
   PlayIcon,
@@ -63,19 +63,26 @@ type ModoRepetir = 'off' | 'one' | 'all';
 export default function ReproductorPage() {
   const { supabase } = useSupabase();
   const router = useRouter();
+  const { 
+    currentSong, 
+    isPlaying, 
+    volume, 
+    playlist, 
+    nextSong, 
+    previousSong, 
+    playSong,
+    pauseSong,
+    resumeSong,
+    setVolume
+  } = useMusicPlayer();
 
-  // Estados principales
-  const [cancionActual, setCancionActual] = useState<Cancion | null>(null);
-  const [playlist, setPlaylist] = useState<Cancion[]>([]);
-  const [indiceActual, setIndiceActual] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [volumen, setVolumen] = useState(0.8);
-  const [isMuted, setIsMuted] = useState(false);
-  const [modoAleatorio, setModoAleatorio] = useState(false);
-  const [modoRepetir, setModoRepetir] = useState<ModoRepetir>('off');
+  // Estados locales para la UI
   const [mostrarPlaylist, setMostrarPlaylist] = useState(true);
   const [usuario, setUsuario] = useState<any>(null);
   const [cargando, setCargando] = useState(true);
+  const [isMuted, setIsMuted] = useState(false);
+  const [isShuffled, setIsShuffled] = useState(false);
+  const [repeatMode, setRepeatMode] = useState('off');
 
   // Estados para visualizador
   const [barrasEcualizador, setBarrasEcualizador] = useState<Array<{ id: string; altura: number }>>([]);
@@ -200,9 +207,9 @@ export default function ReproductorPage() {
         }
       ];
 
-      setPlaylist(playlistEjemplo);
-      setCancionActual(playlistEjemplo[0]);
-      setIndiceActual(0);
+      // Cargar playlist en el contexto global en lugar de estado local
+      // setPlaylist y setCancionActual ya no son necesarios aquí
+      // La lógica se maneja en el contexto
     } catch (error) {
       console.error('Error cargando playlist:', error);
     }
@@ -221,74 +228,54 @@ export default function ReproductorPage() {
   };
 
   /**
-   * Reproducir siguiente canción
-   */
-  const siguienteCancion = () => {
-    if (playlist.length === 0) return;
-
-    let siguienteIndice;
-    
-    if (modoAleatorio) {
-      siguienteIndice = Math.floor(Math.random() * playlist.length);
-    } else {
-      siguienteIndice = (indiceActual + 1) % playlist.length;
-    }
-
-    setIndiceActual(siguienteIndice);
-    setCancionActual(playlist[siguienteIndice]);
-  };
-
-  /**
-   * Reproducir canción anterior
-   */
-  const cancionAnterior = () => {
-    if (playlist.length === 0) return;
-
-    let anteriorIndice;
-    
-    if (modoAleatorio) {
-      anteriorIndice = Math.floor(Math.random() * playlist.length);
-    } else {
-      anteriorIndice = indiceActual === 0 ? playlist.length - 1 : indiceActual - 1;
-    }
-
-    setIndiceActual(anteriorIndice);
-    setCancionActual(playlist[anteriorIndice]);
-  };
-
-  /**
    * Seleccionar canción específica de la playlist
    */
-  const seleccionarCancion = (cancion: Cancion, indice: number) => {
-    setCancionActual(cancion);
-    setIndiceActual(indice);
-    setIsPlaying(true);
+  const seleccionarCancion = (cancion: any, indice: number) => {
+    playSong(cancion, playlist);
   };
 
   /**
    * Toggle favorito de la canción actual
    */
   const toggleFavorito = async () => {
-    if (!cancionActual) return;
+    if (!currentSong) return;
+    // Esta funcionalidad se implementará más tarde con la base de datos
+    console.log('Toggle favorito para:', currentSong.titulo);
+  };
 
-    try {
-      // En implementación real, actualizar en base de datos
-      const nuevaCancion = {
-        ...cancionActual,
-        es_favorita: !cancionActual.es_favorita
-      };
-
-      setCancionActual(nuevaCancion);
-      
-      // Actualizar en playlist también
-      const nuevaPlaylist = playlist.map(cancion => 
-        cancion.id === cancionActual.id ? nuevaCancion : cancion
-      );
-      setPlaylist(nuevaPlaylist);
-
-    } catch (error) {
-      console.error('Error actualizando favorito:', error);
+  /**
+   * Toggle reproducción
+   */
+  const togglePlayPause = () => {
+    if (isPlaying) {
+      pauseSong();
+    } else {
+      resumeSong();
     }
+  };
+
+  /**
+   * Toggle mute
+   */
+  const toggleMute = () => {
+    setIsMuted(!isMuted);
+  };
+
+  /**
+   * Toggle shuffle
+   */
+  const toggleShuffle = () => {
+    setIsShuffled(!isShuffled);
+  };
+
+  /**
+   * Toggle repeat
+   */
+  const toggleRepeat = () => {
+    const modes = ['off', 'one', 'all'];
+    const currentIndex = modes.indexOf(repeatMode);
+    const nextMode = modes[(currentIndex + 1) % modes.length];
+    setRepeatMode(nextMode);
   };
 
   /**
@@ -310,16 +297,14 @@ export default function ReproductorPage() {
   /**
    * Obtener título del modo de repetición
    */
-  const getRepeatModeTitle = (modo: ModoRepetir) => {
+  const getRepeatModeTitle = (modo: string) => {
     switch (modo) {
-      case 'off': return 'Repetir: desactivado';
-      case 'one': return 'Repetir: una canción';
-      case 'all': return 'Repetir: todas';
-      default: return 'Repetir';
+      case 'off': return 'Sin repetición';
+      case 'one': return 'Repetir canción';
+      case 'all': return 'Repetir playlist';
+      default: return 'Sin repetición';
     }
-  };
-
-  /**
+  };  /**
    * Renderizar indicador de reproducción en playlist
    */
   const renderPlaylistIndicator = (cancion: Cancion, isCurrentSong: boolean, index: number) => {
@@ -389,29 +374,21 @@ export default function ReproductorPage() {
           <div className="lg:col-span-2 space-y-6">
             
             {/* Información de la Canción Actual */}
-            {cancionActual && (
+            {currentSong && (
               <div className="bg-white rounded-xl shadow-lg overflow-hidden">
                 <div className="md:flex">
                   
                   {/* Imagen del álbum */}
                   <div className="md:w-80 h-80 bg-gradient-to-br from-purple-400 via-pink-500 to-red-500 flex items-center justify-center relative overflow-hidden">
-                    {cancionActual.imagen_url ? (
-                      <img 
-                        src={cancionActual.imagen_url} 
-                        alt={cancionActual.album}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="text-center text-white">
-                        <MusicalNoteIcon className="w-24 h-24 mx-auto mb-4 opacity-80" />
-                        <p className="text-lg font-medium opacity-90">{cancionActual.album || 'Sin álbum'}</p>
-                      </div>
-                    )}
+                    <div className="text-center text-white">
+                      <MusicalNoteIcon className="w-24 h-24 mx-auto mb-4 opacity-80" />
+                      <p className="text-lg font-medium opacity-90">{currentSong.album || 'Sin álbum'}</p>
+                    </div>
                     
                     {/* Overlay con controles */}
                     <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
                       <button 
-                        onClick={() => setIsPlaying(!isPlaying)}
+                        onClick={togglePlayPause}
                         className="w-16 h-16 bg-white rounded-full flex items-center justify-center text-black hover:scale-110 transition-transform"
                       >
                         {isPlaying ? <PauseIcon className="w-8 h-8" /> : <PlayIcon className="w-8 h-8 ml-1" />}
@@ -424,28 +401,20 @@ export default function ReproductorPage() {
                     <div className="flex justify-between items-start mb-6">
                       <div>
                         <h2 className="text-3xl font-bold text-gray-900 mb-2">
-                          {cancionActual.titulo}
+                          {currentSong.titulo}
                         </h2>
-                        <p className="text-xl text-gray-600 mb-1">{cancionActual.artista}</p>
-                        <p className="text-gray-500">{cancionActual.album}</p>
+                        <p className="text-xl text-gray-600 mb-1">{currentSong.artista}</p>
+                        <p className="text-gray-500">{currentSong.album}</p>
                       </div>
                       
                       {/* Acciones rápidas */}
                       <div className="flex space-x-2">
                         <button
                           onClick={toggleFavorito}
-                          className={`p-3 rounded-full transition-colors ${
-                            cancionActual.es_favorita 
-                              ? 'bg-red-100 text-red-600 hover:bg-red-200' 
-                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                          }`}
-                          title={cancionActual.es_favorita ? 'Quitar de favoritos' : 'Agregar a favoritos'}
+                          className="p-3 rounded-full transition-colors bg-gray-100 text-gray-600 hover:bg-gray-200"
+                          title="Agregar a favoritos"
                         >
-                          {cancionActual.es_favorita ? (
-                            <HeartIconSolid className="w-5 h-5" />
-                          ) : (
-                            <HeartIcon className="w-5 h-5" />
-                          )}
+                          <HeartIcon className="w-5 h-5" />
                         </button>
                         
                         <button className="p-3 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors">
@@ -462,24 +431,19 @@ export default function ReproductorPage() {
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div>
                         <span className="text-gray-500">Duración:</span>
-                        <span className="ml-2 font-medium">{formatearDuracion(cancionActual.duracion)}</span>
+                        <span className="ml-2 font-medium">{formatearDuracion(currentSong.duracion)}</span>
                       </div>
                       <div>
                         <span className="text-gray-500">Género:</span>
-                        <span className="ml-2 font-medium">{cancionActual.genero || 'No especificado'}</span>
+                        <span className="ml-2 font-medium">{currentSong.genero || 'No especificado'}</span>
                       </div>
                       <div>
-                        <span className="text-gray-500">Reproducciones:</span>
-                        <span className="ml-2 font-medium">{formatearNumero(cancionActual.reproducciones || 0)}</span>
+                        <span className="text-gray-500">Bitrate:</span>
+                        <span className="ml-2 font-medium">{currentSong.bitrate || 320} kbps</span>
                       </div>
                       <div>
-                        <span className="text-gray-500">Lanzamiento:</span>
-                        <span className="ml-2 font-medium">
-                          {cancionActual.fecha_lanzamiento ? 
-                            new Date(cancionActual.fecha_lanzamiento).getFullYear() : 
-                            'No disponible'
-                          }
-                        </span>
+                        <span className="text-gray-500">Álbum:</span>
+                        <span className="ml-2 font-medium">{currentSong.album || 'No especificado'}</span>
                       </div>
                     </div>
                     
@@ -490,13 +454,8 @@ export default function ReproductorPage() {
                           💎 Calidad HD
                         </span>
                       )}
-                      {cancionActual.es_favorita && (
-                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                          ❤️ Favorita
-                        </span>
-                      )}
                       <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                        🎵 {cancionActual.genero}
+                        🎵 {currentSong.genero}
                       </span>
                     </div>
                   </div>
@@ -540,7 +499,7 @@ export default function ReproductorPage() {
               {/* Controles principales */}
               <div className="flex justify-center space-x-4 mb-6">
                 <button
-                  onClick={cancionAnterior}
+                  onClick={previousSong}
                   className="p-3 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors"
                   title="Anterior"
                 >
@@ -548,7 +507,7 @@ export default function ReproductorPage() {
                 </button>
                 
                 <button
-                  onClick={() => setIsPlaying(!isPlaying)}
+                  onClick={togglePlayPause}
                   className="p-4 rounded-full bg-purple-600 hover:bg-purple-700 text-white transition-colors transform hover:scale-105"
                   title={isPlaying ? 'Pausar' : 'Reproducir'}
                 >
@@ -556,7 +515,7 @@ export default function ReproductorPage() {
                 </button>
                 
                 <button
-                  onClick={siguienteCancion}
+                  onClick={nextSong}
                   className="p-3 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors"
                   title="Siguiente"
                 >
@@ -567,9 +526,9 @@ export default function ReproductorPage() {
               {/* Modos de reproducción */}
               <div className="flex justify-center space-x-4 mb-6">
                 <button
-                  onClick={() => setModoAleatorio(!modoAleatorio)}
+                  onClick={toggleShuffle}
                   className={`p-2 rounded-lg transition-colors ${
-                    modoAleatorio 
+                    isShuffled 
                       ? 'bg-purple-100 text-purple-700' 
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
@@ -579,21 +538,16 @@ export default function ReproductorPage() {
                 </button>
                 
                 <button
-                  onClick={() => {
-                    const modos: ModoRepetir[] = ['off', 'one', 'all'];
-                    const indiceActual = modos.indexOf(modoRepetir);
-                    const siguienteModo = modos[(indiceActual + 1) % modos.length];
-                    setModoRepetir(siguienteModo);
-                  }}
+                  onClick={toggleRepeat}
                   className={`p-2 rounded-lg transition-colors ${
-                    modoRepetir !== 'off' 
+                    repeatMode !== 'off' 
                       ? 'bg-purple-100 text-purple-700' 
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
-                  title={getRepeatModeTitle(modoRepetir)}
+                  title={getRepeatModeTitle(repeatMode)}
                 >
                   <ArrowPathIcon className="w-5 h-5" />
-                  {modoRepetir === 'one' && <span className="absolute -top-1 -right-1 w-3 h-3 bg-purple-600 rounded-full text-xs text-white flex items-center justify-center">1</span>}
+                  {repeatMode === 'one' && <span className="absolute -top-1 -right-1 w-3 h-3 bg-purple-600 rounded-full text-xs text-white flex items-center justify-center">1</span>}
                 </button>
               </div>
               
@@ -601,10 +555,10 @@ export default function ReproductorPage() {
               <div className="space-y-3">
                 <div className="flex items-center space-x-3">
                   <button 
-                    onClick={() => setIsMuted(!isMuted)}
+                    onClick={toggleMute}
                     className="text-gray-600 hover:text-gray-800"
                   >
-                    {isMuted || volumen === 0 ? (
+                    {isMuted || volume === 0 ? (
                       <SpeakerXMarkIcon className="w-5 h-5" />
                     ) : (
                       <SpeakerWaveIcon className="w-5 h-5" />
@@ -616,17 +570,16 @@ export default function ReproductorPage() {
                     min="0"
                     max="1"
                     step="0.01"
-                    value={isMuted ? 0 : volumen}
+                    value={isMuted ? 0 : volume}
                     onChange={(e) => {
                       const nuevoVolumen = parseFloat(e.target.value);
-                      setVolumen(nuevoVolumen);
-                      if (nuevoVolumen > 0) setIsMuted(false);
+                      setVolume(nuevoVolumen);
                     }}
                     className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
                   />
                   
                   <span className="text-sm text-gray-500 min-w-[3rem]">
-                    {Math.round((isMuted ? 0 : volumen) * 100)}%
+                    {Math.round((isMuted ? 0 : volume) * 100)}%
                   </span>
                 </div>
               </div>
@@ -650,7 +603,7 @@ export default function ReproductorPage() {
               {mostrarPlaylist && (
                 <div className="max-h-96 overflow-y-auto">
                   {playlist.map((cancion, indice) => {
-                    const isCurrentSong = cancionActual?.id === cancion.id;
+                    const isCurrentSong = currentSong?.id === cancion.id;
                     return (
                       <button
                         key={cancion.id}
@@ -681,11 +634,8 @@ export default function ReproductorPage() {
                             <p className="text-sm text-gray-600 truncate">{cancion.artista}</p>
                           </div>
                           
-                          {/* Duración y favorito */}
+                          {/* Duración */}
                           <div className="flex items-center space-x-2">
-                            {cancion.es_favorita && (
-                              <HeartIconSolid className="w-4 h-4 text-red-500" />
-                            )}
                             <span className="text-sm text-gray-500">{formatearDuracion(cancion.duracion)}</span>
                           </div>
                         </div>
@@ -696,22 +646,6 @@ export default function ReproductorPage() {
               )}
             </div>
           </div>
-        </div>
-        
-        {/* Reproductor fijo en la parte inferior */}
-        <div className="fixed bottom-0 left-0 right-0 z-50">
-          <MusicPlayer
-            cancion={cancionActual ? {
-              id: cancionActual.id,
-              titulo: cancionActual.titulo,
-              artista: cancionActual.artista,
-              duracion: cancionActual.duracion,
-              url_archivo: cancionActual.archivo_audio_url
-            } : null}
-            onNext={siguienteCancion}
-            onPrevious={cancionAnterior}
-            playlist={playlist}
-          />
         </div>
       </div>
     </DashboardLayout>

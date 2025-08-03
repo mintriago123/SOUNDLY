@@ -23,7 +23,8 @@ import {
   CloudArrowDownIcon,
   SparklesIcon,
   ComputerDesktopIcon,
-  GlobeAltIcon
+  GlobeAltIcon,
+  MagnifyingGlassIcon
 } from '@heroicons/react/24/outline';
 
 // Componente para el icono de infinito personalizado
@@ -256,6 +257,12 @@ const menuItems: MenuItem[] = [
     href: '/usuario/biblioteca',
     icon: MusicalNoteIcon,
     description: 'Tu colección musical'
+  },
+  {
+    name: 'Buscar Música',
+    href: '/usuario/buscar',
+    icon: MagnifyingGlassIcon,
+    description: 'Explorar y descubrir música'
   },
   {
     name: 'Playlists',

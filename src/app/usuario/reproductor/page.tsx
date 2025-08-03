@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSupabase } from '@/components/SupabaseProvider';
 import DashboardLayout from '@/components/DashboardLayout';
-import MusicPlayer from '@/components/MusicPlayer';
+import GlobalMusicPlayer from '@/components/GlobalMusicPlayer';
 import { 
   MusicalNoteIcon,
   PlayIcon,
@@ -30,11 +30,22 @@ interface Cancion {
   artista: string;
   album?: string;
   duracion: number;
-  genero?: string;
+  genero: string;
+  año: number;
+  archivo_audio_url: string;
   imagen_url?: string;
-  archivo_audio_url?: string;
+  letra?: string;
+  reproducciones: number;
+  es_publica: boolean;
+  estado: 'activa' | 'inactiva' | 'borrador';
+  created_at: string;
+  album_id?: string;
+  numero_pista?: number;
+  favoritos: number;
+  descargas: number;
+  usuario_subida_id: string;
+  // Campos adicionales para compatibilidad
   es_favorita?: boolean;
-  reproducciones?: number;
   fecha_lanzamiento?: string;
 }
 
@@ -74,8 +85,11 @@ export default function ReproductorPage() {
   const [modoAleatorio, setModoAleatorio] = useState(false);
   const [modoRepetir, setModoRepetir] = useState<ModoRepetir>('off');
   const [mostrarPlaylist, setMostrarPlaylist] = useState(true);
+  const [mostrarSoloFavoritas, setMostrarSoloFavoritas] = useState(false);
   const [usuario, setUsuario] = useState<any>(null);
   const [cargando, setCargando] = useState(true);
+  const [cancionesFavoritas, setCancionesFavoritas] = useState<Set<string>>(new Set());
+  const [mensajeFavorito, setMensajeFavorito] = useState<string>('');
 
   // Estados para visualizador
   const [barrasEcualizador, setBarrasEcualizador] = useState<Array<{ id: string; altura: number }>>([]);
@@ -83,6 +97,11 @@ export default function ReproductorPage() {
   useEffect(() => {
     verificarUsuarioYCargarDatos();
     generarVisualizador();
+    
+    // Ejecutar diagnóstico en desarrollo
+    if (process.env.NODE_ENV === 'development') {
+      setTimeout(diagnosticarStorage, 2000);
+    }
   }, []);
 
   // Generar barras del ecualizador animadas
@@ -101,6 +120,72 @@ export default function ReproductorPage() {
   }, [isPlaying]);
 
   /**
+   * Función para diagnosticar problemas de Supabase Storage
+   */
+  const diagnosticarStorage = async () => {
+    try {
+      console.log('🔍 Iniciando diagnóstico de Supabase Storage...');
+      
+      // Verificar conexión a Supabase
+      const { data: { user } } = await supabase.auth.getUser();
+      console.log('✅ Usuario autenticado:', user?.email);
+      
+      // Listar archivos en el bucket music
+      const { data: files, error: listError } = await supabase.storage
+        .from('music')
+        .list('', { limit: 10 });
+      
+      if (listError) {
+        console.error('❌ Error listando archivos:', listError);
+        return;
+      }
+      
+      console.log('📁 Archivos en storage:', files);
+      
+      // Probar generar URL pública para el primer archivo
+      if (files && files.length > 0) {
+        const firstFile = files[0];
+        
+        // Probar URL pública
+        const { data: urlData } = supabase.storage
+          .from('music')
+          .getPublicUrl(firstFile.name);
+        
+        console.log('🔗 URL pública de prueba:', urlData.publicUrl);
+        
+        // Verificar accesibilidad de URL pública
+        try {
+          const response = await fetch(urlData.publicUrl, { method: 'HEAD' });
+          console.log('✅ Estado de respuesta URL pública:', response.status, response.statusText);
+        } catch (fetchError) {
+          console.error('❌ Error accediendo a URL pública:', fetchError);
+          
+          // Si falla la URL pública, probar URL firmada
+          try {
+            const { data: signedData, error: signedError } = await supabase.storage
+              .from('music')
+              .createSignedUrl(firstFile.name, 3600);
+            
+            if (signedData?.signedUrl && !signedError) {
+              console.log('🔗 URL firmada de prueba:', signedData.signedUrl);
+              
+              const signedResponse = await fetch(signedData.signedUrl, { method: 'HEAD' });
+              console.log('✅ Estado de respuesta URL firmada:', signedResponse.status, signedResponse.statusText);
+            } else {
+              console.error('❌ Error generando URL firmada:', signedError);
+            }
+          } catch (signedFetchError) {
+            console.error('❌ Error accediendo a URL firmada:', signedFetchError);
+          }
+        }
+      }
+      
+    } catch (error) {
+      console.error('❌ Error en diagnóstico:', error);
+    }
+  };
+
+  /**
    * Verificar usuario autenticado y cargar datos musicales
    */
   const verificarUsuarioYCargarDatos = async () => {
@@ -108,7 +193,7 @@ export default function ReproductorPage() {
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
-        router.push('/auth/login?redirectTo=/dashboard/reproductor');
+        router.push('/auth/login?redirectTo=/usuario/reproductor');
         return;
       }
 
@@ -125,7 +210,12 @@ export default function ReproductorPage() {
       }
 
       setUsuario(userData);
-      await cargarPlaylistPorDefecto();
+      
+      // Cargar canciones públicas después de establecer el usuario
+      await cargarCancionesPublicas();
+      
+      // Cargar favoritos del usuario
+      await cargarFavoritos(userData.id);
       
     } catch (error) {
       console.error('Error verificando usuario:', error);
@@ -136,75 +226,155 @@ export default function ReproductorPage() {
   };
 
   /**
-   * Cargar playlist por defecto con canciones de ejemplo
+   * Cargar canciones públicas de todos los artistas desde la base de datos
    */
-  const cargarPlaylistPorDefecto = async () => {
+  const cargarCancionesPublicas = async () => {
     try {
-      // En una implementación real, aquí cargarías las canciones del usuario/trending
-      const playlistEjemplo: Cancion[] = [
-        {
-          id: '1',
-          titulo: 'Midnight Dreams',
-          artista: 'Luna Nova',
-          album: 'Nocturnal Vibes',
-          duracion: 210,
-          genero: 'Electronic',
-          imagen_url: '/api/placeholder/300/300',
-          es_favorita: true,
-          reproducciones: 12450,
-          fecha_lanzamiento: '2024-03-15'
-        },
-        {
-          id: '2', 
-          titulo: 'Summer Breeze',
-          artista: 'Ocean Waves',
-          album: 'Coastal Sounds',
-          duracion: 185,
-          genero: 'Chill',
-          es_favorita: false,
-          reproducciones: 8320,
-          fecha_lanzamiento: '2024-02-20'
-        },
-        {
-          id: '3',
-          titulo: 'Electric Storm',
-          artista: 'Neon Lights',
-          album: 'Synthwave Collection',
-          duracion: 245,
-          genero: 'Synthwave',
-          es_favorita: true,
-          reproducciones: 15670,
-          fecha_lanzamiento: '2024-01-10'
-        },
-        {
-          id: '4',
-          titulo: 'Peaceful Morning',
-          artista: 'Zen Garden',
-          album: 'Meditation Sounds',
-          duracion: 320,
-          genero: 'Ambient',
-          es_favorita: false,
-          reproducciones: 5890,
-          fecha_lanzamiento: '2024-04-01'
-        },
-        {
-          id: '5',
-          titulo: 'City Lights',
-          artista: 'Urban Pulse',
-          album: 'Metropolitan',
-          duracion: 195,
-          genero: 'Hip Hop',
-          es_favorita: true,
-          reproducciones: 22340,
-          fecha_lanzamiento: '2024-03-28'
-        }
-      ];
+      // Cargar canciones públicas de la base de datos
+      const { data: cancionesData, error } = await supabase
+        .from('canciones')
+        .select(`
+          *,
+          usuarios(nombre)
+        `)
+        .eq('estado', 'activa')
+        .eq('es_publica', true)
+        .order('reproducciones', { ascending: false })
+        .limit(50); // Limitar a las 50 más populares
 
-      setPlaylist(playlistEjemplo);
-      setCancionActual(playlistEjemplo[0]);
-      setIndiceActual(0);
+      if (error) {
+        console.error('Error cargando canciones públicas:', error);
+        return;
+      }
+
+      if (!cancionesData || cancionesData.length === 0) {
+        console.log('No hay canciones públicas disponibles');
+        setPlaylist([]);
+        return;
+      }
+
+      // Mapear datos y generar URLs públicas para compatibilidad con la interfaz
+      const cancionesFormateadas = await Promise.all(
+        cancionesData.map(async (cancion: any) => {
+          let urlAudio = cancion.archivo_audio_url;
+          
+          console.log('Procesando canción:', cancion.titulo, 'URL original:', urlAudio);
+          
+          // Si la URL no es completa, generar URL pública desde Supabase Storage
+          if (urlAudio && !urlAudio.startsWith('http')) {
+            try {
+              // Primero intentar URL pública
+              const { data: urlData } = supabase.storage
+                .from('music')
+                .getPublicUrl(urlAudio);
+              
+              if (urlData?.publicUrl) {
+                urlAudio = urlData.publicUrl;
+                console.log('URL pública generada:', urlAudio);
+              }
+            } catch (error) {
+              console.error('Error generando URL pública, intentando URL firmada para:', cancion.titulo, error);
+              
+              // Si falla la URL pública, intentar URL firmada (válida por 1 hora)
+              try {
+                const { data: signedUrlData, error: signedError } = await supabase.storage
+                  .from('music')
+                  .createSignedUrl(urlAudio, 3600); // 1 hora de validez
+                
+                if (signedUrlData?.signedUrl && !signedError) {
+                  urlAudio = signedUrlData.signedUrl;
+                  console.log('URL firmada generada:', urlAudio);
+                } else {
+                  console.error('Error generando URL firmada:', signedError);
+                }
+              } catch (signedErrorCatch) {
+                console.error('Error en URL firmada:', signedErrorCatch);
+              }
+            }
+          }
+          
+          // Verificar que la URL sea accesible
+          if (urlAudio) {
+            try {
+              const response = await fetch(urlAudio, { method: 'HEAD' });
+              if (!response.ok) {
+                console.warn('URL no accesible:', urlAudio, 'Status:', response.status);
+              } else {
+                console.log('URL verificada como accesible:', urlAudio);
+              }
+            } catch (error) {
+              console.warn('Error verificando URL:', urlAudio, error);
+            }
+          }
+          
+          return {
+            ...cancion,
+            archivo_audio_url: urlAudio,
+            artista: cancion.usuarios?.nombre || 'Artista Desconocido',
+            album: cancion.album_id ? 'Álbum' : 'Sin álbum',
+            es_favorita: false, // Se actualizará con los favoritos del usuario
+            fecha_lanzamiento: cancion.created_at
+          };
+        })
+      );
+
+      console.log('Canciones públicas cargadas:', cancionesFormateadas);
+      setPlaylist(cancionesFormateadas);
+      
+      // Establecer la primera canción como actual
+      if (cancionesFormateadas.length > 0) {
+        setCancionActual(cancionesFormateadas[0]);
+        setIndiceActual(0);
+      }
     } catch (error) {
-      console.error('Error cargando playlist:', error);
+      console.error('Error cargando canciones públicas:', error);
+    }
+  };
+
+  /**
+   * Obtener conteo actualizado de favoritos para una canción
+   */
+  const obtenerConteoFavoritos = async (cancionId: string): Promise<number> => {
+    try {
+      const { count } = await supabase
+        .from('favoritos')
+        .select('*', { count: 'exact', head: true })
+        .eq('cancion_id', cancionId);
+
+      return count || 0;
+    } catch (error) {
+      console.error('Error obteniendo conteo de favoritos:', error);
+      return 0;
+    }
+  };
+
+  /**
+   * Cargar canciones favoritas del usuario
+   */
+  const cargarFavoritos = async (userId: string) => {
+    try {
+      const { data: favoritosData, error } = await supabase
+        .from('favoritos')
+        .select('cancion_id')
+        .eq('usuario_id', userId);
+
+      if (error) {
+        console.error('Error cargando favoritos:', error);
+        return;
+      }
+
+      const favoritosSet = new Set(favoritosData?.map(fav => fav.cancion_id) || []);
+      setCancionesFavoritas(favoritosSet);
+
+      // Actualizar el estado de favoritas en la playlist
+      setPlaylist(prevPlaylist => 
+        prevPlaylist.map(cancion => ({
+          ...cancion,
+          es_favorita: favoritosSet.has(cancion.id)
+        }))
+      );
+    } catch (error) {
+      console.error('Error cargando favoritos:', error);
     }
   };
 
@@ -268,26 +438,116 @@ export default function ReproductorPage() {
   /**
    * Toggle favorito de la canción actual
    */
-  const toggleFavorito = async () => {
-    if (!cancionActual) return;
+  const toggleFavorito = async (cancionId?: string) => {
+    if (!usuario) return;
+    
+    const idCancion = cancionId || cancionActual?.id;
+    if (!idCancion) return;
+
+    const esFavorita = cancionesFavoritas.has(idCancion);
 
     try {
-      // En implementación real, actualizar en base de datos
-      const nuevaCancion = {
-        ...cancionActual,
-        es_favorita: !cancionActual.es_favorita
-      };
+      if (esFavorita) {
+        // Quitar de favoritos
+        const { error } = await supabase
+          .from('favoritos')
+          .delete()
+          .eq('usuario_id', usuario.id)
+          .eq('cancion_id', idCancion);
 
-      setCancionActual(nuevaCancion);
-      
-      // Actualizar en playlist también
-      const nuevaPlaylist = playlist.map(cancion => 
-        cancion.id === cancionActual.id ? nuevaCancion : cancion
-      );
-      setPlaylist(nuevaPlaylist);
+        if (error) {
+          console.error('Error quitando de favoritos:', error);
+          return;
+        }
 
+        // Actualizar contador en la tabla canciones con el conteo real
+        const conteoReal = await obtenerConteoFavoritos(idCancion);
+        const { error: updateError } = await supabase
+          .from('canciones')
+          .update({ favoritos: conteoReal })
+          .eq('id', idCancion);
+
+        if (updateError) {
+          console.error('Error actualizando contador de favoritos:', updateError);
+        }
+
+        // Actualizar estado local
+        const nuevasFavoritas = new Set(cancionesFavoritas);
+        nuevasFavoritas.delete(idCancion);
+        setCancionesFavoritas(nuevasFavoritas);
+
+        // Actualizar playlist
+        setPlaylist(prevPlaylist => 
+          prevPlaylist.map(cancion => 
+            cancion.id === idCancion 
+              ? { ...cancion, es_favorita: false }
+              : cancion
+          )
+        );
+
+        // Actualizar canción actual si es la misma
+        if (cancionActual?.id === idCancion) {
+          setCancionActual(prev => prev ? { ...prev, es_favorita: false } : null);
+        }
+
+        // Mostrar mensaje de feedback
+        setMensajeFavorito('Canción quitada de favoritos');
+        setTimeout(() => setMensajeFavorito(''), 3000);
+
+        console.log('Canción quitada de favoritos');
+      } else {
+        // Agregar a favoritos
+        const { error } = await supabase
+          .from('favoritos')
+          .insert({
+            usuario_id: usuario.id,
+            cancion_id: idCancion,
+            fecha_agregada: new Date().toISOString()
+          });
+
+        if (error) {
+          console.error('Error agregando a favoritos:', error);
+          return;
+        }
+
+        // Actualizar contador en la tabla canciones con el conteo real
+        const conteoReal = await obtenerConteoFavoritos(idCancion);
+        const { error: updateError } = await supabase
+          .from('canciones')
+          .update({ favoritos: conteoReal })
+          .eq('id', idCancion);
+
+        if (updateError) {
+          console.error('Error actualizando contador de favoritos:', updateError);
+        }
+
+        // Actualizar estado local
+        const nuevasFavoritas = new Set(cancionesFavoritas);
+        nuevasFavoritas.add(idCancion);
+        setCancionesFavoritas(nuevasFavoritas);
+
+        // Actualizar playlist
+        setPlaylist(prevPlaylist => 
+          prevPlaylist.map(cancion => 
+            cancion.id === idCancion 
+              ? { ...cancion, es_favorita: true }
+              : cancion
+          )
+        );
+
+        // Actualizar canción actual si es la misma
+        if (cancionActual?.id === idCancion) {
+          setCancionActual(prev => prev ? { ...prev, es_favorita: true } : null);
+        }
+
+        // Mostrar mensaje de feedback
+        setMensajeFavorito('Canción agregada a favoritos');
+        setTimeout(() => setMensajeFavorito(''), 3000);
+
+        console.log('Canción agregada a favoritos');
+      }
     } catch (error) {
-      console.error('Error actualizando favorito:', error);
+      console.error('Error en toggle favorito:', error);
     }
   };
 
@@ -433,7 +693,7 @@ export default function ReproductorPage() {
                       {/* Acciones rápidas */}
                       <div className="flex space-x-2">
                         <button
-                          onClick={toggleFavorito}
+                          onClick={() => toggleFavorito()}
                           className={`p-3 rounded-full transition-colors ${
                             cancionActual.es_favorita 
                               ? 'bg-red-100 text-red-600 hover:bg-red-200' 
@@ -698,7 +958,8 @@ export default function ReproductorPage() {
           </div>
         </div>
         
-        {/* Reproductor fijo en la parte inferior */}
+        {/* Reproductor fijo en la parte inferior - Comentado por ahora */}
+        {/* 
         <div className="fixed bottom-0 left-0 right-0 z-50">
           <MusicPlayer
             cancion={cancionActual ? {
@@ -713,6 +974,7 @@ export default function ReproductorPage() {
             playlist={playlist}
           />
         </div>
+        */}
       </div>
     </DashboardLayout>
   );

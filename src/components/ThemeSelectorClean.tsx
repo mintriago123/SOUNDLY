@@ -77,7 +77,7 @@ export default function ThemeSelectorClean() {
       </h3>
       
       <div className="space-y-3">
-        {/* Modo Maykel (Oscuro) */}
+        {/* Modo Oscuro */}
         <button
           onClick={() => handleThemeChange('oscuro')}
           style={getButtonStyles(theme === 'oscuro', 'oscuro')}
@@ -88,7 +88,7 @@ export default function ThemeSelectorClean() {
               <MoonIcon className="w-4 h-4 text-white" />
             </div>
             <div className="text-left">
-              <div className="font-medium">Modo Maykel</div>
+              <div className="font-medium">Modo Oscuro</div>
               <div className="text-sm opacity-70">Tema oscuro elegante y moderno</div>
             </div>
           </div>
@@ -99,7 +99,7 @@ export default function ThemeSelectorClean() {
           )}
         </button>
 
-        {/* Modo Walther (Claro) */}
+        {/* Modo Claro */}
         <button
           onClick={() => handleThemeChange('claro')}
           style={getButtonStyles(theme === 'claro', 'claro')}
@@ -110,7 +110,7 @@ export default function ThemeSelectorClean() {
               <SunIcon className="w-4 h-4 text-white" />
             </div>
             <div className="text-left">
-              <div className="font-medium">Modo Walther</div>
+              <div className="font-medium">Modo Claro</div>
               <div className="text-sm opacity-70">Tema claro y vibrante</div>
             </div>
           </div>
@@ -138,7 +138,7 @@ export default function ThemeSelectorClean() {
         <div className="mt-3 flex items-center justify-between">
           <div className="text-xs opacity-60">
             Tema activo: <span className="font-mono font-medium">
-              {theme === 'oscuro' ? 'Modo Maykel' : 'Modo Walther'}
+              {theme === 'oscuro' ? 'Modo Oscuro' : 'Modo Claro'}
             </span>
           </div>
           <div className="text-lg">

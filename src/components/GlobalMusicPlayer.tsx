@@ -273,7 +273,7 @@ export default function GlobalMusicPlayer({ userIsPremium = false }: GlobalMusic
               </div>
 
               {/* Playlist info */}
-              {playlist.length > 1 && (
+              {playlist.length > 1 && currentSong && (
                 <div className="text-xs text-gray-400 whitespace-nowrap">
                   {playlist.findIndex(s => s.id === currentSong.id) + 1}/{playlist.length}
                 </div>

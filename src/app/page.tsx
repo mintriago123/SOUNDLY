@@ -2,15 +2,34 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import GlobalMusicPlayer from '@/components/GlobalMusicPlayer';
+import { useMusicPlayer } from '@/contexts/MusicPlayerContext';
 
 export default function HomePage() {
-  const [isPlaying, setIsPlaying] = useState(false);
+  const [showPlayer, setShowPlayer] = useState(false);
+  const { playSong, currentSong } = useMusicPlayer();
   const [barHeights, setBarHeights] = useState<number[]>([]);
+
 
   // Generar las alturas aleatorias solo en el cliente para evitar hydration errors
   useEffect(() => {
     setBarHeights([...Array(5)].map(() => Math.random() * 40 + 20));
   }, []);
+
+  // Ocultar el reproductor cuando termina la demo
+  useEffect(() => {
+    if (showPlayer && currentSong?.id === 'demo') {
+      // Escuchar el evento de finalización
+      const audio = document.querySelector('audio');
+      if (audio) {
+        const handleEnded = () => setShowPlayer(false);
+        audio.addEventListener('ended', handleEnded);
+        return () => {
+          audio.removeEventListener('ended', handleEnded);
+        };
+      }
+    }
+  }, [showPlayer, currentSong]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#100725] via-[#220639] to-[#491358] relative overflow-hidden">
@@ -71,17 +90,60 @@ export default function HomePage() {
             </Link>
             
             <button 
-              onClick={() => setIsPlaying(!isPlaying)}
+              onClick={() => {
+                playSong({
+                  id: 'demo',
+                  titulo: 'ia walther',
+                  artista: 'sapo',
+                  genero: 'Demo',
+                  duracion: 10,
+                  url_archivo: '/demo.mp3',
+                  usuario_id: 'demo',
+                  bitrate: 320
+                });
+                setShowPlayer(true);
+              }}
               className="flex items-center space-x-2 px-8 py-4 border border-[#6e1f86] text-white rounded-full text-lg font-semibold hover:bg-[#6e1f86]/20 transition-all duration-300"
             >
-              <svg className={`w-6 h-6 ${isPlaying ? 'animate-spin' : ''}`} fill="currentColor" viewBox="0 0 24 24">
+              <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M8 5v14l11-7z"/>
               </svg>
               <span>Escuchar Demo</span>
             </button>
+            {/* Controles de audio nativos */}
+            {/* Reproductor visual tipo usuario */}
+            {/* El reproductor se renderiza fuera del bloque de acciones para evitar problemas de layout */}
           </div>
 
           {/* Features Cards */}
+      {showPlayer && (
+        <div className="fixed left-1/2 bottom-8 z-50" style={{ transform: 'translateX(-50%)' }}>
+          <div className="bg-[#1a0930]/90 backdrop-blur-lg border-2 border-[#ba319f]/40 rounded-2xl shadow-2xl w-full max-w-3xl pointer-events-auto flex flex-col items-stretch transition-all duration-500 animate-modalPop overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-3 bg-gradient-to-r from-[#ba319f] to-[#6e1f86] rounded-t-2xl">
+              <h2 className="text-xl font-bold text-white m-0">Demo: ia walther</h2>
+              <button
+                className="text-white text-2xl font-bold hover:text-[#220639] transition-colors bg-[#220639]/70 rounded-full w-8 h-8 flex items-center justify-center shadow-md"
+                onClick={() => setShowPlayer(false)}
+                aria-label="Cerrar reproductor"
+              >
+                &times;
+              </button>
+            </div>
+            <div className="px-6 py-4">
+              <GlobalMusicPlayer userIsPremium={true} />
+            </div>
+          </div>
+          <style>{`
+            @keyframes modalPop {
+              0% { transform: scale(0.8); opacity: 0; }
+              100% { transform: scale(1); opacity: 1; }
+            }
+            .animate-modalPop {
+              animation: modalPop 0.5s cubic-bezier(.17,.67,.83,.67);
+            }
+          `}</style>
+        </div>
+      )}
           <div className="grid md:grid-cols-3 gap-6 lg:gap-8 mt-20">
             <div className="bg-white/5 backdrop-blur-sm border border-[#6e1f86]/30 rounded-2xl p-6 hover:bg-white/10 transition-all duration-300">
               <div className="w-12 h-12 bg-gradient-to-r from-[#6e1f86] to-[#ba319f] rounded-lg flex items-center justify-center mb-4">
@@ -122,7 +184,7 @@ export default function HomePage() {
           <div className="flex space-x-1 items-end">
             {barHeights.map((height, i) => (
               <div
-                key={i}
+                key={`bar-${height}-${i}`}
                 className="w-2 bg-gradient-to-t from-[#6e1f86] to-[#ba319f] rounded-full"
                 style={{
                   height: `${height}px`,
@@ -135,7 +197,7 @@ export default function HomePage() {
       )}
 
       {/* Custom animation keyframes */}
-      <style jsx global>{`
+      <style>{`
         @keyframes pulse {
           0% { height: ${barHeights[0]?.toFixed(0) || 20}px; }
           100% { height: ${(barHeights[0] ? barHeights[0] * 1.5 : 30).toFixed(0)}px; }

@@ -601,7 +601,7 @@ export default function Sidebar({
                       }}
                       className={`w-full flex items-center px-3 py-2.5 text-left rounded-lg transition-all duration-200 group ${
                         getActiveStyles(isItemActive)
-                      }`}
+                      } hover:bg-gradient-to-r hover:from-[#f3e8ff] hover:to-[#fdf6fb] hover:shadow-md hover:shadow-[#ba319f22]`}
                       title={isCollapsed ? item.name : undefined}
                     >
                       <Icon className={`w-5 h-5 ${isCollapsed ? 'mx-auto' : 'mr-3'} ${

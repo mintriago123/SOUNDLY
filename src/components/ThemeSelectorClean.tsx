@@ -1,7 +1,7 @@
 'use client';
 
 import { useTheme } from './ThemeProviderEnhanced';
-import { SunIcon, MoonIcon } from '@heroicons/react/24/outline';
+import { SunIcon, MoonIcon, SwatchIcon, LightBulbIcon } from '@heroicons/react/24/outline';
 import { useEffect } from 'react';
 
 export default function ThemeSelectorClean() {
@@ -72,7 +72,7 @@ export default function ThemeSelectorClean() {
       className="rounded-xl shadow-sm border p-6 transition-all duration-300"
     >
       <h3 className="text-lg font-semibold mb-4 flex items-center">
-        <span className="text-xl mr-2">🎨</span>
+        <SwatchIcon className="w-6 h-6 text-purple-500 mr-2" />
         <span>Configuración de Apariencia</span>
       </h3>
       
@@ -128,12 +128,11 @@ export default function ThemeSelectorClean() {
         className="mt-4 p-3 rounded-lg"
       >
         <div className="flex items-center space-x-2">
-          <span className="text-sm">💡</span>
+          <LightBulbIcon className="w-4 h-4 text-yellow-400" />
           <p className="text-xs opacity-70">
             Los cambios se aplicarán inmediatamente en toda la aplicación
           </p>
         </div>
-        
         {/* Estado actual */}
         <div className="mt-3 flex items-center justify-between">
           <div className="text-xs opacity-60">
@@ -142,7 +141,11 @@ export default function ThemeSelectorClean() {
             </span>
           </div>
           <div className="text-lg">
-            {theme === 'oscuro' ? '🌙' : '☀️'}
+            {theme === 'oscuro' ? (
+              <MoonIcon className="w-5 h-5 text-purple-500" />
+            ) : (
+              <SunIcon className="w-5 h-5 text-yellow-400" />
+            )}
           </div>
         </div>
       </div>

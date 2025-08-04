@@ -12,8 +12,9 @@ export default function UpgradePage() {
         {/* Header */}
         <div className="text-center bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg p-8 text-white">
           <div className="flex justify-center mb-4">
-            <svg xmlns="http://www.w3.org/2000/svg" className="w-16 h-16 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3l9 4-3 9-6 6-6-6-3-9 9-4z" />
+            {/* Corona premium */}
+            <svg className="w-16 h-16 text-yellow-400" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M4.5 17.5L3 7l5.5 5.5L12 4l3.5 8.5L21 7l-1.5 10.5H4.5zM4 19a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-1H4v1z" />
             </svg>
           </div>
           <h1 className="text-3xl font-bold mb-2">

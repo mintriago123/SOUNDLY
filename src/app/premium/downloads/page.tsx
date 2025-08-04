@@ -1,6 +1,7 @@
 'use client';
 
 import DashboardLayout from '../../../components/DashboardLayout';
+import { CloudArrowDownIcon, DevicePhoneMobileIcon, ServerStackIcon, CloudIcon, InfinityIcon, LightBulbIcon } from '@heroicons/react/24/outline';
 
 export default function DownloadsPage() {
   return (
@@ -9,7 +10,7 @@ export default function DownloadsPage() {
         {/* Header */}
         <div className="bg-gradient-to-r from-green-600 to-blue-600 rounded-lg p-6 text-white">
           <div className="flex items-center space-x-3">
-            <span className="text-3xl">⬇️</span>
+            <CloudArrowDownIcon className="w-8 h-8 text-white drop-shadow" />
             <div>
               <h1 className="text-2xl font-bold">Mis Descargas</h1>
               <p className="text-green-100">Música disponible sin conexión</p>
@@ -21,7 +22,7 @@ export default function DownloadsPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center">
-              <div className="text-3xl mr-4">📱</div>
+              <DevicePhoneMobileIcon className="w-8 h-8 text-blue-500 mr-4" />
               <div>
                 <p className="text-sm font-medium text-gray-600">Canciones Descargadas</p>
                 <p className="text-2xl font-bold text-gray-900">0</p>
@@ -31,7 +32,7 @@ export default function DownloadsPage() {
 
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center">
-              <div className="text-3xl mr-4">💾</div>
+              <ServerStackIcon className="w-8 h-8 text-green-600 mr-4" />
               <div>
                 <p className="text-sm font-medium text-gray-600">Espacio Usado</p>
                 <p className="text-2xl font-bold text-gray-900">0 MB</p>
@@ -41,7 +42,7 @@ export default function DownloadsPage() {
 
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center">
-              <div className="text-3xl mr-4">☁️</div>
+              <CloudIcon className="w-8 h-8 text-blue-400 mr-4" />
               <div>
                 <p className="text-sm font-medium text-gray-600">Espacio Disponible</p>
                 <p className="text-2xl font-bold text-green-600">∞ GB</p>
@@ -62,7 +63,7 @@ export default function DownloadsPage() {
           </div>
           <div className="p-6">
             <div className="text-center text-gray-500 py-8">
-              <div className="text-4xl mb-4">⬇️</div>
+              <CloudArrowDownIcon className="w-12 h-12 mx-auto mb-4 text-blue-400 opacity-40" />
               <p className="text-lg font-medium">¡No hay descargas aún!</p>
               <p className="text-sm mt-2">Ve a tu biblioteca y descarga música para escuchar sin conexión</p>
               <button className="mt-4 bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors">
@@ -74,8 +75,8 @@ export default function DownloadsPage() {
 
         {/* Consejos */}
         <div className="bg-blue-50 rounded-lg p-6">
-          <h3 className="text-lg font-bold text-blue-900 mb-3">
-            💡 Consejos para Descargas
+          <h3 className="text-lg font-bold text-blue-900 mb-3 flex items-center gap-2">
+            <LightBulbIcon className="w-6 h-6 text-yellow-400" /> Consejos para Descargas
           </h3>
           <ul className="text-blue-800 space-y-2">
             <li>• Las descargas están disponibles solo con conexión a internet</li>

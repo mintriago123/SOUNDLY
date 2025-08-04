@@ -1,7 +1,9 @@
 'use client';
 
+
 import Link from 'next/link';
 import DashboardLayout from '../../../components/DashboardLayout';
+import { MusicalNoteIcon, CloudArrowDownIcon, NoSymbolIcon, InfinityIcon, ChartBarIcon, BoltIcon, ArrowLeftIcon } from '@heroicons/react/24/outline';
 
 export default function UpgradePage() {
   return (
@@ -9,7 +11,11 @@ export default function UpgradePage() {
       <div className="max-w-4xl mx-auto space-y-8">
         {/* Header */}
         <div className="text-center bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg p-8 text-white">
-          <div className="text-6xl mb-4">💎</div>
+          <div className="flex justify-center mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-16 h-16 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3l9 4-3 9-6 6-6-6-3-9 9-4z" />
+            </svg>
+          </div>
           <h1 className="text-3xl font-bold mb-2">
             ¡Desbloquea Soundly Premium!
           </h1>
@@ -21,7 +27,7 @@ export default function UpgradePage() {
         {/* Características Premium */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="bg-white rounded-lg shadow-lg p-6">
-            <div className="text-4xl mb-4">🎵</div>
+            <MusicalNoteIcon className="w-10 h-10 text-[#ba319f] mb-4 mx-auto" />
             <h3 className="text-xl font-bold text-gray-900 mb-2">Música en HD</h3>
             <p className="text-gray-600">
               Disfruta de calidad de audio superior con archivos sin comprimir
@@ -29,7 +35,7 @@ export default function UpgradePage() {
           </div>
 
           <div className="bg-white rounded-lg shadow-lg p-6">
-            <div className="text-4xl mb-4">⬇️</div>
+            <CloudArrowDownIcon className="w-10 h-10 text-[#6e1f86] mb-4 mx-auto" />
             <h3 className="text-xl font-bold text-gray-900 mb-2">Descargas Ilimitadas</h3>
             <p className="text-gray-600">
               Descarga toda tu música favorita para escuchar sin conexión
@@ -37,7 +43,7 @@ export default function UpgradePage() {
           </div>
 
           <div className="bg-white rounded-lg shadow-lg p-6">
-            <div className="text-4xl mb-4">🚫</div>
+            <NoSymbolIcon className="w-10 h-10 text-[#e11d48] mb-4 mx-auto" />
             <h3 className="text-xl font-bold text-gray-900 mb-2">Sin Anuncios</h3>
             <p className="text-gray-600">
               Disfruta de tu música sin interrupciones publicitarias
@@ -45,7 +51,9 @@ export default function UpgradePage() {
           </div>
 
           <div className="bg-white rounded-lg shadow-lg p-6">
-            <div className="text-4xl mb-4">∞</div>
+            <svg className="w-10 h-10 text-[#6366f1] mb-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 12c-2-2-4-2-6 0s-2 4 0 6 4 2 6 0 4-2 6 0 2-4 0-6-4-2-6 0z" />
+            </svg>
             <h3 className="text-xl font-bold text-gray-900 mb-2">Playlists Ilimitadas</h3>
             <p className="text-gray-600">
               Crea tantas playlists como quieras sin límites
@@ -53,7 +61,7 @@ export default function UpgradePage() {
           </div>
 
           <div className="bg-white rounded-lg shadow-lg p-6">
-            <div className="text-4xl mb-4">📈</div>
+            <ChartBarIcon className="w-10 h-10 text-[#22c55e] mb-4 mx-auto" />
             <h3 className="text-xl font-bold text-gray-900 mb-2">Estadísticas Avanzadas</h3>
             <p className="text-gray-600">
               Analiza tus hábitos de escucha con métricas detalladas
@@ -61,7 +69,7 @@ export default function UpgradePage() {
           </div>
 
           <div className="bg-white rounded-lg shadow-lg p-6">
-            <div className="text-4xl mb-4">⚡</div>
+            <BoltIcon className="w-10 h-10 text-[#f59e42] mb-4 mx-auto" />
             <h3 className="text-xl font-bold text-gray-900 mb-2">Acceso Prioritario</h3>
             <p className="text-gray-600">
               Velocidad de carga más rápida y acceso anticipado a nuevas funciones
@@ -127,7 +135,7 @@ export default function UpgradePage() {
             href="/dashboard"
             className="inline-flex items-center text-gray-600 hover:text-gray-800 transition-colors"
           >
-            ← Regresar al Dashboard
+            <ArrowLeftIcon className="w-5 h-5 mr-1" /> Regresar al Dashboard
           </Link>
         </div>
       </div>

@@ -261,7 +261,7 @@ export default function FavoritosPage() {
           <div className="flex items-center space-x-3 mb-4">
             <HeartIcon className={`h-8 w-8 text-red-500`} />
             <h2 className={`text-2xl font-bold ${themeClasses.text}`}>
-              Mis Favoritos ❤️
+              Mis Favoritos 
             </h2>
           </div>
           <p className={themeClasses.textSecondary}>
@@ -311,8 +311,9 @@ export default function FavoritosPage() {
                   <PlayIcon className="h-5 w-5" />
                   <span>Reproducir Todo</span>
                 </button>
-                <button className={`border ${themeClasses.border} ${themeClasses.text} px-4 py-2 rounded-lg ${themeClasses.bgHover} transition-colors`}>
-                  📤 Exportar
+                <button className={`border ${themeClasses.border} ${themeClasses.text} px-4 py-2 rounded-lg ${themeClasses.bgHover} transition-colors flex items-center gap-2`}>
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 16v-8m0 8l-4-4m4 4l4-4M4 20h16" /></svg>
+                  <span>Exportar</span>
                 </button>
               </div>
               <div className="flex gap-2">
@@ -345,7 +346,7 @@ export default function FavoritosPage() {
               <>
                 {filteredCanciones.length === 0 ? (
                   <div className="text-center py-12">
-                    <div className="text-6xl mb-4">💔</div>
+                    <HeartIcon className="h-12 w-12 mx-auto mb-4 text-red-300 opacity-40" />
                     <h4 className={`text-xl font-medium mb-2 ${themeClasses.text}`}>
                       {searchTerm ? 'No se encontraron canciones' : 'No tienes canciones favoritas'}
                     </h4>
@@ -353,8 +354,9 @@ export default function FavoritosPage() {
                       {searchTerm ? 'Intenta con otros términos de búsqueda' : 'Explora música y marca tus canciones favoritas'}
                     </p>
                     {!searchTerm && (
-                      <button className="bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition-colors">
-                        🎵 Explorar Música
+                      <button className="bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2">
+                        <MusicalNoteIcon className="h-5 w-5" />
+                        <span>Explorar Música</span>
                       </button>
                     )}
                   </div>
@@ -422,7 +424,7 @@ export default function FavoritosPage() {
               <>
                 {filteredPlaylists.length === 0 ? (
                   <div className="text-center py-12">
-                    <div className="text-6xl mb-4">📋</div>
+                    <ClipboardDocumentListIcon className="h-12 w-12 mx-auto mb-4 text-gray-300 opacity-40" />
                     <h4 className={`text-xl font-medium mb-2 ${themeClasses.text}`}>
                       {searchTerm ? 'No se encontraron playlists' : 'No tienes playlists favoritas'}
                     </h4>
@@ -430,8 +432,9 @@ export default function FavoritosPage() {
                       {searchTerm ? 'Intenta con otros términos de búsqueda' : 'Explora playlists y marca tus favoritas'}
                     </p>
                     {!searchTerm && (
-                      <button className="bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition-colors">
-                        🔍 Explorar Playlists
+                      <button className="bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2">
+                        <MagnifyingGlassIcon className="h-5 w-5" />
+                        <span>Explorar Playlists</span>
                       </button>
                     )}
                   </div>
@@ -469,7 +472,11 @@ export default function FavoritosPage() {
                             <p>Por {playlist.creador}</p>
                             <p>{playlist.canciones_count} canciones • {playlist.duracion_total}</p>
                             <p>
-                              {playlist.es_publica ? '🌍 Pública' : '🔒 Privada'} • 
+                              {playlist.es_publica ? (
+                                <span className="inline-flex items-center gap-1"><svg className="h-4 w-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 0c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" /></svg>Pública</span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1"><svg className="h-4 w-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 11c1.104 0 2-.896 2-2s-.896-2-2-2-2 .896-2 2 .896 2 2 2zm0 0c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" /></svg>Privada</span>
+                              )} • 
                               {new Date(playlist.fecha_agregada).toLocaleDateString('es-ES')}
                             </p>
                           </div>

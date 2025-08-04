@@ -334,11 +334,33 @@ export default function PerfilPage() {
   const getRoleInfo = (role: string) => {
     switch (role) {
       case 'admin':
-        return { color: 'bg-blue-500', label: 'Administrador', icon: '👑' };
+        return {
+          color: 'bg-blue-500',
+          label: 'Administrador',
+          icon: (
+            <svg className="w-4 h-4 inline-block mr-1 -mt-0.5" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M10 2l2.39 4.84 5.34.78-3.87 3.77.91 5.32L10 14.77l-4.77 2.51.91-5.32-3.87-3.77 5.34-.78L10 2z" />
+            </svg>
+          )
+        };
       case 'premium':
-        return { color: 'bg-gradient-to-r from-purple-500 to-pink-500', label: 'Premium', icon: '💎' };
+        return {
+          color: 'bg-gradient-to-r from-purple-500 to-pink-500',
+          label: 'Premium',
+          icon: (
+            <svg className="w-4 h-4 inline-block mr-1 -mt-0.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M2 19.5V21h20v-1.5a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2zm1.5-9.5l3.5 7h10l3.5-7-4.5 2-3-7-3 7-4.5-2z" />
+            </svg>
+          )
+        };
       default:
-        return { color: 'bg-gray-500', label: 'Usuario Gratuito', icon: '🎵' };
+        return {
+          color: 'bg-gray-500',
+          label: 'Usuario Gratuito',
+          icon: (
+            <MusicalNoteIcon className="w-4 h-4 inline-block mr-1 -mt-0.5" />
+          )
+        };
     }
   };
 
@@ -433,7 +455,7 @@ export default function PerfilPage() {
                   {profile.nombre || 'Usuario'}
                 </h3>
                 <div className="flex items-center justify-center mt-2">
-                  <span className={`px-3 py-1 rounded-full text-sm font-medium text-white ${getRoleInfo(profile.rol).color}`}>
+                  <span className={`px-3 py-1 rounded-full text-sm font-medium text-white flex items-center gap-1 ${getRoleInfo(profile.rol).color}`}>
                     {getRoleInfo(profile.rol).icon} {getRoleInfo(profile.rol).label}
                   </span>
                 </div>
@@ -756,9 +778,8 @@ export default function PerfilPage() {
                 {/* Configuraciones de privacidad */}
                 <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
                   <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-                    Configuraciones de Privacidad
+                    Configuración de Apariencia y Privacidad
                   </h3>
-                  
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center">
@@ -781,7 +802,6 @@ export default function PerfilPage() {
                         className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
                       />
                     </div>
-
                     <div className="flex items-center justify-between">
                       <div className="flex items-center">
                         <SparklesIcon className="w-5 h-5 text-gray-400 mr-3" />
@@ -803,7 +823,6 @@ export default function PerfilPage() {
                         className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
                       />
                     </div>
-
                     <div className="flex items-center justify-between">
                       <div className="flex items-center">
                         <UserIcon className="w-5 h-5 text-gray-400 mr-3" />

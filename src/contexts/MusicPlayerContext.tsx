@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, ReactNode, useMemo } from 'react';
+import React, { createContext, useContext, useState, ReactNode } from 'react';
 
 interface Cancion {
   id: string;
@@ -32,7 +32,6 @@ interface MusicPlayerContextType {
   previousSong: () => void;
   seekTo: (time: number) => void;
   setVolume: (volume: number) => void;
-  setDuration: (duration: number) => void;
   clearPlaylist: () => void;
   
   // Estado de la UI
@@ -54,12 +53,12 @@ interface MusicPlayerProviderProps {
   children: ReactNode;
 }
 
-export function MusicPlayerProvider({ children }: Readonly<MusicPlayerProviderProps>) {
+export function MusicPlayerProvider({ children }: MusicPlayerProviderProps) {
   const [currentSong, setCurrentSong] = useState<Cancion | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [volumeValue, setVolumeValue] = useState(0.8);
+  const [volume, setVolumeState] = useState(0.8);
   const [playlist, setPlaylist] = useState<Cancion[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isMinimized, setIsMinimized] = useState(false);
@@ -67,8 +66,6 @@ export function MusicPlayerProvider({ children }: Readonly<MusicPlayerProviderPr
   const playSong = (song: Cancion, newPlaylist?: Cancion[]) => {
     setCurrentSong(song);
     setIsPlaying(true);
-    setCurrentTime(0);
-    setDuration(0); // Reset duration when changing song
     
     if (newPlaylist) {
       setPlaylist(newPlaylist);
@@ -95,8 +92,6 @@ export function MusicPlayerProvider({ children }: Readonly<MusicPlayerProviderPr
       const nextIndex = (currentIndex + 1) % playlist.length;
       setCurrentIndex(nextIndex);
       setCurrentSong(playlist[nextIndex]);
-      setCurrentTime(0);
-      setDuration(0);
       setIsPlaying(true);
     }
   };
@@ -106,8 +101,6 @@ export function MusicPlayerProvider({ children }: Readonly<MusicPlayerProviderPr
       const prevIndex = currentIndex === 0 ? playlist.length - 1 : currentIndex - 1;
       setCurrentIndex(prevIndex);
       setCurrentSong(playlist[prevIndex]);
-      setCurrentTime(0);
-      setDuration(0);
       setIsPlaying(true);
     }
   };
@@ -117,11 +110,7 @@ export function MusicPlayerProvider({ children }: Readonly<MusicPlayerProviderPr
   };
 
   const setVolume = (newVolume: number) => {
-    setVolumeValue(Math.max(0, Math.min(1, newVolume)));
-  };
-
-  const setDurationValue = (newDuration: number) => {
-    setDuration(newDuration);
+    setVolumeState(Math.max(0, Math.min(1, newVolume)));
   };
 
   const clearPlaylist = () => {
@@ -137,12 +126,12 @@ export function MusicPlayerProvider({ children }: Readonly<MusicPlayerProviderPr
     setIsMinimized(!isMinimized);
   };
 
-  const value: MusicPlayerContextType = useMemo(() => ({
+  const value: MusicPlayerContextType = {
     currentSong,
     isPlaying,
     currentTime,
     duration,
-    volume: volumeValue,
+    volume,
     playlist,
     currentIndex,
     playSong,
@@ -152,20 +141,10 @@ export function MusicPlayerProvider({ children }: Readonly<MusicPlayerProviderPr
     previousSong,
     seekTo,
     setVolume,
-    setDuration: setDurationValue,
     clearPlaylist,
     isMinimized,
     toggleMinimized
-  }), [
-    currentSong,
-    isPlaying,
-    currentTime,
-    duration,
-    volumeValue,
-    playlist,
-    currentIndex,
-    isMinimized
-  ]);
+  };
 
   return (
     <MusicPlayerContext.Provider value={value}>

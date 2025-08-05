@@ -318,10 +318,13 @@ export default function ReproductorPage() {
     try {
       console.log('Cargando playlists del usuario:', usuarioData.id);
 
-      // Cargar playlists normales del usuario
+      // Cargar playlists normales del usuario con conteo de canciones
       const { data: playlistsData, error: playlistsError } = await supabase
         .from('playlists')
-        .select('*')
+        .select(`
+          *,
+          playlist_canciones(count)
+        `)
         .eq('usuario_id', usuarioData.id)
         .order('created_at', { ascending: false });
 
@@ -347,8 +350,14 @@ export default function ReproductorPage() {
         es_favoritos: true
       };
 
+      // Formatear playlists normales con conteo de canciones
+      const playlistsFormateadas = (playlistsData || []).map(playlist => ({
+        ...playlist,
+        canciones_count: playlist.playlist_canciones?.[0]?.count || 0
+      }));
+
       // Combinar playlists
-      const todasLasPlaylists = [playlistFavoritos, ...(playlistsData || [])];
+      const todasLasPlaylists = [playlistFavoritos, ...playlistsFormateadas];
       setPlaylistsUsuario(todasLasPlaylists);
 
       // Si no hay playlist seleccionada, seleccionar la primera (favoritos)

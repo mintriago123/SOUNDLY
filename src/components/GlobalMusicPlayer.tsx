@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useMusicPlayer } from '@/contexts/MusicPlayerContext';
-import { useFeatureAccess } from '@/hooks/useConfiguracionGlobal';
+import { useConfiguracionGlobal, useFeatureAccess } from '@/hooks/useConfiguracionGlobal';
 import {
   PlayIcon,
   PauseIcon,
@@ -19,7 +19,7 @@ interface GlobalMusicPlayerProps {
   userIsPremium?: boolean;
 }
 
-export default function GlobalMusicPlayer({ userIsPremium = false }: Readonly<GlobalMusicPlayerProps>) {
+export default function GlobalMusicPlayer({ userIsPremium = false }: GlobalMusicPlayerProps) {
   const {
     currentSong,
     isPlaying,
@@ -33,7 +33,6 @@ export default function GlobalMusicPlayer({ userIsPremium = false }: Readonly<Gl
     previousSong,
     seekTo,
     setVolume,
-    setDuration,
     clearPlaylist,
     isMinimized,
     toggleMinimized
@@ -43,12 +42,13 @@ export default function GlobalMusicPlayer({ userIsPremium = false }: Readonly<Gl
   const [isDragging, setIsDragging] = useState(false);
   const [tempTime, setTempTime] = useState(0);
 
-  // Configuración global - solo importamos lo que necesitamos
+  // Configuración global
+  const { config, isFeatureEnabled } = useConfiguracionGlobal();
   const { canAccessFeature } = useFeatureAccess();
 
   // Verificar características disponibles
   const hasHighQualityAudio = canAccessFeature('high_quality_audio', userIsPremium);
-  // hasOfflineDownloads removido por no estar en uso
+  const hasOfflineDownloads = canAccessFeature('offline_downloads', userIsPremium);
 
   useEffect(() => {
     if (audioRef.current) {
@@ -69,13 +69,8 @@ export default function GlobalMusicPlayer({ userIsPremium = false }: Readonly<Gl
 
     const updateDuration = () => {
       if (audio.duration && !isNaN(audio.duration)) {
-        setDuration(audio.duration);
-        console.log('🎵 Duración actualizada:', audio.duration);
+        // El duration se maneja en el contexto
       }
-    };
-
-    const handleCanPlay = () => {
-      updateDuration();
     };
 
     const handleEnded = () => {
@@ -95,7 +90,7 @@ export default function GlobalMusicPlayer({ userIsPremium = false }: Readonly<Gl
       audio.removeEventListener('loadedmetadata', updateDuration);
       audio.removeEventListener('ended', handleEnded);
     };
-  }, [currentSong, isDragging, playlist.length, nextSong, pauseSong, seekTo, setDuration]);
+  }, [currentSong, isDragging, playlist.length, nextSong, pauseSong, seekTo]);
 
   useEffect(() => {
     if (audioRef.current && currentSong) {
@@ -157,9 +152,7 @@ export default function GlobalMusicPlayer({ userIsPremium = false }: Readonly<Gl
           ref={audioRef}
           src={currentSong.url_archivo || '/placeholder-audio.mp3'}
           preload="metadata"
-        >
-          <track kind="captions" srcLang="es" label="Español" />
-        </audio>
+        />
       )}
 
       {/* Fixed music player */}
@@ -280,7 +273,7 @@ export default function GlobalMusicPlayer({ userIsPremium = false }: Readonly<Gl
               </div>
 
               {/* Playlist info */}
-              {playlist.length > 1 && currentSong && (
+              {playlist.length > 1 && (
                 <div className="text-xs text-gray-400 whitespace-nowrap">
                   {playlist.findIndex(s => s.id === currentSong.id) + 1}/{playlist.length}
                 </div>

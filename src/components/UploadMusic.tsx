@@ -8,7 +8,7 @@ interface UploadMusicProps {
   onClose?: () => void;
 }
 
-export default function UploadMusic({ onUploadComplete, onClose }: UploadMusicProps) {
+export default function UploadMusic({ onUploadComplete, onClose }: Readonly<UploadMusicProps>) {
   const { supabase } = useSupabase();
   const [formData, setFormData] = useState({
     titulo: '',
@@ -33,7 +33,7 @@ export default function UploadMusic({ onUploadComplete, onClose }: UploadMusicPr
 
   const handleAudioFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file && file.type.startsWith('audio/')) {
+    if (file?.type.startsWith('audio/')) {
       setAudioFile(file);
       setError('');
       
@@ -54,7 +54,7 @@ export default function UploadMusic({ onUploadComplete, onClose }: UploadMusicPr
 
   const handleCoverFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file && file.type.startsWith('image/')) {
+    if (file?.type.startsWith('image/')) {
       setCoverFile(file);
       setError('');
     } else {
@@ -103,7 +103,7 @@ export default function UploadMusic({ onUploadComplete, onClose }: UploadMusicPr
       setUploadProgress(25);
 
       // Subir archivo de audio
-      const audioUpload = await uploadFile(audioFile, 'canciones', audioFileName);
+      await uploadFile(audioFile, 'canciones', audioFileName);
       
       setUploadProgress(50);
 
@@ -226,10 +226,11 @@ export default function UploadMusic({ onUploadComplete, onClose }: UploadMusicPr
 
           {/* Archivo de audio */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="audio-file" className="block text-sm font-medium text-gray-700 mb-2">
               Archivo de Audio *
             </label>
             <input
+              id="audio-file"
               type="file"
               accept="audio/*"
               onChange={handleAudioFileChange}
@@ -245,10 +246,11 @@ export default function UploadMusic({ onUploadComplete, onClose }: UploadMusicPr
 
           {/* Portada */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="cover-file" className="block text-sm font-medium text-gray-700 mb-2">
               Portada del Álbum (Opcional)
             </label>
             <input
+              id="cover-file"
               type="file"
               accept="image/*"
               onChange={handleCoverFileChange}
@@ -265,10 +267,11 @@ export default function UploadMusic({ onUploadComplete, onClose }: UploadMusicPr
           {/* Información básica */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="titulo" className="block text-sm font-medium text-gray-700 mb-2">
                 Título *
               </label>
               <input
+                id="titulo"
                 type="text"
                 name="titulo"
                 value={formData.titulo}
@@ -280,10 +283,11 @@ export default function UploadMusic({ onUploadComplete, onClose }: UploadMusicPr
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="artista" className="block text-sm font-medium text-gray-700 mb-2">
                 Artista *
               </label>
               <input
+                id="artista"
                 type="text"
                 name="artista"
                 value={formData.artista}
@@ -298,10 +302,11 @@ export default function UploadMusic({ onUploadComplete, onClose }: UploadMusicPr
           {/* Información adicional */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="album" className="block text-sm font-medium text-gray-700 mb-2">
                 Álbum
               </label>
               <input
+                id="album"
                 type="text"
                 name="album"
                 value={formData.album}
@@ -313,10 +318,11 @@ export default function UploadMusic({ onUploadComplete, onClose }: UploadMusicPr
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="genero" className="block text-sm font-medium text-gray-700 mb-2">
                 Género
               </label>
               <select
+                id="genero"
                 name="genero"
                 value={formData.genero}
                 onChange={handleInputChange}
@@ -343,10 +349,11 @@ export default function UploadMusic({ onUploadComplete, onClose }: UploadMusicPr
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="duracion" className="block text-sm font-medium text-gray-700 mb-2">
                 Duración (segundos)
               </label>
               <input
+                id="duracion"
                 type="number"
                 name="duracion"
                 value={formData.duracion}
@@ -360,10 +367,11 @@ export default function UploadMusic({ onUploadComplete, onClose }: UploadMusicPr
 
           {/* Descripción */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="descripcion" className="block text-sm font-medium text-gray-700 mb-2">
               Descripción
             </label>
             <textarea
+              id="descripcion"
               name="descripcion"
               value={formData.descripcion}
               onChange={handleInputChange}

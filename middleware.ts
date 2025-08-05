@@ -1,5 +1,98 @@
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+
+/**
+ * Obtener el rol del usuario desde la base de datos
+ */
+async function getUserRole(supabase: any, userId: string) {
+  try {
+    const { data: userData, error } = await supabase
+      .from('usuarios')
+      .select('rol')
+      .eq('id', userId)
+      .single()
+
+    if (error || !userData) {
+      return null
+    }
+
+    return userData.rol
+  } catch (error) {
+    console.error('❌ Error obteniendo rol del usuario:', error)
+    return null
+  }
+}
+
+/**
+ * Redirigir según el rol del usuario
+ */
+function redirectByRole(role: string | null, request: NextRequest) {
+  const baseUrl = request.url
+  
+  switch (role) {
+    case 'admin':
+      return NextResponse.redirect(new URL('/admin/dashboard', baseUrl))
+    case 'artista':
+      return NextResponse.redirect(new URL('/artista/dashboard', baseUrl))
+    case 'premium':
+      return NextResponse.redirect(new URL('/premium/dashboard', baseUrl))
+    default:
+      return NextResponse.redirect(new URL('/usuario/dashboard', baseUrl))
+  }
+}
+
+/**
+ * Verificar acceso a rutas según el rol
+ */
+async function checkRoleAccess(
+  supabase: any, 
+  user: any, 
+  pathname: string, 
+  requiredRole: string,
+  request: NextRequest
+) {
+  const userRole = await getUserRole(supabase, user.id)
+  
+  if (!userRole || userRole !== requiredRole) {
+    return redirectByRole(userRole, request)
+  }
+  
+  return null
+}
+
+/**
+ * Manejar rutas de autenticación
+ */
+async function handleAuthRoutes(supabase: any, user: any, request: NextRequest) {
+  const userRole = await getUserRole(supabase, user.id)
+  return redirectByRole(userRole, request)
+}
+
+/**
+ * Procesar verificaciones de acceso para todas las rutas protegidas
+ */
+async function processRoleBasedRoutes(
+  supabase: any,
+  user: any,
+  pathname: string,
+  request: NextRequest
+) {
+  const routeChecks = [
+    { routes: ['/admin'], role: 'admin' },
+    { routes: ['/artista'], role: 'artista' },
+    { routes: ['/premium'], role: 'premium' },
+    { routes: ['/usuario'], role: 'usuario' }
+  ]
+
+  for (const check of routeChecks) {
+    if (check.routes.some(route => pathname.startsWith(route))) {
+      const result = await checkRoleAccess(supabase, user, pathname, check.role, request)
+      if (result) return result
+    }
+  }
+
+  return null
+}
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({
@@ -13,42 +106,19 @@ export async function middleware(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        get(name: string) {
-          return request.cookies.get(name)?.value
+        getAll() {
+          return request.cookies.getAll()
         },
-        set(name: string, value: string, options: CookieOptions) {
-          request.cookies.set({
-            name,
-            value,
-            ...options,
-          })
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value))
           response = NextResponse.next({
             request: {
               headers: request.headers,
             },
           })
-          response.cookies.set({
-            name,
-            value,
-            ...options,
-          })
-        },
-        remove(name: string, options: CookieOptions) {
-          request.cookies.set({
-            name,
-            value: '',
-            ...options,
-          })
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          })
-          response.cookies.set({
-            name,
-            value: '',
-            ...options,
-          })
+          cookiesToSet.forEach(({ name, value, options }) =>
+            response.cookies.set(name, value, options)
+          )
         },
       },
     }
@@ -56,8 +126,7 @@ export async function middleware(request: NextRequest) {
 
   // IMPORTANTE: Actualizar la sesión en cada request
   const {
-    data: { user },
-    error
+    data: { user }
   } = await supabase.auth.getUser()
 
   const { pathname } = request.nextUrl
@@ -67,18 +136,6 @@ export async function middleware(request: NextRequest) {
   
   // Rutas de autenticación
   const authRoutes = ['/auth/login', '/auth/register']
-  
-  // Rutas que requieren rol de admin
-  const adminRoutes = ['/admin']
-
-  // Rutas que requieren rol de artista
-  const artistRoutes = ['/artista']
-
-  // Rutas que requieren rol de premium
-  const premiumRoutes = ['/premium']
-
-  // Rutas que requieren rol de usuario
-  const userRoutes = ['/usuario']
 
   // Si el usuario está intentando acceder a una ruta protegida sin estar autenticado
   if (protectedRoutes.some(route => pathname.startsWith(route)) && !user) {
@@ -89,143 +146,13 @@ export async function middleware(request: NextRequest) {
 
   // Si el usuario está autenticado y trata de acceder a rutas de auth, redirigir según su rol
   if (authRoutes.includes(pathname) && user) {
-    try {
-      // Obtener el rol del usuario
-      const { data: userData, error } = await supabase
-        .from('usuarios')
-        .select('rol')
-        .eq('id', user.id)
-        .single()
-
-      if (error || !userData) {
-        return NextResponse.redirect(new URL('/usuario/dashboard', request.url))
-      }
-
-      // Redirigir según el rol
-      switch (userData.rol) {
-        case 'admin':
-          return NextResponse.redirect(new URL('/admin/dashboard', request.url))
-        case 'artista':
-          return NextResponse.redirect(new URL('/artista/dashboard', request.url))
-        case 'premium':
-          return NextResponse.redirect(new URL('/premium/dashboard', request.url))
-        default:
-          return NextResponse.redirect(new URL('/usuario/dashboard', request.url))
-      }
-    } catch (error) {
-      console.error('❌ Error obteniendo rol del usuario:', error)
-      return NextResponse.redirect(new URL('/usuario/dashboard', request.url))
-    }
+    return await handleAuthRoutes(supabase, user, request)
   }
 
-  // Verificar rutas de admin
-  if (adminRoutes.some(route => pathname.startsWith(route)) && user) {
-    try {
-      // Obtener datos del usuario desde la tabla usuarios para verificar el rol
-      const { data: userData, error } = await supabase
-        .from('usuarios')
-        .select('rol')
-        .eq('id', user.id)
-        .single()
-
-      if (error || !userData || userData.rol !== 'admin') {
-        // Si no es admin, redirigir al dashboard según su rol
-        switch (userData?.rol) {
-          case 'artista':
-            return NextResponse.redirect(new URL('/artista/dashboard', request.url))
-          case 'premium':
-            return NextResponse.redirect(new URL('/premium/dashboard', request.url))
-          default:
-            return NextResponse.redirect(new URL('/usuario/dashboard', request.url))
-        }
-      }
-    } catch (error) {
-      console.error('❌ Error verificando rol de admin:', error)
-      return NextResponse.redirect(new URL('/usuario/dashboard', request.url))
-    }
-  }
-
-  // Verificar rutas de artista
-  if (artistRoutes.some(route => pathname.startsWith(route)) && user) {
-    try {
-      // Obtener datos del usuario desde la tabla usuarios para verificar el rol
-      const { data: userData, error } = await supabase
-        .from('usuarios')
-        .select('rol')
-        .eq('id', user.id)
-        .single()
-
-      if (error || !userData || userData.rol !== 'artista') {
-        // Si no es artista, redirigir al dashboard según su rol
-        switch (userData?.rol) {
-          case 'admin':
-            return NextResponse.redirect(new URL('/admin/dashboard', request.url))
-          case 'premium':
-            return NextResponse.redirect(new URL('/premium/dashboard', request.url))
-          default:
-            return NextResponse.redirect(new URL('/usuario/dashboard', request.url))
-        }
-      }
-    } catch (error) {
-      console.error('❌ Error verificando rol de artista:', error)
-      return NextResponse.redirect(new URL('/usuario/dashboard', request.url))
-    }
-  }
-
-  // Verificar rutas de premium
-  if (premiumRoutes.some(route => pathname.startsWith(route)) && user) {
-    try {
-      // Obtener datos del usuario desde la tabla usuarios para verificar el rol
-      const { data: userData, error } = await supabase
-        .from('usuarios')
-        .select('rol')
-        .eq('id', user.id)
-        .single()
-
-      if (error || !userData || userData.rol !== 'premium') {
-        // Si no es premium, redirigir al dashboard según su rol
-        switch (userData?.rol) {
-          case 'admin':
-            return NextResponse.redirect(new URL('/admin/dashboard', request.url))
-          case 'artista':
-            return NextResponse.redirect(new URL('/artista/dashboard', request.url))
-          default:
-            return NextResponse.redirect(new URL('/usuario/dashboard', request.url))
-        }
-      }
-    } catch (error) {
-      console.error('❌ Error verificando rol de premium:', error)
-      return NextResponse.redirect(new URL('/usuario/dashboard', request.url))
-    }
-  }
-
-  // Verificar rutas de usuario
-  if (userRoutes.some(route => pathname.startsWith(route)) && user) {
-    try {
-      // Obtener datos del usuario desde la tabla usuarios para verificar el rol
-      const { data: userData, error } = await supabase
-        .from('usuarios')
-        .select('rol')
-        .eq('id', user.id)
-        .single()
-
-      if (error || !userData || userData.rol !== 'usuario') {
-        // Si no es usuario regular, redirigir al dashboard según su rol
-        switch (userData?.rol) {
-          case 'admin':
-            return NextResponse.redirect(new URL('/admin/dashboard', request.url))
-          case 'artista':
-            return NextResponse.redirect(new URL('/artista/dashboard', request.url))
-          case 'premium':
-            return NextResponse.redirect(new URL('/premium/dashboard', request.url))
-          default:
-            return NextResponse.redirect(new URL('/usuario/dashboard', request.url))
-        }
-      }
-    } catch (error) {
-      console.error('❌ Error verificando rol de usuario:', error)
-      return NextResponse.redirect(new URL('/usuario/dashboard', request.url))
-    }
+  // Verificar rutas según el rol requerido
+  if (user) {
+    const roleCheckResult = await processRoleBasedRoutes(supabase, user, pathname, request)
+    if (roleCheckResult) return roleCheckResult
   }
 
   return response

@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSupabase } from '@/components/SupabaseProvider';
 import DashboardLayout from '@/components/DashboardLayout';
-import GlobalMusicPlayer from '@/components/GlobalMusicPlayer';
 import { 
   MusicalNoteIcon,
   PlayIcon,
@@ -85,11 +84,9 @@ export default function ReproductorPage() {
   const [modoAleatorio, setModoAleatorio] = useState(false);
   const [modoRepetir, setModoRepetir] = useState<ModoRepetir>('off');
   const [mostrarPlaylist, setMostrarPlaylist] = useState(true);
-  const [mostrarSoloFavoritas, setMostrarSoloFavoritas] = useState(false);
   const [usuario, setUsuario] = useState<any>(null);
   const [cargando, setCargando] = useState(true);
   const [cancionesFavoritas, setCancionesFavoritas] = useState<Set<string>>(new Set());
-  const [mensajeFavorito, setMensajeFavorito] = useState<string>('');
 
   // Estados para visualizador
   const [barrasEcualizador, setBarrasEcualizador] = useState<Array<{ id: string; altura: number }>>([]);
@@ -226,6 +223,81 @@ export default function ReproductorPage() {
   };
 
   /**
+   * Generar URL de audio desde Supabase Storage
+   */
+  const generarUrlAudio = async (cancion: any): Promise<string> => {
+    let urlAudio = cancion.archivo_audio_url;
+    
+    console.log('Procesando canción:', cancion.titulo, 'URL original:', urlAudio);
+    
+    // Si la URL no es completa, generar URL pública desde Supabase Storage
+    if (urlAudio && !urlAudio.startsWith('http')) {
+      try {
+        // Primero intentar URL pública
+        const { data: urlData } = supabase.storage
+          .from('music')
+          .getPublicUrl(urlAudio);
+        
+        if (urlData?.publicUrl) {
+          urlAudio = urlData.publicUrl;
+          console.log('URL pública generada:', urlAudio);
+        }
+      } catch (error) {
+        console.error('Error generando URL pública, intentando URL firmada para:', cancion.titulo, error);
+        
+        // Si falla la URL pública, intentar URL firmada (válida por 1 hora)
+        try {
+          const { data: signedUrlData, error: signedError } = await supabase.storage
+            .from('music')
+            .createSignedUrl(urlAudio, 3600); // 1 hora de validez
+          
+          if (signedUrlData?.signedUrl && !signedError) {
+            urlAudio = signedUrlData.signedUrl;
+            console.log('URL firmada generada:', urlAudio);
+          } else {
+            console.error('Error generando URL firmada:', signedError);
+          }
+        } catch (signedErrorCatch) {
+          console.error('Error en URL firmada:', signedErrorCatch);
+        }
+      }
+    }
+    
+    return urlAudio;
+  };
+
+  /**
+   * Verificar accesibilidad de URL de audio
+   */
+  const verificarUrlAudio = async (url: string): Promise<void> => {
+    if (url) {
+      try {
+        const response = await fetch(url, { method: 'HEAD' });
+        if (!response.ok) {
+          console.warn('URL no accesible:', url, 'Status:', response.status);
+        } else {
+          console.log('URL verificada como accesible:', url);
+        }
+      } catch (error) {
+        console.warn('Error verificando URL:', url, error);
+      }
+    }
+  };
+
+  /**
+   * Formatear datos de canción para la interfaz
+   */
+  const formatearCancionParaInterfaz = (cancion: any, urlAudio: string) => {
+    return {
+      ...cancion,
+      archivo_audio_url: urlAudio,
+      artista: cancion.usuarios?.nombre || 'Artista Desconocido',
+      album: cancion.album_id ? 'Álbum' : 'Sin álbum',
+      es_favorita: false,
+      fecha_lanzamiento: cancion.created_at
+    };
+  };
+  /**
    * Cargar canciones públicas de todos los artistas desde la base de datos
    */
   const cargarCancionesPublicas = async () => {
@@ -253,68 +325,12 @@ export default function ReproductorPage() {
         return;
       }
 
-      // Mapear datos y generar URLs públicas para compatibilidad con la interfaz
+      // Procesar canciones con funciones auxiliares
       const cancionesFormateadas = await Promise.all(
         cancionesData.map(async (cancion: any) => {
-          let urlAudio = cancion.archivo_audio_url;
-          
-          console.log('Procesando canción:', cancion.titulo, 'URL original:', urlAudio);
-          
-          // Si la URL no es completa, generar URL pública desde Supabase Storage
-          if (urlAudio && !urlAudio.startsWith('http')) {
-            try {
-              // Primero intentar URL pública
-              const { data: urlData } = supabase.storage
-                .from('music')
-                .getPublicUrl(urlAudio);
-              
-              if (urlData?.publicUrl) {
-                urlAudio = urlData.publicUrl;
-                console.log('URL pública generada:', urlAudio);
-              }
-            } catch (error) {
-              console.error('Error generando URL pública, intentando URL firmada para:', cancion.titulo, error);
-              
-              // Si falla la URL pública, intentar URL firmada (válida por 1 hora)
-              try {
-                const { data: signedUrlData, error: signedError } = await supabase.storage
-                  .from('music')
-                  .createSignedUrl(urlAudio, 3600); // 1 hora de validez
-                
-                if (signedUrlData?.signedUrl && !signedError) {
-                  urlAudio = signedUrlData.signedUrl;
-                  console.log('URL firmada generada:', urlAudio);
-                } else {
-                  console.error('Error generando URL firmada:', signedError);
-                }
-              } catch (signedErrorCatch) {
-                console.error('Error en URL firmada:', signedErrorCatch);
-              }
-            }
-          }
-          
-          // Verificar que la URL sea accesible
-          if (urlAudio) {
-            try {
-              const response = await fetch(urlAudio, { method: 'HEAD' });
-              if (!response.ok) {
-                console.warn('URL no accesible:', urlAudio, 'Status:', response.status);
-              } else {
-                console.log('URL verificada como accesible:', urlAudio);
-              }
-            } catch (error) {
-              console.warn('Error verificando URL:', urlAudio, error);
-            }
-          }
-          
-          return {
-            ...cancion,
-            archivo_audio_url: urlAudio,
-            artista: cancion.usuarios?.nombre || 'Artista Desconocido',
-            album: cancion.album_id ? 'Álbum' : 'Sin álbum',
-            es_favorita: false, // Se actualizará con los favoritos del usuario
-            fecha_lanzamiento: cancion.created_at
-          };
+          const urlAudio = await generarUrlAudio(cancion);
+          await verificarUrlAudio(urlAudio);
+          return formatearCancionParaInterfaz(cancion, urlAudio);
         })
       );
 
@@ -436,6 +452,93 @@ export default function ReproductorPage() {
   };
 
   /**
+   * Actualizar estado local después de cambiar favorito
+   */
+  const actualizarEstadoFavorito = (idCancion: string, esFavorita: boolean) => {
+    // Actualizar estado local
+    const nuevasFavoritas = new Set(cancionesFavoritas);
+    if (esFavorita) {
+      nuevasFavoritas.add(idCancion);
+    } else {
+      nuevasFavoritas.delete(idCancion);
+    }
+    setCancionesFavoritas(nuevasFavoritas);
+
+    // Actualizar playlist
+    setPlaylist(prevPlaylist => 
+      prevPlaylist.map(cancion => 
+        cancion.id === idCancion 
+          ? { ...cancion, es_favorita: esFavorita }
+          : cancion
+      )
+    );
+
+    // Actualizar canción actual si es la misma
+    if (cancionActual?.id === idCancion) {
+      setCancionActual(prev => prev ? { ...prev, es_favorita: esFavorita } : null);
+    }
+  };
+
+  /**
+   * Quitar canción de favoritos
+   */
+  const quitarDeFavoritos = async (idCancion: string, userId: string) => {
+    const { error } = await supabase
+      .from('favoritos')
+      .delete()
+      .eq('usuario_id', userId)
+      .eq('cancion_id', idCancion);
+
+    if (error) {
+      console.error('Error quitando de favoritos:', error);
+      return false;
+    }
+
+    // Actualizar contador en la tabla canciones
+    const conteoReal = await obtenerConteoFavoritos(idCancion);
+    const { error: updateError } = await supabase
+      .from('canciones')
+      .update({ favoritos: conteoReal })
+      .eq('id', idCancion);
+
+    if (updateError) {
+      console.error('Error actualizando contador de favoritos:', updateError);
+    }
+
+    return true;
+  };
+
+  /**
+   * Agregar canción a favoritos
+   */
+  const agregarAFavoritos = async (idCancion: string, userId: string) => {
+    const { error } = await supabase
+      .from('favoritos')
+      .insert({
+        usuario_id: userId,
+        cancion_id: idCancion,
+        fecha_agregada: new Date().toISOString()
+      });
+
+    if (error) {
+      console.error('Error agregando a favoritos:', error);
+      return false;
+    }
+
+    // Actualizar contador en la tabla canciones
+    const conteoReal = await obtenerConteoFavoritos(idCancion);
+    const { error: updateError } = await supabase
+      .from('canciones')
+      .update({ favoritos: conteoReal })
+      .eq('id', idCancion);
+
+    if (updateError) {
+      console.error('Error actualizando contador de favoritos:', updateError);
+    }
+
+    return true;
+  };
+  /**
    * Toggle favorito de la canción actual
    */
   const toggleFavorito = async (cancionId?: string) => {
@@ -447,104 +550,20 @@ export default function ReproductorPage() {
     const esFavorita = cancionesFavoritas.has(idCancion);
 
     try {
+      let exito = false;
+      
       if (esFavorita) {
-        // Quitar de favoritos
-        const { error } = await supabase
-          .from('favoritos')
-          .delete()
-          .eq('usuario_id', usuario.id)
-          .eq('cancion_id', idCancion);
-
-        if (error) {
-          console.error('Error quitando de favoritos:', error);
-          return;
+        exito = await quitarDeFavoritos(idCancion, usuario.id);
+        if (exito) {
+          actualizarEstadoFavorito(idCancion, false);
+          console.log('Canción quitada de favoritos');
         }
-
-        // Actualizar contador en la tabla canciones con el conteo real
-        const conteoReal = await obtenerConteoFavoritos(idCancion);
-        const { error: updateError } = await supabase
-          .from('canciones')
-          .update({ favoritos: conteoReal })
-          .eq('id', idCancion);
-
-        if (updateError) {
-          console.error('Error actualizando contador de favoritos:', updateError);
-        }
-
-        // Actualizar estado local
-        const nuevasFavoritas = new Set(cancionesFavoritas);
-        nuevasFavoritas.delete(idCancion);
-        setCancionesFavoritas(nuevasFavoritas);
-
-        // Actualizar playlist
-        setPlaylist(prevPlaylist => 
-          prevPlaylist.map(cancion => 
-            cancion.id === idCancion 
-              ? { ...cancion, es_favorita: false }
-              : cancion
-          )
-        );
-
-        // Actualizar canción actual si es la misma
-        if (cancionActual?.id === idCancion) {
-          setCancionActual(prev => prev ? { ...prev, es_favorita: false } : null);
-        }
-
-        // Mostrar mensaje de feedback
-        setMensajeFavorito('Canción quitada de favoritos');
-        setTimeout(() => setMensajeFavorito(''), 3000);
-
-        console.log('Canción quitada de favoritos');
       } else {
-        // Agregar a favoritos
-        const { error } = await supabase
-          .from('favoritos')
-          .insert({
-            usuario_id: usuario.id,
-            cancion_id: idCancion,
-            fecha_agregada: new Date().toISOString()
-          });
-
-        if (error) {
-          console.error('Error agregando a favoritos:', error);
-          return;
+        exito = await agregarAFavoritos(idCancion, usuario.id);
+        if (exito) {
+          actualizarEstadoFavorito(idCancion, true);
+          console.log('Canción agregada a favoritos');
         }
-
-        // Actualizar contador en la tabla canciones con el conteo real
-        const conteoReal = await obtenerConteoFavoritos(idCancion);
-        const { error: updateError } = await supabase
-          .from('canciones')
-          .update({ favoritos: conteoReal })
-          .eq('id', idCancion);
-
-        if (updateError) {
-          console.error('Error actualizando contador de favoritos:', updateError);
-        }
-
-        // Actualizar estado local
-        const nuevasFavoritas = new Set(cancionesFavoritas);
-        nuevasFavoritas.add(idCancion);
-        setCancionesFavoritas(nuevasFavoritas);
-
-        // Actualizar playlist
-        setPlaylist(prevPlaylist => 
-          prevPlaylist.map(cancion => 
-            cancion.id === idCancion 
-              ? { ...cancion, es_favorita: true }
-              : cancion
-          )
-        );
-
-        // Actualizar canción actual si es la misma
-        if (cancionActual?.id === idCancion) {
-          setCancionActual(prev => prev ? { ...prev, es_favorita: true } : null);
-        }
-
-        // Mostrar mensaje de feedback
-        setMensajeFavorito('Canción agregada a favoritos');
-        setTimeout(() => setMensajeFavorito(''), 3000);
-
-        console.log('Canción agregada a favoritos');
       }
     } catch (error) {
       console.error('Error en toggle favorito:', error);
@@ -552,8 +571,110 @@ export default function ReproductorPage() {
   };
 
   /**
-   * Formatear duración en MM:SS
+   * Renderizar controles principales del reproductor
    */
+  const renderControlesPrincipales = () => (
+    <div className="flex justify-center space-x-4 mb-6">
+      <button
+        onClick={cancionAnterior}
+        className="p-3 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors"
+        title="Anterior"
+      >
+        <BackwardIcon className="w-6 h-6" />
+      </button>
+      
+      <button
+        onClick={() => setIsPlaying(!isPlaying)}
+        className="p-4 rounded-full bg-purple-600 hover:bg-purple-700 text-white transition-colors transform hover:scale-105"
+        title={isPlaying ? 'Pausar' : 'Reproducir'}
+      >
+        {isPlaying ? <PauseIcon className="w-8 h-8" /> : <PlayIcon className="w-8 h-8 ml-1" />}
+      </button>
+      
+      <button
+        onClick={siguienteCancion}
+        className="p-3 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors"
+        title="Siguiente"
+      >
+        <ForwardIcon className="w-6 h-6" />
+      </button>
+    </div>
+  );
+
+  /**
+   * Renderizar modos de reproducción
+   */
+  const renderModosReproduccion = () => (
+    <div className="flex justify-center space-x-4 mb-6">
+      <button
+        onClick={() => setModoAleatorio(!modoAleatorio)}
+        className={`p-2 rounded-lg transition-colors ${
+          modoAleatorio 
+            ? 'bg-purple-100 text-purple-700' 
+            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+        }`}
+        title="Modo aleatorio"
+      >
+        🔀
+      </button>
+      
+      <button
+        onClick={() => {
+          const modos: ModoRepetir[] = ['off', 'one', 'all'];
+          const indiceActual = modos.indexOf(modoRepetir);
+          const siguienteModo = modos[(indiceActual + 1) % modos.length];
+          setModoRepetir(siguienteModo);
+        }}
+        className={`p-2 rounded-lg transition-colors ${
+          modoRepetir !== 'off' 
+            ? 'bg-purple-100 text-purple-700' 
+            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+        }`}
+        title={getRepeatModeTitle(modoRepetir)}
+      >
+        <ArrowPathIcon className="w-5 h-5" />
+        {modoRepetir === 'one' && <span className="absolute -top-1 -right-1 w-3 h-3 bg-purple-600 rounded-full text-xs text-white flex items-center justify-center">1</span>}
+      </button>
+    </div>
+  );
+
+  /**
+   * Renderizar control de volumen
+   */
+  const renderControlVolumen = () => (
+    <div className="space-y-3">
+      <div className="flex items-center space-x-3">
+        <button 
+          onClick={() => setIsMuted(!isMuted)}
+          className="text-gray-600 hover:text-gray-800"
+        >
+          {isMuted || volumen === 0 ? (
+            <SpeakerXMarkIcon className="w-5 h-5" />
+          ) : (
+            <SpeakerWaveIcon className="w-5 h-5" />
+          )}
+        </button>
+        
+        <input
+          type="range"
+          min="0"
+          max="1"
+          step="0.01"
+          value={isMuted ? 0 : volumen}
+          onChange={(e) => {
+            const nuevoVolumen = parseFloat(e.target.value);
+            setVolumen(nuevoVolumen);
+            if (nuevoVolumen > 0) setIsMuted(false);
+          }}
+          className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+        />
+        
+        <span className="text-sm text-gray-500 min-w-[3rem]">
+          {Math.round((isMuted ? 0 : volumen) * 100)}%
+        </span>
+      </div>
+    </div>
+  );
   const formatearDuracion = (segundos: number) => {
     const minutos = Math.floor(segundos / 60);
     const segs = segundos % 60;
@@ -798,98 +919,13 @@ export default function ReproductorPage() {
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Controles</h3>
               
               {/* Controles principales */}
-              <div className="flex justify-center space-x-4 mb-6">
-                <button
-                  onClick={cancionAnterior}
-                  className="p-3 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors"
-                  title="Anterior"
-                >
-                  <BackwardIcon className="w-6 h-6" />
-                </button>
-                
-                <button
-                  onClick={() => setIsPlaying(!isPlaying)}
-                  className="p-4 rounded-full bg-purple-600 hover:bg-purple-700 text-white transition-colors transform hover:scale-105"
-                  title={isPlaying ? 'Pausar' : 'Reproducir'}
-                >
-                  {isPlaying ? <PauseIcon className="w-8 h-8" /> : <PlayIcon className="w-8 h-8 ml-1" />}
-                </button>
-                
-                <button
-                  onClick={siguienteCancion}
-                  className="p-3 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors"
-                  title="Siguiente"
-                >
-                  <ForwardIcon className="w-6 h-6" />
-                </button>
-              </div>
+              {renderControlesPrincipales()}
               
               {/* Modos de reproducción */}
-              <div className="flex justify-center space-x-4 mb-6">
-                <button
-                  onClick={() => setModoAleatorio(!modoAleatorio)}
-                  className={`p-2 rounded-lg transition-colors ${
-                    modoAleatorio 
-                      ? 'bg-purple-100 text-purple-700' 
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                  title="Modo aleatorio"
-                >
-                  🔀
-                </button>
-                
-                <button
-                  onClick={() => {
-                    const modos: ModoRepetir[] = ['off', 'one', 'all'];
-                    const indiceActual = modos.indexOf(modoRepetir);
-                    const siguienteModo = modos[(indiceActual + 1) % modos.length];
-                    setModoRepetir(siguienteModo);
-                  }}
-                  className={`p-2 rounded-lg transition-colors ${
-                    modoRepetir !== 'off' 
-                      ? 'bg-purple-100 text-purple-700' 
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                  title={getRepeatModeTitle(modoRepetir)}
-                >
-                  <ArrowPathIcon className="w-5 h-5" />
-                  {modoRepetir === 'one' && <span className="absolute -top-1 -right-1 w-3 h-3 bg-purple-600 rounded-full text-xs text-white flex items-center justify-center">1</span>}
-                </button>
-              </div>
+              {renderModosReproduccion()}
               
               {/* Control de volumen */}
-              <div className="space-y-3">
-                <div className="flex items-center space-x-3">
-                  <button 
-                    onClick={() => setIsMuted(!isMuted)}
-                    className="text-gray-600 hover:text-gray-800"
-                  >
-                    {isMuted || volumen === 0 ? (
-                      <SpeakerXMarkIcon className="w-5 h-5" />
-                    ) : (
-                      <SpeakerWaveIcon className="w-5 h-5" />
-                    )}
-                  </button>
-                  
-                  <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.01"
-                    value={isMuted ? 0 : volumen}
-                    onChange={(e) => {
-                      const nuevoVolumen = parseFloat(e.target.value);
-                      setVolumen(nuevoVolumen);
-                      if (nuevoVolumen > 0) setIsMuted(false);
-                    }}
-                    className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                  />
-                  
-                  <span className="text-sm text-gray-500 min-w-[3rem]">
-                    {Math.round((isMuted ? 0 : volumen) * 100)}%
-                  </span>
-                </div>
-              </div>
+              {renderControlVolumen()}
             </div>
             
             {/* Playlist Actual */}

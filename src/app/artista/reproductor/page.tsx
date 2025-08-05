@@ -235,6 +235,81 @@ export default function ReproductorPage() {
   };
 
   /**
+   * Generar URL de audio desde Supabase Storage
+   */
+  const generarUrlAudio = async (cancion: any): Promise<string> => {
+    let urlAudio = cancion.archivo_audio_url;
+    
+    console.log('Procesando canción:', cancion.titulo, 'URL original:', urlAudio);
+    
+    // Si la URL no es completa, generar URL pública desde Supabase Storage
+    if (urlAudio && !urlAudio.startsWith('http')) {
+      try {
+        // Primero intentar URL pública
+        const { data: urlData } = supabase.storage
+          .from('music')
+          .getPublicUrl(urlAudio);
+        
+        if (urlData?.publicUrl) {
+          urlAudio = urlData.publicUrl;
+          console.log('URL pública generada:', urlAudio);
+        }
+      } catch (error) {
+        console.error('Error generando URL pública, intentando URL firmada para:', cancion.titulo, error);
+        
+        // Si falla la URL pública, intentar URL firmada (válida por 1 hora)
+        try {
+          const { data: signedUrlData, error: signedError } = await supabase.storage
+            .from('music')
+            .createSignedUrl(urlAudio, 3600); // 1 hora de validez
+          
+          if (signedUrlData?.signedUrl && !signedError) {
+            urlAudio = signedUrlData.signedUrl;
+            console.log('URL firmada generada:', urlAudio);
+          } else {
+            console.error('Error generando URL firmada:', signedError);
+          }
+        } catch (signedErrorCatch) {
+          console.error('Error en URL firmada:', signedErrorCatch);
+        }
+      }
+    }
+    
+    return urlAudio;
+  };
+
+  /**
+   * Verificar accesibilidad de URL de audio
+   */
+  const verificarUrlAudio = async (url: string): Promise<void> => {
+    if (url) {
+      try {
+        const response = await fetch(url, { method: 'HEAD' });
+        if (!response.ok) {
+          console.warn('URL no accesible:', url, 'Status:', response.status);
+        } else {
+          console.log('URL verificada como accesible:', url);
+        }
+      } catch (error) {
+        console.warn('Error verificando URL:', url, error);
+      }
+    }
+  };
+
+  /**
+   * Formatear datos de canción para la interfaz
+   */
+  const formatearCancionParaInterfaz = (cancion: any, usuarioData: any, urlAudio: string) => {
+    return {
+      ...cancion,
+      archivo_audio_url: urlAudio,
+      artista: usuarioData?.nombre || 'Artista Desconocido',
+      album: cancion.album_id ? 'Álbum' : 'Sin álbum',
+      es_favorita: false,
+      fecha_lanzamiento: cancion.created_at
+    };
+  };
+  /**
    * Cargar canciones reales del usuario desde la base de datos
    */
   const cargarCancionesUsuario = async (usuarioData: any) => {
@@ -258,91 +333,20 @@ export default function ReproductorPage() {
         return;
       }
 
-      // Mapear datos y generar URLs públicas para compatibilidad con la interfaz
+      // Procesar canciones con funciones auxiliares
       const cancionesFormateadas = await Promise.all(
         cancionesData.map(async (cancion) => {
-          let urlAudio = cancion.archivo_audio_url;
-          
-          console.log('Procesando canción:', cancion.titulo, 'URL original:', urlAudio);
-          
-          // Si la URL no es completa, generar URL pública desde Supabase Storage
-          if (urlAudio && !urlAudio.startsWith('http')) {
-            try {
-              // Primero intentar URL pública
-              const { data: urlData } = supabase.storage
-                .from('music')
-                .getPublicUrl(urlAudio);
-              
-              if (urlData?.publicUrl) {
-                urlAudio = urlData.publicUrl;
-                console.log('URL pública generada:', urlAudio);
-              }
-            } catch (error) {
-              console.error('Error generando URL pública, intentando URL firmada para:', cancion.titulo, error);
-              
-              // Si falla la URL pública, intentar URL firmada (válida por 1 hora)
-              try {
-                const { data: signedUrlData, error: signedError } = await supabase.storage
-                  .from('music')
-                  .createSignedUrl(urlAudio, 3600); // 1 hora de validez
-                
-                if (signedUrlData?.signedUrl && !signedError) {
-                  urlAudio = signedUrlData.signedUrl;
-                  console.log('URL firmada generada:', urlAudio);
-                } else {
-                  console.error('Error generando URL firmada:', signedError);
-                }
-              } catch (signedErrorCatch) {
-                console.error('Error en URL firmada:', signedErrorCatch);
-              }
-            }
-          }
-          
-          // Verificar que la URL sea accesible
-          if (urlAudio) {
-            try {
-              const response = await fetch(urlAudio, { method: 'HEAD' });
-              if (!response.ok) {
-                console.warn('URL no accesible:', urlAudio, 'Status:', response.status);
-              } else {
-                console.log('URL verificada como accesible:', urlAudio);
-              }
-            } catch (error) {
-              console.warn('Error verificando URL:', urlAudio, error);
-            }
-          }
-          
-          return {
-            ...cancion,
-            archivo_audio_url: urlAudio,
-            artista: usuarioData?.nombre || 'Artista Desconocido',
-            album: cancion.album_id ? 'Álbum' : 'Sin álbum',
-            es_favorita: false, // Se podría obtener de una tabla de favoritos
-            fecha_lanzamiento: cancion.created_at
-          };
+          const urlAudio = await generarUrlAudio(cancion);
+          await verificarUrlAudio(urlAudio);
+          return formatearCancionParaInterfaz(cancion, usuarioData, urlAudio);
         })
       );
 
       console.log('Canciones cargadas:', cancionesFormateadas);
       setCanciones(cancionesFormateadas);
       
-      // Configurar playlist en el contexto global
-      if (cancionesFormateadas.length > 0) {
-        // Convertir al formato del contexto
-        const cancionesParaContexto = cancionesFormateadas.map(cancion => ({
-          id: cancion.id,
-          titulo: cancion.titulo,
-          artista: cancion.artista || 'Artista Desconocido',
-          album: cancion.album,
-          genero: cancion.genero,
-          duracion: cancion.duracion,
-          url_archivo: cancion.archivo_audio_url,
-          usuario_id: cancion.usuario_subida_id,
-          bitrate: cancion.bitrate
-        }));
-        
-        // La primera canción será la actual, pero sin reproducir automáticamente
-      }
+      // Nota: La configuración de playlist se hace mediante el contexto global
+      // cuando se selecciona una canción específica para reproducir
     } catch (error) {
       console.error('Error cargando playlist:', error);
     }
@@ -526,15 +530,202 @@ export default function ReproductorPage() {
   };
 
   /**
-   * Formatear número con separadores de miles
+   * Renderizar controles principales del reproductor
    */
-  const formatearNumero = (numero: number) => {
-    return numero.toLocaleString('es-ES');
-  };
+  const renderControlesPrincipales = () => (
+    <div className="flex justify-center space-x-4 mb-6">
+      <button
+        onClick={previousSong}
+        disabled={!currentSong || playlist.length <= 1}
+        className="p-3 rounded-full bg-purple-100 text-purple-600 hover:bg-purple-200 transition-colors disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
+        title="Canción anterior"
+      >
+        <BackwardIcon className="w-6 h-6" />
+      </button>
+      
+      <button
+        onClick={isPlaying ? pauseSong : resumeSong}
+        disabled={!currentSong}
+        className="p-4 rounded-full bg-purple-600 text-white hover:bg-purple-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+        title={isPlaying ? "Pausar" : "Reproducir"}
+      >
+        {isPlaying ? (
+          <PauseIcon className="w-8 h-8" />
+        ) : (
+          <PlayIcon className="w-8 h-8" />
+        )}
+      </button>
+      
+      <button
+        onClick={nextSong}
+        disabled={!currentSong || playlist.length <= 1}
+        className="p-3 rounded-full bg-purple-100 text-purple-600 hover:bg-purple-200 transition-colors disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
+        title="Siguiente canción"
+      >
+        <ForwardIcon className="w-6 h-6" />
+      </button>
+    </div>
+  );
 
   /**
-   * Obtener título del modo de repetición
+   * Renderizar modos de reproducción (aleatorio y repetir)
    */
+  const renderModosReproduccion = () => (
+    <div className="flex justify-center space-x-4 mb-6">
+      <button
+        onClick={() => setModoAleatorio(!modoAleatorio)}
+        className={`p-2 rounded-lg transition-colors ${
+          modoAleatorio 
+            ? 'bg-purple-100 text-purple-700' 
+            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+        }`}
+        title="Modo aleatorio"
+      >
+        🔀
+      </button>
+      
+      <button
+        onClick={() => {
+          const modos: ModoRepetir[] = ['off', 'one', 'all'];
+          const indiceActual = modos.indexOf(modoRepetir);
+          const siguienteModo = modos[(indiceActual + 1) % modos.length];
+          setModoRepetir(siguienteModo);
+        }}
+        className={`p-2 rounded-lg transition-colors ${
+          modoRepetir !== 'off' 
+            ? 'bg-purple-100 text-purple-700' 
+            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+        }`}
+        title={getRepeatModeTitle(modoRepetir)}
+      >
+        <ArrowPathIcon className="w-5 h-5" />
+        {modoRepetir === 'one' && <span className="absolute -top-1 -right-1 w-3 h-3 bg-purple-600 rounded-full text-xs text-white flex items-center justify-center">1</span>}
+      </button>
+    </div>
+  );
+
+  /**
+   * Renderizar lista de canciones de la playlist
+   */
+  const renderPlaylistCanciones = () => {
+    const cancionesFiltradas = mostrarSoloFavoritas 
+      ? canciones.filter(cancion => cancionesFavoritas.has(cancion.id))
+      : canciones;
+    
+    if (cancionesFiltradas.length === 0) {
+      return (
+        <div className="p-8 text-center text-gray-500">
+          <span className="text-4xl mb-2 block">
+            {mostrarSoloFavoritas ? '💔' : '🎵'}
+          </span>
+          <p>
+            {mostrarSoloFavoritas 
+              ? 'No tienes canciones favoritas aún' 
+              : 'No hay canciones disponibles'
+            }
+          </p>
+        </div>
+      );
+    }
+    
+    return cancionesFiltradas.map((cancion, indice) => {
+      const isCurrentSong = currentSong?.id === cancion.id;
+      return (
+        <div
+          key={cancion.id}
+          className={`w-full p-4 border-b border-gray-100 transition-colors hover:bg-gray-50 ${
+            isCurrentSong ? 'bg-purple-50 border-purple-200' : ''
+          }`}
+        >
+          <div className="flex items-center space-x-3">
+            {/* Botón de reproducción */}
+            <button
+              onClick={() => seleccionarCancion(cancion)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  seleccionarCancion(cancion);
+                }
+              }}
+              className="flex items-center space-x-3 flex-1 text-left"
+            >
+              {/* Indicador de reproducción */}
+              <div className="w-8 text-center">
+                {renderPlaylistIndicator(cancion, isCurrentSong, indice)}
+              </div>
+              
+              {/* Información de la canción */}
+              <div className="flex-1 min-w-0">
+                <p className={`font-medium truncate ${
+                  isCurrentSong ? 'text-purple-700' : 'text-gray-900'
+                }`}>
+                  {cancion.titulo}
+                </p>
+                <p className="text-sm text-gray-600 truncate">{cancion.artista}</p>
+              </div>
+            </button>
+            
+            {/* Duración y favoritos */}
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleFavorito(cancion.id);
+                }}
+                className={`p-1 rounded transition-colors ${
+                  cancionesFavoritas.has(cancion.id)
+                    ? 'text-red-600 hover:text-red-700'
+                    : 'text-gray-400 hover:text-gray-600'
+                }`}
+                title={cancionesFavoritas.has(cancion.id) ? "Quitar de favoritos" : "Agregar a favoritos"}
+              >
+                {cancionesFavoritas.has(cancion.id) ? (
+                  <HeartIconSolid className="w-4 h-4" />
+                ) : (
+                  <HeartIcon className="w-4 h-4" />
+                )}
+              </button>
+              <span className="text-sm text-gray-500">{formatearDuracion(cancion.duracion)}</span>
+            </div>
+          </div>
+        </div>
+      );
+    });
+  };
+  const renderControlVolumen = () => (
+    <div className="space-y-3">
+      <div className="flex items-center space-x-3">
+        <button 
+          onClick={() => setIsMuted(!isMuted)}
+          className="text-gray-600 hover:text-gray-800"
+        >
+          {isMuted || volumen === 0 ? (
+            <SpeakerXMarkIcon className="w-5 h-5" />
+          ) : (
+            <SpeakerWaveIcon className="w-5 h-5" />
+          )}
+        </button>
+        
+        <input
+          type="range"
+          min="0"
+          max="1"
+          step="0.01"
+          value={isMuted ? 0 : volumen}
+          onChange={(e) => {
+            const nuevoVolumen = parseFloat(e.target.value);
+            setVolumen(nuevoVolumen);
+            if (nuevoVolumen > 0) setIsMuted(false);
+          }}
+          className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+        />
+        
+        <span className="text-sm text-gray-500 min-w-[3rem]">
+          {Math.round((isMuted ? 0 : volumen) * 100)}%
+        </span>
+      </div>
+    </div>
+  );
   const getRepeatModeTitle = (modo: ModoRepetir) => {
     switch (modo) {
       case 'off': return 'Repetir: desactivado';
@@ -623,14 +814,6 @@ export default function ReproductorPage() {
                 <div className="text-2xl font-bold">{usuario?.rol === 'premium' ? 'HD' : 'STD'}</div>
                 <div className="text-sm text-purple-200">Calidad</div>
               </div>
-              {/* {process.env.NODE_ENV === 'development' && (
-                <button
-                  onClick={diagnosticarStorage}
-                  className="text-xs bg-blue-500 hover:bg-blue-600 px-3 py-1 rounded"
-                >
-                  🔍 Debug Storage
-                </button>
-              )} */}
             </div>
           </div>
         </div>
@@ -794,109 +977,13 @@ export default function ReproductorPage() {
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Controles</h3>
               
               {/* Controles principales */}
-              <div className="flex justify-center space-x-4 mb-6">
-                <button
-                  onClick={previousSong}
-                  disabled={!currentSong || playlist.length <= 1}
-                  className="p-3 rounded-full bg-purple-100 text-purple-600 hover:bg-purple-200 transition-colors disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
-                  title="Canción anterior"
-                >
-                  <BackwardIcon className="w-6 h-6" />
-                </button>
-                
-                <button
-                  onClick={isPlaying ? pauseSong : resumeSong}
-                  disabled={!currentSong}
-                  className="p-4 rounded-full bg-purple-600 text-white hover:bg-purple-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
-                  title={isPlaying ? "Pausar" : "Reproducir"}
-                >
-                  {isPlaying ? (
-                    <PauseIcon className="w-8 h-8" />
-                  ) : (
-                    <PlayIcon className="w-8 h-8" />
-                  )}
-                </button>
-                
-                <button
-                  onClick={nextSong}
-                  disabled={!currentSong || playlist.length <= 1}
-                  className="p-3 rounded-full bg-purple-100 text-purple-600 hover:bg-purple-200 transition-colors disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
-                  title="Siguiente canción"
-                >
-                  <ForwardIcon className="w-6 h-6" />
-                </button>
-              </div>
-{/*               
-              <div className="text-center text-sm text-gray-500 mb-4">
-                Controles de reproducción disponibles aquí y en el reproductor global
-              </div>
-               */}
+              {renderControlesPrincipales()}
+              
               {/* Modos de reproducción */}
-              <div className="flex justify-center space-x-4 mb-6">
-                <button
-                  onClick={() => setModoAleatorio(!modoAleatorio)}
-                  className={`p-2 rounded-lg transition-colors ${
-                    modoAleatorio 
-                      ? 'bg-purple-100 text-purple-700' 
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                  title="Modo aleatorio"
-                >
-                  🔀
-                </button>
-                
-                <button
-                  onClick={() => {
-                    const modos: ModoRepetir[] = ['off', 'one', 'all'];
-                    const indiceActual = modos.indexOf(modoRepetir);
-                    const siguienteModo = modos[(indiceActual + 1) % modos.length];
-                    setModoRepetir(siguienteModo);
-                  }}
-                  className={`p-2 rounded-lg transition-colors ${
-                    modoRepetir !== 'off' 
-                      ? 'bg-purple-100 text-purple-700' 
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                  title={getRepeatModeTitle(modoRepetir)}
-                >
-                  <ArrowPathIcon className="w-5 h-5" />
-                  {modoRepetir === 'one' && <span className="absolute -top-1 -right-1 w-3 h-3 bg-purple-600 rounded-full text-xs text-white flex items-center justify-center">1</span>}
-                </button>
-              </div>
+              {renderModosReproduccion()}
               
               {/* Control de volumen */}
-              <div className="space-y-3">
-                <div className="flex items-center space-x-3">
-                  <button 
-                    onClick={() => setIsMuted(!isMuted)}
-                    className="text-gray-600 hover:text-gray-800"
-                  >
-                    {isMuted || volumen === 0 ? (
-                      <SpeakerXMarkIcon className="w-5 h-5" />
-                    ) : (
-                      <SpeakerWaveIcon className="w-5 h-5" />
-                    )}
-                  </button>
-                  
-                  <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.01"
-                    value={isMuted ? 0 : volumen}
-                    onChange={(e) => {
-                      const nuevoVolumen = parseFloat(e.target.value);
-                      setVolumen(nuevoVolumen);
-                      if (nuevoVolumen > 0) setIsMuted(false);
-                    }}
-                    className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                  />
-                  
-                  <span className="text-sm text-gray-500 min-w-[3rem]">
-                    {Math.round((isMuted ? 0 : volumen) * 100)}%
-                  </span>
-                </div>
-              </div>
+              {renderControlVolumen()}
             </div>
             
             {/* Playlist Actual */}
@@ -929,86 +1016,7 @@ export default function ReproductorPage() {
               
               {mostrarPlaylist && (
                 <div className="max-h-96 overflow-y-auto">
-                  {(() => {
-                    const cancionesFiltradas = mostrarSoloFavoritas 
-                      ? canciones.filter(cancion => cancionesFavoritas.has(cancion.id))
-                      : canciones;
-                    
-                    if (cancionesFiltradas.length === 0) {
-                      return (
-                        <div className="p-8 text-center text-gray-500">
-                          <span className="text-4xl mb-2 block">
-                            {mostrarSoloFavoritas ? '💔' : '🎵'}
-                          </span>
-                          <p>
-                            {mostrarSoloFavoritas 
-                              ? 'No tienes canciones favoritas aún' 
-                              : 'No hay canciones disponibles'
-                            }
-                          </p>
-                        </div>
-                      );
-                    }
-                    
-                    return cancionesFiltradas.map((cancion, indice) => {
-                      const isCurrentSong = currentSong?.id === cancion.id;
-                      return (
-                        <button
-                          key={cancion.id}
-                          onClick={() => seleccionarCancion(cancion)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' || e.key === ' ') {
-                              e.preventDefault();
-                              seleccionarCancion(cancion);
-                            }
-                          }}
-                          className={`w-full p-4 border-b border-gray-100 transition-colors hover:bg-gray-50 text-left ${
-                            isCurrentSong ? 'bg-purple-50 border-purple-200' : ''
-                          }`}
-                        >
-                          <div className="flex items-center space-x-3">
-                            {/* Indicador de reproducción */}
-                            <div className="w-8 text-center">
-                              {renderPlaylistIndicator(cancion, isCurrentSong, indice)}
-                            </div>
-                            
-                            {/* Información de la canción */}
-                            <div className="flex-1 min-w-0">
-                              <p className={`font-medium truncate ${
-                                isCurrentSong ? 'text-purple-700' : 'text-gray-900'
-                              }`}>
-                                {cancion.titulo}
-                              </p>
-                              <p className="text-sm text-gray-600 truncate">{cancion.artista}</p>
-                            </div>
-                            
-                            {/* Duración y favoritos */}
-                            <div className="flex items-center space-x-2">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  toggleFavorito(cancion.id);
-                                }}
-                                className={`p-1 rounded transition-colors ${
-                                  cancionesFavoritas.has(cancion.id)
-                                    ? 'text-red-600 hover:text-red-700'
-                                    : 'text-gray-400 hover:text-gray-600'
-                                }`}
-                                title={cancionesFavoritas.has(cancion.id) ? "Quitar de favoritos" : "Agregar a favoritos"}
-                              >
-                                {cancionesFavoritas.has(cancion.id) ? (
-                                  <HeartIconSolid className="w-4 h-4" />
-                                ) : (
-                                  <HeartIcon className="w-4 h-4" />
-                                )}
-                              </button>
-                              <span className="text-sm text-gray-500">{formatearDuracion(cancion.duracion)}</span>
-                            </div>
-                          </div>
-                        </button>
-                      );
-                    });
-                  })()}
+                  {renderPlaylistCanciones()}
                 </div>
               )}
             </div>

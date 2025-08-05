@@ -8,9 +8,6 @@ import {
   MagnifyingGlassIcon,
   PencilIcon,
   TrashIcon,
-  PlusIcon,
-  CheckIcon,
-  XMarkIcon,
   ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
 
@@ -36,7 +33,6 @@ export default function AdminUsuariosPage() {
   const [selectedUsuario, setSelectedUsuario] = useState<Usuario | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [showCreateModal, setShowCreateModal] = useState(false);
   const [editFormData, setEditFormData] = useState<Partial<Usuario>>({});
 
   useEffect(() => {
@@ -282,20 +278,13 @@ export default function AdminUsuariosPage() {
                 Administra los usuarios de la plataforma Soundly
               </p>
             </div>
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-            >
-              <PlusIcon className="w-5 h-5" />
-              Nuevo Usuario
-            </button>
           </div>
         </div>
 
         {/* Estadísticas de usuarios */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          {getStatsCards().map((card, index) => (
-            <div key={index} className="bg-white rounded-lg shadow p-6">
+          {getStatsCards().map((card) => (
+            <div key={card.title} className="bg-white rounded-lg shadow p-6">
               <div className="flex items-center">
                 <div className="text-3xl mr-4">{card.icon}</div>
                 <div>
@@ -381,20 +370,28 @@ export default function AdminUsuariosPage() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {loading ? (
-                  <tr>
-                    <td colSpan={6} className="px-6 py-4 text-center text-gray-500">
-                      Cargando usuarios...
-                    </td>
-                  </tr>
-                ) : filteredUsuarios.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="px-6 py-4 text-center text-gray-500">
-                      No se encontraron usuarios
-                    </td>
-                  </tr>
-                ) : (
-                  filteredUsuarios.map((usuario) => (
+                {(() => {
+                  if (loading) {
+                    return (
+                      <tr>
+                        <td colSpan={6} className="px-6 py-4 text-center text-gray-500">
+                          Cargando usuarios...
+                        </td>
+                      </tr>
+                    );
+                  }
+                  
+                  if (filteredUsuarios.length === 0) {
+                    return (
+                      <tr>
+                        <td colSpan={6} className="px-6 py-4 text-center text-gray-500">
+                          No se encontraron usuarios
+                        </td>
+                      </tr>
+                    );
+                  }
+                  
+                  return filteredUsuarios.map((usuario) => (
                     <tr key={usuario.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
@@ -449,7 +446,7 @@ export default function AdminUsuariosPage() {
                       </td>
                     </tr>
                   ))
-                )}
+                })()}
               </tbody>
             </table>
           </div>
@@ -465,10 +462,11 @@ export default function AdminUsuariosPage() {
               
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label htmlFor="edit_nombre" className="block text-sm font-medium text-gray-700 mb-2">
                     Nombre
                   </label>
                   <input
+                    id="edit_nombre"
                     type="text"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     value={editFormData.nombre || ''}
@@ -477,10 +475,11 @@ export default function AdminUsuariosPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label htmlFor="edit_email" className="block text-sm font-medium text-gray-700 mb-2">
                     Email
                   </label>
                   <input
+                    id="edit_email"
                     type="email"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     value={editFormData.email || ''}
@@ -489,10 +488,11 @@ export default function AdminUsuariosPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label htmlFor="edit_rol" className="block text-sm font-medium text-gray-700 mb-2">
                     Rol
                   </label>
                   <select
+                    id="edit_rol"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     value={editFormData.rol || ''}
                     onChange={(e) => setEditFormData(prev => ({ ...prev, rol: e.target.value as any }))}
@@ -505,10 +505,11 @@ export default function AdminUsuariosPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label htmlFor="edit_estado" className="block text-sm font-medium text-gray-700 mb-2">
                     Estado
                   </label>
                   <select
+                    id="edit_estado"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     value={editFormData.estado || ''}
                     onChange={(e) => setEditFormData(prev => ({ ...prev, estado: e.target.value as any }))}

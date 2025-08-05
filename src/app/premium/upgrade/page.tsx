@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import DashboardLayout from '../../../components/DashboardLayout';
-import { MusicalNoteIcon, CloudArrowDownIcon, NoSymbolIcon, InfinityIcon, ChartBarIcon, BoltIcon, ArrowLeftIcon } from '@heroicons/react/24/outline';
+import { MusicalNoteIcon, CloudArrowDownIcon, NoSymbolIcon, ChartBarIcon, BoltIcon, ArrowLeftIcon } from '@heroicons/react/24/outline';
 
 export default function UpgradePage() {
   return (

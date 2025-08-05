@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useMusicPlayer } from '@/contexts/MusicPlayerContext';
-import { useConfiguracionGlobal, useFeatureAccess } from '@/hooks/useConfiguracionGlobal';
+import { useFeatureAccess } from '@/hooks/useConfiguracionGlobal';
 import {
   PlayIcon,
   PauseIcon,
@@ -19,7 +19,7 @@ interface GlobalMusicPlayerProps {
   userIsPremium?: boolean;
 }
 
-export default function GlobalMusicPlayer({ userIsPremium = false }: GlobalMusicPlayerProps) {
+export default function GlobalMusicPlayer({ userIsPremium = false }: Readonly<GlobalMusicPlayerProps>) {
   const {
     currentSong,
     isPlaying,
@@ -42,13 +42,12 @@ export default function GlobalMusicPlayer({ userIsPremium = false }: GlobalMusic
   const [isDragging, setIsDragging] = useState(false);
   const [tempTime, setTempTime] = useState(0);
 
-  // Configuración global
-  const { config, isFeatureEnabled } = useConfiguracionGlobal();
+  // Configuración global - solo importamos lo que necesitamos
   const { canAccessFeature } = useFeatureAccess();
 
   // Verificar características disponibles
   const hasHighQualityAudio = canAccessFeature('high_quality_audio', userIsPremium);
-  const hasOfflineDownloads = canAccessFeature('offline_downloads', userIsPremium);
+  // hasOfflineDownloads removido por no estar en uso
 
   useEffect(() => {
     if (audioRef.current) {
@@ -152,7 +151,9 @@ export default function GlobalMusicPlayer({ userIsPremium = false }: GlobalMusic
           ref={audioRef}
           src={currentSong.url_archivo || '/placeholder-audio.mp3'}
           preload="metadata"
-        />
+        >
+          <track kind="captions" srcLang="es" label="Español" />
+        </audio>
       )}
 
       {/* Fixed music player */}

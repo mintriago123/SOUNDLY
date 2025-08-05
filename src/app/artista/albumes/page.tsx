@@ -7,7 +7,6 @@ import {
   ClipboardDocumentListIcon, 
   PlusIcon, 
   PencilIcon, 
-  TrashIcon,
   MusicalNoteIcon,
   CalendarIcon,
   PlayIcon 
@@ -540,10 +539,11 @@ export default function AlbumesArtista() {
                 <div className="space-y-4">
                   {/* Título del álbum */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label htmlFor="album_titulo" className="block text-sm font-medium text-gray-700 mb-1">
                       Título del álbum *
                     </label>
                     <input
+                      id="album_titulo"
                       type="text"
                       required
                       value={albumEditando.titulo}
@@ -555,10 +555,11 @@ export default function AlbumesArtista() {
 
                   {/* Descripción */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label htmlFor="album_descripcion" className="block text-sm font-medium text-gray-700 mb-1">
                       Descripción
                     </label>
                     <textarea
+                      id="album_descripcion"
                       value={albumEditando.descripcion || ''}
                       onChange={(e) => setAlbumEditando(prev => prev ? {...prev, descripcion: e.target.value} : null)}
                       rows={3}
@@ -570,10 +571,11 @@ export default function AlbumesArtista() {
                   {/* Fecha de lanzamiento y género */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label htmlFor="album_fecha_lanzamiento" className="block text-sm font-medium text-gray-700 mb-1">
                         Fecha de lanzamiento
                       </label>
                       <input
+                        id="album_fecha_lanzamiento"
                         type="date"
                         value={albumEditando.fecha_lanzamiento || ''}
                         onChange={(e) => setAlbumEditando(prev => prev ? {...prev, fecha_lanzamiento: e.target.value} : null)}
@@ -582,10 +584,11 @@ export default function AlbumesArtista() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label htmlFor="album_genero" className="block text-sm font-medium text-gray-700 mb-1">
                         Género
                       </label>
                       <select
+                        id="album_genero"
                         value={albumEditando.genero || ''}
                         onChange={(e) => setAlbumEditando(prev => prev ? {...prev, genero: e.target.value} : null)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-purple-500 focus:border-purple-500"
@@ -609,10 +612,11 @@ export default function AlbumesArtista() {
 
                   {/* URL de imagen de portada */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label htmlFor="album_imagen_portada" className="block text-sm font-medium text-gray-700 mb-1">
                       URL de imagen de portada
                     </label>
                     <input
+                      id="album_imagen_portada"
                       type="url"
                       value={albumEditando.imagen_portada_url || ''}
                       onChange={(e) => setAlbumEditando(prev => prev ? {...prev, imagen_portada_url: e.target.value} : null)}
@@ -623,10 +627,11 @@ export default function AlbumesArtista() {
 
                   {/* Estado */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label htmlFor="album_estado" className="block text-sm font-medium text-gray-700 mb-1">
                       Estado
                     </label>
                     <select
+                      id="album_estado"
                       value={albumEditando.estado}
                       onChange={(e) => setAlbumEditando(prev => prev ? {...prev, estado: e.target.value as 'borrador' | 'publicado'} : null)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-purple-500 focus:border-purple-500"
@@ -639,10 +644,10 @@ export default function AlbumesArtista() {
                   {/* Mostrar canciones disponibles para asignar solo si es un álbum existente */}
                   {albumEditando.id && cancionesDisponibles.length > 0 && (
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label htmlFor="canciones_disponibles" className="block text-sm font-medium text-gray-700 mb-2">
                         Canciones disponibles para agregar al álbum
                       </label>
-                      <div className="max-h-32 overflow-y-auto border border-gray-200 rounded-md p-2">
+                      <div id="canciones_disponibles" className="max-h-32 overflow-y-auto border border-gray-200 rounded-md p-2">
                         {cancionesDisponibles.map((cancion) => (
                           <div key={cancion.id} className="flex items-center justify-between py-1 text-sm">
                             <span>{cancion.titulo}</span>
@@ -664,10 +669,10 @@ export default function AlbumesArtista() {
                   {/* Mostrar canciones actuales del álbum si existe */}
                   {albumEditando.id && obtenerCancionesAlbum(albumEditando.id).length > 0 && (
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label htmlFor="canciones_album" className="block text-sm font-medium text-gray-700 mb-2">
                         Canciones en este álbum
                       </label>
-                      <div className="max-h-32 overflow-y-auto border border-gray-200 rounded-md p-2 bg-gray-50">
+                      <div id="canciones_album" className="max-h-32 overflow-y-auto border border-gray-200 rounded-md p-2 bg-gray-50">
                         {obtenerCancionesAlbum(albumEditando.id).map((cancion) => (
                           <div key={cancion.id} className="flex items-center justify-between py-1 text-sm">
                             <span>{cancion.titulo}</span>

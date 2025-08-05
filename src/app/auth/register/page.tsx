@@ -50,6 +50,11 @@ export default function PaginaRegistroSimple() {
       
       setExito('¡Revisa tu correo y valida tu cuenta antes de continuar!');
       
+      // Redirigir al login después de 5 segundos
+      setTimeout(() => {
+        router.push('/auth/login');
+      }, 5000);
+      
     } catch (err: any) {
       console.error('Error en registro:', err);
       setError('Error inesperado al registrarse. Inténtalo de nuevo.');
@@ -269,7 +274,7 @@ export default function PaginaRegistroSimple() {
           <div className="flex space-x-1 items-end">
             {barHeights.map((height, i) => (
               <div
-                key={i}
+                key={`bar-${i}-${height}`}
                 className="w-2 bg-gradient-to-t from-[#6e1f86] to-[#ba319f] rounded-full"
                 style={{
                   height: `${height}px`,
@@ -282,7 +287,7 @@ export default function PaginaRegistroSimple() {
       )}
 
       {/* Custom animation keyframes */}
-      <style jsx global>{`
+      <style>{`
         @keyframes pulse {
           0% { height: ${barHeights[0]?.toFixed(0) || 20}px; }
           100% { height: ${(barHeights[0] ? barHeights[0] * 1.5 : 30).toFixed(0)}px; }

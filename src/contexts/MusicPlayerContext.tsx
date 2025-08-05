@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useMemo } from 'react';
 
 interface Cancion {
   id: string;
@@ -53,12 +53,12 @@ interface MusicPlayerProviderProps {
   children: ReactNode;
 }
 
-export function MusicPlayerProvider({ children }: MusicPlayerProviderProps) {
+export function MusicPlayerProvider({ children }: Readonly<MusicPlayerProviderProps>) {
   const [currentSong, setCurrentSong] = useState<Cancion | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [volume, setVolumeState] = useState(0.8);
+  const [volumeValue, setVolumeValue] = useState(0.8);
   const [playlist, setPlaylist] = useState<Cancion[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isMinimized, setIsMinimized] = useState(false);
@@ -110,7 +110,7 @@ export function MusicPlayerProvider({ children }: MusicPlayerProviderProps) {
   };
 
   const setVolume = (newVolume: number) => {
-    setVolumeState(Math.max(0, Math.min(1, newVolume)));
+    setVolumeValue(Math.max(0, Math.min(1, newVolume)));
   };
 
   const clearPlaylist = () => {
@@ -126,12 +126,12 @@ export function MusicPlayerProvider({ children }: MusicPlayerProviderProps) {
     setIsMinimized(!isMinimized);
   };
 
-  const value: MusicPlayerContextType = {
+  const value: MusicPlayerContextType = useMemo(() => ({
     currentSong,
     isPlaying,
     currentTime,
     duration,
-    volume,
+    volume: volumeValue,
     playlist,
     currentIndex,
     playSong,
@@ -144,7 +144,16 @@ export function MusicPlayerProvider({ children }: MusicPlayerProviderProps) {
     clearPlaylist,
     isMinimized,
     toggleMinimized
-  };
+  }), [
+    currentSong,
+    isPlaying,
+    currentTime,
+    duration,
+    volumeValue,
+    playlist,
+    currentIndex,
+    isMinimized
+  ]);
 
   return (
     <MusicPlayerContext.Provider value={value}>

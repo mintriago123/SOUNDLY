@@ -310,8 +310,8 @@ export default function AdminAnalyticasPage() {
         <div className="bg-white rounded-lg shadow p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Crecimiento de Usuarios</h3>
           <div className="space-y-2">
-            {stats.usuariosPorMes.slice(-6).map((data, index) => (
-              <div key={index} className="flex items-center justify-between">
+            {stats.usuariosPorMes.slice(-6).map((data) => (
+              <div key={data.mes} className="flex items-center justify-between">
                 <span className="text-sm font-medium text-gray-700">{data.mes}</span>
                 <div className="flex items-center space-x-2">
                   <div className="w-32 bg-gray-200 rounded-full h-2">
@@ -337,7 +337,7 @@ export default function AdminAnalyticasPage() {
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Canciones</h3>
           <div className="space-y-3">
             {stats.topCanciones.slice(0, 10).map((cancion, index) => (
-              <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div key={`${cancion.titulo}-${index}`} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                 <div className="flex items-center space-x-3">
                   <div className="text-lg font-bold text-gray-500">#{index + 1}</div>
                   <div>
@@ -360,7 +360,7 @@ export default function AdminAnalyticasPage() {
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Artistas</h3>
           <div className="space-y-3">
             {stats.topArtistas.slice(0, 10).map((artista, index) => (
-              <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div key={`${artista.nombre}-${index}`} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                 <div className="flex items-center space-x-3">
                   <div className="text-lg font-bold text-gray-500">#{index + 1}</div>
                   <div>

@@ -282,7 +282,7 @@ export default function FavoritosPage() {
   const filteredCanciones = cancionesFavoritas.filter(cancion =>
     cancion.titulo.toLowerCase().includes(searchTerm.toLowerCase()) ||
     cancion.artista.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (cancion.album && cancion.album.toLowerCase().includes(searchTerm.toLowerCase()))
+    cancion.album?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const filteredPlaylists = playlistsFavoritas.filter(playlist =>

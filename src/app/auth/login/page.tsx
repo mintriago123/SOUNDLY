@@ -1,13 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useSupabase } from '@/components/SupabaseProvider';
 
 export default function PaginaLogin() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { supabase } = useSupabase();
 
   const [datos, setDatos] = useState({ email: '', contrasena: '' });
@@ -217,7 +216,7 @@ export default function PaginaLogin() {
           <div className="flex space-x-1 items-end">
             {barHeights.map((height, i) => (
               <div
-                key={i}
+                key={`bar-${i}-${height}`}
                 className="w-2 bg-gradient-to-t from-[#6e1f86] to-[#ba319f] rounded-full"
                 style={{
                   height: `${height}px`,
@@ -229,7 +228,7 @@ export default function PaginaLogin() {
         </div>
       )}
 
-      <style jsx global>{`
+      <style>{`
         @keyframes pulse {
           0% { height: ${barHeights[0]?.toFixed(0) || 20}px; }
           100% { height: ${(barHeights[0] ? barHeights[0] * 1.5 : 30).toFixed(0)}px; }

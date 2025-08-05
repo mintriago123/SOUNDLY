@@ -9,11 +9,9 @@ import {
   CurrencyDollarIcon,
   CloudArrowUpIcon,
   CheckIcon,
-  XMarkIcon,
   ShieldCheckIcon,
   UserGroupIcon,
   MusicalNoteIcon,
-  BellIcon,
   ExclamationTriangleIcon,
   InformationCircleIcon
 } from '@heroicons/react/24/outline';
@@ -313,10 +311,11 @@ export default function ConfiguracionSistemaGlobal() {
         
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="max_file_size" className="block text-sm font-medium text-gray-700 mb-2">
               Tamaño máximo de archivo (MB)
             </label>
             <input
+              id="max_file_size"
               type="number"
               min="1"
               max="500"
@@ -327,10 +326,11 @@ export default function ConfiguracionSistemaGlobal() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="max_uploads_per_day" className="block text-sm font-medium text-gray-700 mb-2">
               Subidas máximas por día
             </label>
             <input
+              id="max_uploads_per_day"
               type="number"
               min="1"
               max="100"
@@ -341,30 +341,33 @@ export default function ConfiguracionSistemaGlobal() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">
-              Formatos permitidos
-            </label>
-            <div className="grid grid-cols-2 gap-2">
-              {formatosDisponibles.map(formato => (
-                <label key={formato} className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={(config.allowed_formats || []).includes(formato)}
-                    onChange={() => handleFormatToggle(formato)}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                  />
-                  <span className="ml-2 text-sm text-gray-700 uppercase">{formato}</span>
-                </label>
-              ))}
-            </div>
+            <fieldset>
+              <legend className="block text-sm font-medium text-gray-700 mb-3">
+                Formatos permitidos
+              </legend>
+              <div className="grid grid-cols-2 gap-2">
+                {formatosDisponibles.map(formato => (
+                  <label key={formato} className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={(config.allowed_formats || []).includes(formato)}
+                      onChange={() => handleFormatToggle(formato)}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    <span className="ml-2 text-sm text-gray-700 uppercase">{formato}</span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="max_audio_bitrate" className="block text-sm font-medium text-gray-700 mb-2">
                 Bitrate máximo (kbps)
               </label>
               <select
+                id="max_audio_bitrate"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 value={config.max_audio_bitrate || 320}
                 onChange={(e) => handleConfigChange('max_audio_bitrate', parseInt(e.target.value))}
@@ -377,10 +380,11 @@ export default function ConfiguracionSistemaGlobal() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="max_audio_duration" className="block text-sm font-medium text-gray-700 mb-2">
                 Duración máxima (min)
               </label>
               <input
+                id="max_audio_duration"
                 type="number"
                 min="1"
                 max="60"
@@ -415,10 +419,11 @@ export default function ConfiguracionSistemaGlobal() {
         
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="platform_name" className="block text-sm font-medium text-gray-700 mb-2">
               Nombre de la plataforma
             </label>
             <input
+              id="platform_name"
               type="text"
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               value={config.platform_name || 'Soundly'}
@@ -427,10 +432,11 @@ export default function ConfiguracionSistemaGlobal() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="platform_description" className="block text-sm font-medium text-gray-700 mb-2">
               Descripción de la plataforma
             </label>
             <textarea
+              id="platform_description"
               rows={3}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               value={config.platform_description || ''}
@@ -439,10 +445,11 @@ export default function ConfiguracionSistemaGlobal() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="support_email" className="block text-sm font-medium text-gray-700 mb-2">
               Email de soporte
             </label>
             <input
+              id="support_email"
               type="email"
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               value={config.support_email || ''}
@@ -451,10 +458,11 @@ export default function ConfiguracionSistemaGlobal() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="featured_content_slots" className="block text-sm font-medium text-gray-700 mb-2">
               Slots de contenido destacado
             </label>
             <input
+              id="featured_content_slots"
               type="number"
               min="1"
               max="20"
@@ -507,10 +515,11 @@ export default function ConfiguracionSistemaGlobal() {
 
           {config.maintenance_mode && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="maintenance_message" className="block text-sm font-medium text-gray-700 mb-2">
                 Mensaje de mantenimiento
               </label>
               <textarea
+                id="maintenance_message"
                 rows={2}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 value={config.maintenance_message || ''}
@@ -534,10 +543,11 @@ export default function ConfiguracionSistemaGlobal() {
         
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="premium_price_monthly" className="block text-sm font-medium text-gray-700 mb-2">
               Precio mensual (€)
             </label>
             <input
+              id="premium_price_monthly"
               type="number"
               step="0.01"
               min="0"
@@ -548,10 +558,11 @@ export default function ConfiguracionSistemaGlobal() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="premium_price_yearly" className="block text-sm font-medium text-gray-700 mb-2">
               Precio anual (€)
             </label>
             <input
+              id="premium_price_yearly"
               type="number"
               step="0.01"
               min="0"
@@ -562,10 +573,11 @@ export default function ConfiguracionSistemaGlobal() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="premium_discount_yearly" className="block text-sm font-medium text-gray-700 mb-2">
               Descuento anual (%)
             </label>
             <input
+              id="premium_discount_yearly"
               type="number"
               min="0"
               max="50"
@@ -597,10 +609,11 @@ export default function ConfiguracionSistemaGlobal() {
         
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="artist_verification_fee" className="block text-sm font-medium text-gray-700 mb-2">
               Tarifa de verificación de artista (€)
             </label>
             <input
+              id="artist_verification_fee"
               type="number"
               step="0.01"
               min="0"
@@ -614,10 +627,11 @@ export default function ConfiguracionSistemaGlobal() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="commission_percentage" className="block text-sm font-medium text-gray-700 mb-2">
               Comisión de la plataforma (%)
             </label>
             <input
+              id="commission_percentage"
               type="number"
               step="0.01"
               min="0"
@@ -632,10 +646,11 @@ export default function ConfiguracionSistemaGlobal() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="artist_min_tracks" className="block text-sm font-medium text-gray-700 mb-2">
               Mínimo de tracks para ser artista
             </label>
             <input
+              id="artist_min_tracks"
               type="number"
               min="1"
               max="20"
@@ -686,10 +701,11 @@ export default function ConfiguracionSistemaGlobal() {
         
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="max_playlists_free" className="block text-sm font-medium text-gray-700 mb-2">
               Máximo de playlists
             </label>
             <input
+              id="max_playlists_free"
               type="number"
               min="1"
               max="100"
@@ -700,10 +716,11 @@ export default function ConfiguracionSistemaGlobal() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="max_followers_free" className="block text-sm font-medium text-gray-700 mb-2">
               Máximo de seguidores
             </label>
             <input
+              id="max_followers_free"
               type="number"
               min="10"
               max="1000"
@@ -724,10 +741,11 @@ export default function ConfiguracionSistemaGlobal() {
         
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="max_playlists_premium" className="block text-sm font-medium text-gray-700 mb-2">
               Máximo de playlists
             </label>
             <select
+              id="max_playlists_premium"
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               value={config.max_playlists_premium || -1}
               onChange={(e) => handleConfigChange('max_playlists_premium', parseInt(e.target.value))}
@@ -740,10 +758,11 @@ export default function ConfiguracionSistemaGlobal() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="max_followers_premium" className="block text-sm font-medium text-gray-700 mb-2">
               Máximo de seguidores
             </label>
             <select
+              id="max_followers_premium"
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               value={config.max_followers_premium || -1}
               onChange={(e) => handleConfigChange('max_followers_premium', parseInt(e.target.value))}
@@ -810,10 +829,11 @@ export default function ConfiguracionSistemaGlobal() {
 
           {config.explicit_content_allowed && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="min_age_explicit_content" className="block text-sm font-medium text-gray-700 mb-2">
                 Edad mínima para contenido explícito
               </label>
               <select
+                id="min_age_explicit_content"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 value={config.min_age_explicit_content || 18}
                 onChange={(e) => handleConfigChange('min_age_explicit_content', parseInt(e.target.value))}
@@ -915,10 +935,11 @@ export default function ConfiguracionSistemaGlobal() {
         
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="password_min_length" className="block text-sm font-medium text-gray-700 mb-2">
               Longitud mínima de contraseña
             </label>
             <select
+              id="password_min_length"
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               value={config.password_min_length || 8}
               onChange={(e) => handleConfigChange('password_min_length', parseInt(e.target.value))}
@@ -931,10 +952,11 @@ export default function ConfiguracionSistemaGlobal() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="max_login_attempts" className="block text-sm font-medium text-gray-700 mb-2">
               Intentos máximos de login
             </label>
             <select
+              id="max_login_attempts"
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               value={config.max_login_attempts || 5}
               onChange={(e) => handleConfigChange('max_login_attempts', parseInt(e.target.value))}
@@ -946,10 +968,11 @@ export default function ConfiguracionSistemaGlobal() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="session_timeout_minutes" className="block text-sm font-medium text-gray-700 mb-2">
               Tiempo de sesión (horas)
             </label>
             <select
+              id="session_timeout_minutes"
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               value={(config.session_timeout_minutes || 480) / 60}
               onChange={(e) => handleConfigChange('session_timeout_minutes', parseInt(e.target.value) * 60)}
@@ -999,10 +1022,11 @@ export default function ConfiguracionSistemaGlobal() {
         
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="api_rate_limit_per_minute" className="block text-sm font-medium text-gray-700 mb-2">
               Límite de API por minuto
             </label>
             <select
+              id="api_rate_limit_per_minute"
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               value={config.api_rate_limit_per_minute || 100}
               onChange={(e) => handleConfigChange('api_rate_limit_per_minute', parseInt(e.target.value))}
@@ -1015,10 +1039,11 @@ export default function ConfiguracionSistemaGlobal() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="max_search_results" className="block text-sm font-medium text-gray-700 mb-2">
               Resultados máximos de búsqueda
             </label>
             <select
+              id="max_search_results"
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               value={config.max_search_results || 50}
               onChange={(e) => handleConfigChange('max_search_results', parseInt(e.target.value))}
@@ -1030,10 +1055,11 @@ export default function ConfiguracionSistemaGlobal() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="max_related_tracks" className="block text-sm font-medium text-gray-700 mb-2">
               Tracks relacionados máximos
             </label>
             <select
+              id="max_related_tracks"
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               value={config.max_related_tracks || 10}
               onChange={(e) => handleConfigChange('max_related_tracks', parseInt(e.target.value))}

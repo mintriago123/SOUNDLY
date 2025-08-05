@@ -6,17 +6,11 @@ import DashboardLayout from '@/components/DashboardLayout';
 import { 
   CogIcon, 
   ServerIcon,
-  ShieldCheckIcon,
-  DocumentTextIcon,
   CameraIcon,
-  BellIcon,
-  CurrencyDollarIcon,
   CloudArrowUpIcon,
   CheckIcon,
-  XMarkIcon,
   PlusIcon,
-  TrashIcon,
-  ExclamationTriangleIcon
+  TrashIcon
 } from '@heroicons/react/24/outline';
 
 interface ConfiguracionSistema {
@@ -56,7 +50,6 @@ export default function AdminConfiguracionSistemaPage() {
   });
   
   const [banners, setBanners] = useState<Banner[]>([]);
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showBannerModal, setShowBannerModal] = useState(false);
   const [editingBanner, setEditingBanner] = useState<Banner | null>(null);
@@ -73,8 +66,6 @@ export default function AdminConfiguracionSistemaPage() {
 
   const fetchConfiguracion = async () => {
     try {
-      setLoading(true);
-      
       const { data, error } = await supabase
         .from('configuracion_sistema')
         .select('*')
@@ -89,8 +80,6 @@ export default function AdminConfiguracionSistemaPage() {
       }
     } catch (error) {
       console.error('Error:', error);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -309,10 +298,11 @@ export default function AdminConfiguracionSistemaPage() {
             </div>
             <div className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="max_file_size" className="block text-sm font-medium text-gray-700 mb-2">
                   Tamaño máximo de archivo (MB)
                 </label>
                 <input
+                  id="max_file_size"
                   type="number"
                   min="1"
                   max="500"
@@ -323,10 +313,11 @@ export default function AdminConfiguracionSistemaPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="max_uploads_per_day" className="block text-sm font-medium text-gray-700 mb-2">
                   Subidas máximas por día (por usuario)
                 </label>
                 <input
+                  id="max_uploads_per_day"
                   type="number"
                   min="1"
                   max="100"
@@ -336,10 +327,10 @@ export default function AdminConfiguracionSistemaPage() {
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">
+              <fieldset>
+                <legend className="block text-sm font-medium text-gray-700 mb-3">
                   Formatos permitidos
-                </label>
+                </legend>
                 <div className="grid grid-cols-2 gap-2">
                   {formatosDisponibles.map(formato => (
                     <label key={formato} className="flex items-center">
@@ -353,7 +344,7 @@ export default function AdminConfiguracionSistemaPage() {
                     </label>
                   ))}
                 </div>
-              </div>
+              </fieldset>
 
               <div className="flex items-center">
                 <input
@@ -419,10 +410,11 @@ export default function AdminConfiguracionSistemaPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="featured_content_slots" className="block text-sm font-medium text-gray-700 mb-2">
                   Slots de contenido destacado
                 </label>
                 <input
+                  id="featured_content_slots"
                   type="number"
                   min="1"
                   max="20"
@@ -433,10 +425,11 @@ export default function AdminConfiguracionSistemaPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="premium_price" className="block text-sm font-medium text-gray-700 mb-2">
                   Precio Premium (€/mes)
                 </label>
                 <input
+                  id="premium_price"
                   type="number"
                   step="0.01"
                   min="0"
@@ -528,8 +521,9 @@ export default function AdminConfiguracionSistemaPage() {
               
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Título</label>
+                  <label htmlFor="banner_titulo" className="block text-sm font-medium text-gray-700 mb-2">Título</label>
                   <input
+                    id="banner_titulo"
                     type="text"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     value={bannerFormData.titulo || ''}
@@ -538,8 +532,9 @@ export default function AdminConfiguracionSistemaPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Descripción</label>
+                  <label htmlFor="banner_descripcion" className="block text-sm font-medium text-gray-700 mb-2">Descripción</label>
                   <textarea
+                    id="banner_descripcion"
                     rows={3}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     value={bannerFormData.descripcion || ''}
@@ -549,8 +544,9 @@ export default function AdminConfiguracionSistemaPage() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Fecha Inicio</label>
+                    <label htmlFor="banner_fecha_inicio" className="block text-sm font-medium text-gray-700 mb-2">Fecha Inicio</label>
                     <input
+                      id="banner_fecha_inicio"
                       type="date"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       value={bannerFormData.fecha_inicio || ''}
@@ -559,8 +555,9 @@ export default function AdminConfiguracionSistemaPage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Fecha Fin</label>
+                    <label htmlFor="banner_fecha_fin" className="block text-sm font-medium text-gray-700 mb-2">Fecha Fin</label>
                     <input
+                      id="banner_fecha_fin"
                       type="date"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       value={bannerFormData.fecha_fin || ''}
@@ -571,8 +568,9 @@ export default function AdminConfiguracionSistemaPage() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Prioridad</label>
+                    <label htmlFor="banner_prioridad" className="block text-sm font-medium text-gray-700 mb-2">Prioridad</label>
                     <input
+                      id="banner_prioridad"
                       type="number"
                       min="1"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"

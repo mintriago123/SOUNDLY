@@ -33,6 +33,7 @@ export default function GlobalMusicPlayer({ userIsPremium = false }: Readonly<Gl
     previousSong,
     seekTo,
     setVolume,
+    setDuration,
     clearPlaylist,
     isMinimized,
     toggleMinimized
@@ -68,8 +69,13 @@ export default function GlobalMusicPlayer({ userIsPremium = false }: Readonly<Gl
 
     const updateDuration = () => {
       if (audio.duration && !isNaN(audio.duration)) {
-        // El duration se maneja en el contexto
+        setDuration(audio.duration);
+        console.log('🎵 Duración actualizada:', audio.duration);
       }
+    };
+
+    const handleCanPlay = () => {
+      updateDuration();
     };
 
     const handleEnded = () => {
@@ -82,14 +88,16 @@ export default function GlobalMusicPlayer({ userIsPremium = false }: Readonly<Gl
 
     audio.addEventListener('timeupdate', updateTime);
     audio.addEventListener('loadedmetadata', updateDuration);
+    audio.addEventListener('canplay', handleCanPlay);
     audio.addEventListener('ended', handleEnded);
 
     return () => {
       audio.removeEventListener('timeupdate', updateTime);
       audio.removeEventListener('loadedmetadata', updateDuration);
+      audio.removeEventListener('canplay', handleCanPlay);
       audio.removeEventListener('ended', handleEnded);
     };
-  }, [currentSong, isDragging, playlist.length, nextSong, pauseSong, seekTo]);
+  }, [currentSong, isDragging, playlist.length, nextSong, pauseSong, seekTo, setDuration]);
 
   useEffect(() => {
     if (audioRef.current && currentSong) {

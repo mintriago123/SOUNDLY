@@ -32,6 +32,7 @@ interface MusicPlayerContextType {
   previousSong: () => void;
   seekTo: (time: number) => void;
   setVolume: (volume: number) => void;
+  setDuration: (duration: number) => void;
   clearPlaylist: () => void;
   
   // Estado de la UI
@@ -66,6 +67,8 @@ export function MusicPlayerProvider({ children }: Readonly<MusicPlayerProviderPr
   const playSong = (song: Cancion, newPlaylist?: Cancion[]) => {
     setCurrentSong(song);
     setIsPlaying(true);
+    setCurrentTime(0);
+    setDuration(0); // Reset duration when changing song
     
     if (newPlaylist) {
       setPlaylist(newPlaylist);
@@ -92,6 +95,8 @@ export function MusicPlayerProvider({ children }: Readonly<MusicPlayerProviderPr
       const nextIndex = (currentIndex + 1) % playlist.length;
       setCurrentIndex(nextIndex);
       setCurrentSong(playlist[nextIndex]);
+      setCurrentTime(0);
+      setDuration(0);
       setIsPlaying(true);
     }
   };
@@ -101,6 +106,8 @@ export function MusicPlayerProvider({ children }: Readonly<MusicPlayerProviderPr
       const prevIndex = currentIndex === 0 ? playlist.length - 1 : currentIndex - 1;
       setCurrentIndex(prevIndex);
       setCurrentSong(playlist[prevIndex]);
+      setCurrentTime(0);
+      setDuration(0);
       setIsPlaying(true);
     }
   };
@@ -111,6 +118,10 @@ export function MusicPlayerProvider({ children }: Readonly<MusicPlayerProviderPr
 
   const setVolume = (newVolume: number) => {
     setVolumeValue(Math.max(0, Math.min(1, newVolume)));
+  };
+
+  const setDurationValue = (newDuration: number) => {
+    setDuration(newDuration);
   };
 
   const clearPlaylist = () => {
@@ -141,6 +152,7 @@ export function MusicPlayerProvider({ children }: Readonly<MusicPlayerProviderPr
     previousSong,
     seekTo,
     setVolume,
+    setDuration: setDurationValue,
     clearPlaylist,
     isMinimized,
     toggleMinimized

@@ -84,13 +84,15 @@ export default function ReproductorPage() {
     pauseSong, 
     resumeSong, 
     nextSong, 
-    previousSong 
+    previousSong,
+    volume,
+    setVolume
   } = useMusicPlayer();
 
   // Estados principales
-  const [canciones, setCanciones] = useState<Cancion[]>([]);
-  const [volumen, setVolumen] = useState(0.8);
-  const [isMuted, setIsMuted] = useState(false);
+  const [playlistsUsuario, setPlaylistsUsuario] = useState<any[]>([]);
+  const [playlistActual, setPlaylistActual] = useState<any | null>(null);
+  const [cancionesPlaylist, setCancionesPlaylist] = useState<Cancion[]>([]);
   const [modoAleatorio, setModoAleatorio] = useState(false);
   const [modoRepetir, setModoRepetir] = useState<ModoRepetir>('off');
   const [mostrarPlaylist, setMostrarPlaylist] = useState(true);
@@ -220,8 +222,8 @@ export default function ReproductorPage() {
 
       setUsuario(userData);
       
-      // Cargar canciones después de establecer el usuario
-      await cargarCancionesUsuario(userData);
+      // Cargar playlists del usuario después de establecer el usuario
+      await cargarPlaylistsUsuario(userData);
       
       // Cargar favoritos del usuario
       await cargarFavoritos(userData.id);
@@ -310,46 +312,178 @@ export default function ReproductorPage() {
     };
   };
   /**
-   * Cargar canciones reales del usuario desde la base de datos
+   * Cargar las playlists del usuario
    */
-  const cargarCancionesUsuario = async (usuarioData: any) => {
+  const cargarPlaylistsUsuario = async (usuarioData: any) => {
     try {
-      // Cargar canciones del artista desde la base de datos
-      const { data: cancionesData, error } = await supabase
-        .from('canciones')
-        .select('*')
-        .eq('usuario_subida_id', usuarioData.id)
-        .eq('estado', 'activa')
+      console.log('Cargando playlists del usuario:', usuarioData.id);
+
+      // Cargar playlists normales del usuario con conteo de canciones
+      const { data: playlistsData, error: playlistsError } = await supabase
+        .from('playlists')
+        .select(`
+          *,
+          playlist_canciones(count)
+        `)
+        .eq('usuario_id', usuarioData.id)
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Error cargando canciones:', error);
+      if (playlistsError) {
+        console.error('Error cargando playlists:', playlistsError);
         return;
+      }
+
+      // Crear playlist virtual de favoritos
+      const { count: favoritosCount } = await supabase
+        .from('favoritos')
+        .select('*', { count: 'exact', head: true })
+        .eq('usuario_id', usuarioData.id);
+
+      const playlistFavoritos = {
+        id: 'favoritos-virtual',
+        nombre: '❤️ Mis Favoritos',
+        descripcion: 'Tus canciones favoritas',
+        usuario_id: usuarioData.id,
+        es_publica: false,
+        created_at: new Date().toISOString(),
+        canciones_count: favoritosCount || 0,
+        es_favoritos: true
+      };
+
+      // Formatear playlists normales con conteo de canciones
+      const playlistsFormateadas = (playlistsData || []).map(playlist => ({
+        ...playlist,
+        canciones_count: playlist.playlist_canciones?.[0]?.count || 0
+      }));
+
+      // Combinar playlists
+      const todasLasPlaylists = [playlistFavoritos, ...playlistsFormateadas];
+      setPlaylistsUsuario(todasLasPlaylists);
+
+      // Si no hay playlist seleccionada, seleccionar la primera (favoritos)
+      // Solo si el usuario está completamente cargado
+      if (!playlistActual && todasLasPlaylists.length > 0 && usuarioData?.id) {
+        setTimeout(() => {
+          seleccionarPlaylist(todasLasPlaylists[0]);
+        }, 100);
+      }
+
+      console.log('Playlists cargadas:', todasLasPlaylists);
+    } catch (error) {
+      console.error('Error cargando playlists:', error);
+    }
+  };
+
+  /**
+   * Cargar canciones de una playlist específica
+   */
+  const cargarCancionesDePlaylist = async (playlist: any) => {
+    try {
+      console.log('Cargando canciones de playlist:', playlist.nombre);
+
+      if (!usuario) {
+        console.warn('Usuario no está cargado aún');
+        return;
+      }
+
+      let cancionesData: any[] = [];
+
+      if (playlist.id === 'favoritos-virtual') {
+        // Cargar canciones favoritas
+        const { data: favoritos, error: favoritosError } = await supabase
+          .from('favoritos')
+          .select(`
+            cancion_id,
+            canciones:cancion_id (
+              *,
+              usuario_subida:usuarios!canciones_usuario_subida_id_fkey(
+                id,
+                nombre,
+                email
+              )
+            )
+          `)
+          .eq('usuario_id', usuario.id)
+          .order('fecha_agregada', { ascending: false });
+
+        if (favoritosError) {
+          console.error('Error cargando favoritos:', favoritosError);
+          return;
+        }
+
+        cancionesData = favoritos?.map(fav => fav.canciones).filter(Boolean) || [];
+      } else {
+        // Cargar canciones de playlist normal
+        const { data: playlistCanciones, error: playlistError } = await supabase
+          .from('playlist_canciones')
+          .select(`
+            cancion_id,
+            posicion,
+            canciones:cancion_id (
+              *,
+              usuario_subida:usuarios!canciones_usuario_subida_id_fkey(
+                id,
+                nombre,
+                email
+              )
+            )
+          `)
+          .eq('playlist_id', playlist.id)
+          .order('posicion');
+
+        if (playlistError) {
+          console.error('Error cargando canciones de playlist:', playlistError);
+          return;
+        }
+
+        cancionesData = playlistCanciones?.map(pc => pc.canciones).filter(Boolean) || [];
       }
 
       if (!cancionesData || cancionesData.length === 0) {
-        console.log('No hay canciones disponibles');
-        setCanciones([]);
+        console.log('No hay canciones en esta playlist');
+        setCancionesPlaylist([]);
         return;
       }
 
-      // Procesar canciones con funciones auxiliares
+      // Procesar canciones con URLs de audio
       const cancionesFormateadas = await Promise.all(
         cancionesData.map(async (cancion) => {
           const urlAudio = await generarUrlAudio(cancion);
           await verificarUrlAudio(urlAudio);
-          return formatearCancionParaInterfaz(cancion, usuarioData, urlAudio);
+          
+          const artistaData = cancion.usuario_subida || { nombre: 'Artista Desconocido' };
+          
+          return {
+            ...cancion,
+            archivo_audio_url: urlAudio,
+            artista: artistaData.nombre || 'Artista Desconocido',
+            album: cancion.album_id ? 'Álbum' : 'Sin álbum',
+            es_favorita: false,
+            fecha_lanzamiento: cancion.created_at
+          };
         })
       );
 
-      console.log('Canciones cargadas:', cancionesFormateadas);
-      setCanciones(cancionesFormateadas);
+      console.log('Canciones de playlist cargadas:', cancionesFormateadas.length);
+      setCancionesPlaylist(cancionesFormateadas);
       
-      // Nota: La configuración de playlist se hace mediante el contexto global
-      // cuando se selecciona una canción específica para reproducir
     } catch (error) {
-      console.error('Error cargando playlist:', error);
+      console.error('Error cargando canciones de playlist:', error);
+      setCancionesPlaylist([]);
     }
+  };
+
+  /**
+   * Seleccionar una playlist para reproducir
+   */
+  const seleccionarPlaylist = async (playlist: any) => {
+    if (!usuario) {
+      console.warn('Usuario no está cargado, no se puede seleccionar playlist');
+      return;
+    }
+
+    setPlaylistActual(playlist);
+    await cargarCancionesDePlaylist(playlist);
   };
 
   /**
@@ -380,8 +514,8 @@ export default function ReproductorPage() {
       usuario_id: cancion.usuario_subida_id
     };
     
-    // Convertir toda la playlist
-    const playlistParaContexto = canciones.map(c => ({
+    // Convertir toda la playlist actual
+    const playlistParaContexto = cancionesPlaylist.map((c: any) => ({
       id: c.id,
       titulo: c.titulo,
       artista: c.artista || 'Artista Desconocido',
@@ -609,8 +743,8 @@ export default function ReproductorPage() {
    */
   const renderPlaylistCanciones = () => {
     const cancionesFiltradas = mostrarSoloFavoritas 
-      ? canciones.filter(cancion => cancionesFavoritas.has(cancion.id))
-      : canciones;
+      ? cancionesPlaylist.filter((cancion: any) => cancionesFavoritas.has(cancion.id))
+      : cancionesPlaylist;
     
     if (cancionesFiltradas.length === 0) {
       return (
@@ -620,15 +754,15 @@ export default function ReproductorPage() {
           </span>
           <p>
             {mostrarSoloFavoritas 
-              ? 'No tienes canciones favoritas aún' 
-              : 'No hay canciones disponibles'
+              ? 'No hay canciones favoritas en la selección' 
+              : playlistActual?.nombre ? `No hay canciones en "${playlistActual.nombre}"` : 'Selecciona una playlist'
             }
           </p>
         </div>
       );
     }
     
-    return cancionesFiltradas.map((cancion, indice) => {
+    return cancionesFiltradas.map((cancion: any, indice: number) => {
       const isCurrentSong = currentSong?.id === cancion.id;
       return (
         <div
@@ -661,7 +795,12 @@ export default function ReproductorPage() {
                 }`}>
                   {cancion.titulo}
                 </p>
-                <p className="text-sm text-gray-600 truncate">{cancion.artista}</p>
+                <p className="text-sm text-gray-600 truncate">
+                  👤 {cancion.artista} • 🎵 {cancion.genero || 'Sin género'}
+                </p>
+                <p className="text-xs text-gray-500 truncate">
+                  📊 {cancion.reproducciones || 0} reproducciones • ❤️ {cancion.favoritos || 0} favoritos
+                </p>
               </div>
             </button>
             
@@ -694,36 +833,56 @@ export default function ReproductorPage() {
   };
   const renderControlVolumen = () => (
     <div className="space-y-3">
+      <h4 className="text-sm font-medium text-gray-700 mb-2">Control de Volumen</h4>
       <div className="flex items-center space-x-3">
         <button 
-          onClick={() => setIsMuted(!isMuted)}
-          className="text-gray-600 hover:text-gray-800"
+          onClick={() => setVolume(volume === 0 ? 0.8 : 0)}
+          className="text-gray-600 hover:text-purple-600 transition-colors p-1"
+          title={volume === 0 ? "Activar sonido" : "Silenciar"}
         >
-          {isMuted || volumen === 0 ? (
+          {volume === 0 ? (
             <SpeakerXMarkIcon className="w-5 h-5" />
           ) : (
             <SpeakerWaveIcon className="w-5 h-5" />
           )}
         </button>
         
-        <input
-          type="range"
-          min="0"
-          max="1"
-          step="0.01"
-          value={isMuted ? 0 : volumen}
-          onChange={(e) => {
-            const nuevoVolumen = parseFloat(e.target.value);
-            setVolumen(nuevoVolumen);
-            if (nuevoVolumen > 0) setIsMuted(false);
-          }}
-          className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-        />
+        <div className="flex-1 relative">
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.01"
+            value={volume}
+            onChange={(e) => {
+              const nuevoVolumen = parseFloat(e.target.value);
+              setVolume(nuevoVolumen);
+            }}
+            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider-thumb"
+            style={{
+              background: `linear-gradient(to right, #8b5cf6 0%, #8b5cf6 ${volume * 100}%, #e5e7eb ${volume * 100}%, #e5e7eb 100%)`
+            }}
+          />
+        </div>
         
-        <span className="text-sm text-gray-500 min-w-[3rem]">
-          {Math.round((isMuted ? 0 : volumen) * 100)}%
+        <span className="text-sm text-gray-500 min-w-[3rem] font-medium">
+          {Math.round(volume * 100)}%
         </span>
       </div>
+      
+      {/* Indicador visual del nivel de volumen */}
+      {/* <div className="flex justify-center space-x-1">
+        {[...Array(10)].map((_, i) => (
+          <div
+            key={i}
+            className={`w-1 h-2 rounded-full transition-colors ${
+              i < Math.floor(volume * 10) 
+                ? volume > 0.7 ? 'bg-green-500' : volume > 0.3 ? 'bg-yellow-500' : 'bg-red-500'
+                : 'bg-gray-300'
+            }`}
+          />
+        ))}
+      </div> */}
     </div>
   );
   const getRepeatModeTitle = (modo: ModoRepetir) => {
@@ -768,6 +927,41 @@ export default function ReproductorPage() {
 
   return (
     <DashboardLayout>
+      {/* Estilos para la barra de volumen personalizada */}
+      <style jsx>{`
+        .slider-thumb::-webkit-slider-thumb {
+          appearance: none;
+          height: 16px;
+          width: 16px;
+          border-radius: 50%;
+          background: #8b5cf6;
+          cursor: pointer;
+          box-shadow: 0 0 4px rgba(139, 92, 246, 0.3);
+          transition: all 0.2s ease;
+        }
+        
+        .slider-thumb::-webkit-slider-thumb:hover {
+          transform: scale(1.1);
+          box-shadow: 0 0 8px rgba(139, 92, 246, 0.5);
+        }
+        
+        .slider-thumb::-moz-range-thumb {
+          height: 16px;
+          width: 16px;
+          border-radius: 50%;
+          background: #8b5cf6;
+          cursor: pointer;
+          border: none;
+          box-shadow: 0 0 4px rgba(139, 92, 246, 0.3);
+          transition: all 0.2s ease;
+        }
+        
+        .slider-thumb::-moz-range-thumb:hover {
+          transform: scale(1.1);
+          box-shadow: 0 0 8px rgba(139, 92, 246, 0.5);
+        }
+      `}</style>
+      
       {/* Notificación de favoritos */}
       {mensajeFavorito && (
         <div 
@@ -793,9 +987,9 @@ export default function ReproductorPage() {
                 <MusicalNoteIcon className="w-8 h-8" />
               </div>
               <div>
-                <h1 className="text-3xl font-bold">Reproductor Musical</h1>
+                <h1 className="text-3xl font-bold">Reproductor de Playlists</h1>
                 <p className="text-purple-100 mt-1">
-                  Disfruta de tu música con calidad premium
+                  Reproduce tu música organizada en playlists
                 </p>
               </div>
             </div>
@@ -807,12 +1001,12 @@ export default function ReproductorPage() {
                 <div className="text-sm text-purple-200">En cola</div>
               </div>
               <div>
-                <div className="text-2xl font-bold">{cancionesFavoritas.size}</div>
-                <div className="text-sm text-purple-200">Favoritas</div>
+                <div className="text-2xl font-bold">{cancionesPlaylist.length}</div>
+                <div className="text-sm text-purple-200">En playlist</div>
               </div>
               <div>
-                <div className="text-2xl font-bold">{usuario?.rol === 'premium' ? 'HD' : 'STD'}</div>
-                <div className="text-sm text-purple-200">Calidad</div>
+                <div className="text-2xl font-bold">{playlistsUsuario.length}</div>
+                <div className="text-sm text-purple-200">Playlists</div>
               </div>
             </div>
           </div>
@@ -822,6 +1016,54 @@ export default function ReproductorPage() {
           
           {/* Columna Principal - Reproductor */}
           <div className="lg:col-span-2 space-y-6">
+            
+            {/* Selector de Playlist */}
+            <div className="bg-white rounded-xl shadow-lg p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Reproducir Playlist</h3>
+                <span className="text-sm text-gray-500">
+                  {playlistActual ? `${cancionesPlaylist.length} canciones` : 'Ninguna seleccionada'}
+                </span>
+              </div>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {playlistsUsuario.map((playlist) => (
+                  <button
+                    key={playlist.id}
+                    onClick={() => seleccionarPlaylist(playlist)}
+                    className={`p-4 rounded-lg border-2 transition-all text-left ${
+                      playlistActual?.id === playlist.id
+                        ? 'border-purple-500 bg-purple-50 text-purple-700'
+                        : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-400 to-pink-500 flex items-center justify-center">
+                        {playlist.es_favoritos ? (
+                          <HeartIconSolid className="w-5 h-5 text-white" />
+                        ) : (
+                          <MusicalNoteIcon className="w-5 h-5 text-white" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate">{playlist.nombre}</p>
+                        <p className="text-xs text-gray-500 truncate">
+                          {playlist.canciones_count || 0} canciones
+                        </p>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+              
+              {playlistsUsuario.length === 0 && (
+                <div className="text-center py-8 text-gray-500">
+                  <MusicalNoteIcon className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                  <p>No tienes playlists aún</p>
+                  <p className="text-sm">Ve a la sección de Playlists para crear una</p>
+                </div>
+              )}
+            </div>
             
             {/* Información de la Canción Actual */}
             {currentSong ? (
@@ -930,15 +1172,15 @@ export default function ReproductorPage() {
             ) : (
               <div className="bg-white rounded-xl shadow-lg p-12 text-center">
                 <MusicalNoteIcon className="w-24 h-24 mx-auto text-gray-300 mb-6" />
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">No hay canciones disponibles</h2>
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">No hay canciones en la plataforma</h2>
                 <p className="text-gray-600 mb-6">
-                  Parece que aún no has subido ninguna canción a tu biblioteca.
+                  Aún no hay canciones subidas por los artistas en la plataforma.
                 </p>
                 <button
-                  onClick={() => router.push('/artista/musica')}
+                  onClick={() => router.push('/admin/biblioteca')}
                   className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700"
                 >
-                  Subir tu primera canción
+                  Ver biblioteca completa
                 </button>
               </div>
             )}

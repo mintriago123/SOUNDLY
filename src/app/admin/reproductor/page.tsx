@@ -310,15 +310,22 @@ export default function ReproductorPage() {
     };
   };
   /**
-   * Cargar canciones reales del usuario desde la base de datos
+   * Cargar todas las canciones de la plataforma para el administrador
    */
   const cargarCancionesUsuario = async (usuarioData: any) => {
     try {
-      // Cargar canciones del artista desde la base de datos
+      // El administrador puede ver TODAS las canciones de la plataforma
+      // Incluir información del artista mediante un JOIN
       const { data: cancionesData, error } = await supabase
         .from('canciones')
-        .select('*')
-        .eq('usuario_subida_id', usuarioData.id)
+        .select(`
+          *,
+          usuario_subida:usuarios!canciones_usuario_subida_id_fkey(
+            id,
+            nombre,
+            email
+          )
+        `)
         .eq('estado', 'activa')
         .order('created_at', { ascending: false });
 
@@ -328,7 +335,7 @@ export default function ReproductorPage() {
       }
 
       if (!cancionesData || cancionesData.length === 0) {
-        console.log('No hay canciones disponibles');
+        console.log('No hay canciones disponibles en la plataforma');
         setCanciones([]);
         return;
       }
@@ -338,11 +345,22 @@ export default function ReproductorPage() {
         cancionesData.map(async (cancion) => {
           const urlAudio = await generarUrlAudio(cancion);
           await verificarUrlAudio(urlAudio);
-          return formatearCancionParaInterfaz(cancion, usuarioData, urlAudio);
+          
+          // Para el admin, mostrar el nombre del artista real que subió la canción
+          const artistaData = cancion.usuario_subida || { nombre: 'Artista Desconocido' };
+          
+          return {
+            ...cancion,
+            archivo_audio_url: urlAudio,
+            artista: artistaData.nombre || 'Artista Desconocido',
+            album: cancion.album_id ? 'Álbum' : 'Sin álbum',
+            es_favorita: false,
+            fecha_lanzamiento: cancion.created_at
+          };
         })
       );
 
-      console.log('Canciones cargadas:', cancionesFormateadas);
+      console.log('Canciones cargadas para admin:', cancionesFormateadas);
       setCanciones(cancionesFormateadas);
       
       // Nota: La configuración de playlist se hace mediante el contexto global
@@ -620,8 +638,8 @@ export default function ReproductorPage() {
           </span>
           <p>
             {mostrarSoloFavoritas 
-              ? 'No tienes canciones favoritas aún' 
-              : 'No hay canciones disponibles'
+              ? 'No hay canciones favoritas en la selección' 
+              : 'No hay canciones en la plataforma'
             }
           </p>
         </div>
@@ -661,7 +679,12 @@ export default function ReproductorPage() {
                 }`}>
                   {cancion.titulo}
                 </p>
-                <p className="text-sm text-gray-600 truncate">{cancion.artista}</p>
+                <p className="text-sm text-gray-600 truncate">
+                  👤 {cancion.artista} • 🎵 {cancion.genero || 'Sin género'}
+                </p>
+                <p className="text-xs text-gray-500 truncate">
+                  📊 {cancion.reproducciones || 0} reproducciones • ❤️ {cancion.favoritos || 0} favoritos
+                </p>
               </div>
             </button>
             
@@ -793,9 +816,9 @@ export default function ReproductorPage() {
                 <MusicalNoteIcon className="w-8 h-8" />
               </div>
               <div>
-                <h1 className="text-3xl font-bold">Reproductor Musical</h1>
+                <h1 className="text-3xl font-bold">Reproductor Administrativo</h1>
                 <p className="text-purple-100 mt-1">
-                  Disfruta de tu música con calidad premium
+                  Gestiona y reproduce toda la música de la plataforma
                 </p>
               </div>
             </div>
@@ -807,12 +830,12 @@ export default function ReproductorPage() {
                 <div className="text-sm text-purple-200">En cola</div>
               </div>
               <div>
-                <div className="text-2xl font-bold">{cancionesFavoritas.size}</div>
-                <div className="text-sm text-purple-200">Favoritas</div>
+                <div className="text-2xl font-bold">{canciones.length}</div>
+                <div className="text-sm text-purple-200">Total canciones</div>
               </div>
               <div>
-                <div className="text-2xl font-bold">{usuario?.rol === 'premium' ? 'HD' : 'STD'}</div>
-                <div className="text-sm text-purple-200">Calidad</div>
+                <div className="text-2xl font-bold">ADMIN</div>
+                <div className="text-sm text-purple-200">Modo</div>
               </div>
             </div>
           </div>
@@ -930,15 +953,15 @@ export default function ReproductorPage() {
             ) : (
               <div className="bg-white rounded-xl shadow-lg p-12 text-center">
                 <MusicalNoteIcon className="w-24 h-24 mx-auto text-gray-300 mb-6" />
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">No hay canciones disponibles</h2>
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">No hay canciones en la plataforma</h2>
                 <p className="text-gray-600 mb-6">
-                  Parece que aún no has subido ninguna canción a tu biblioteca.
+                  Aún no hay canciones subidas por los artistas en la plataforma.
                 </p>
                 <button
-                  onClick={() => router.push('/artista/musica')}
+                  onClick={() => router.push('/admin/biblioteca')}
                   className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700"
                 >
-                  Subir tu primera canción
+                  Ver biblioteca completa
                 </button>
               </div>
             )}

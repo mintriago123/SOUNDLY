@@ -189,8 +189,42 @@ export default function PlaylistsPage() {
         })
       );
 
-      console.log('Playlists cargadas desde BD:', playlistsWithCount);
-      setPlaylists(playlistsWithCount);
+      // Crear playlist virtual de "Favoritos"
+      let favoritosCount = 0;
+      try {
+        const { count, error: favoritosError } = await supabase
+          .from('favoritos')
+          .select('*', { count: 'exact', head: true })
+          .eq('usuario_id', user.id);
+        
+        if (favoritosError) {
+          console.warn('Error contando favoritos:', favoritosError);
+          console.warn('Código de error:', favoritosError.code);
+          // Si la tabla no existe o no es accesible, usar 0
+          favoritosCount = 0;
+        } else {
+          favoritosCount = count || 0;
+        }
+      } catch (error) {
+        console.warn('Error verificando favoritos:', error);
+        favoritosCount = 0;
+      }
+
+      const playlistFavoritos: Playlist = {
+        id: 'favoritos-virtual',
+        nombre: '❤️ Mis Favoritos',
+        descripcion: 'Tus canciones favoritas',
+        usuario_id: user.id,
+        es_publica: false,
+        created_at: new Date().toISOString(),
+        canciones_count: favoritosCount
+      };
+
+      // Combinar playlist de favoritos con las playlists normales
+      const todasLasPlaylists = [playlistFavoritos, ...playlistsWithCount];
+
+      console.log('Playlists cargadas desde BD (incluyendo favoritos):', todasLasPlaylists);
+      setPlaylists(todasLasPlaylists);
       
     } catch (error) {
       console.error('Error general cargando playlists:', error);
@@ -203,6 +237,36 @@ export default function PlaylistsPage() {
   // Función para cargar canciones que ya están en la playlist
   const cargarCancionesEnPlaylist = async (playlistId: string) => {
     try {
+      // Si es la playlist virtual de favoritos
+      if (playlistId === 'favoritos-virtual') {
+        if (!user) {
+          setSongsInCurrentPlaylist([]);
+          return;
+        }
+
+        try {
+          const { data: favoritos, error } = await supabase
+            .from('favoritos')
+            .select('cancion_id')
+            .eq('usuario_id', user.id);
+
+          if (error) {
+            console.error('Error cargando favoritos para modal:', error);
+            setSongsInCurrentPlaylist([]);
+            return;
+          }
+
+          const cancionIds = favoritos?.map(item => item.cancion_id) || [];
+          setSongsInCurrentPlaylist(cancionIds);
+          console.log('Canciones favoritas en modal:', cancionIds.length);
+        } catch (error) {
+          console.error('Error general cargando favoritos para modal:', error);
+          setSongsInCurrentPlaylist([]);
+        }
+        return;
+      }
+
+      // Para playlists normales
       const { data: playlistCanciones, error } = await supabase
         .from('playlist_canciones')
         .select('cancion_id')
@@ -311,6 +375,11 @@ export default function PlaylistsPage() {
     try {
       console.log('Cargando canciones de playlist:', playlistId);
       
+      // Si es la playlist virtual de favoritos, manejar diferente
+      if (playlistId === 'favoritos-virtual') {
+        return await cargarCancionesFavoritas();
+      }
+      
       // Primero obtener los IDs de las canciones en la playlist
       const { data: playlistCanciones, error: errorPlaylist } = await supabase
         .from('playlist_canciones')
@@ -393,9 +462,115 @@ export default function PlaylistsPage() {
     }
   };
 
+  // Función específica para cargar canciones favoritas
+  const cargarCancionesFavoritas = async () => {
+    try {
+      if (!user) {
+        console.log('No hay usuario para cargar favoritos');
+        setPlaylistSongs([]);
+        return;
+      }
+
+      console.log('Cargando canciones favoritas del usuario:', user.id);
+
+      // Obtener las canciones favoritas del usuario directamente
+      const { data: favoritos, error: errorFavoritos } = await supabase
+        .from('favoritos')
+        .select('cancion_id, fecha_agregada')
+        .eq('usuario_id', user.id)
+        .order('fecha_agregada', { ascending: false });
+
+      if (errorFavoritos) {
+        console.error('Error cargando favoritos:', errorFavoritos);
+        console.error('Código de error:', errorFavoritos.code);
+        console.error('Mensaje de error:', errorFavoritos.message);
+        
+        // Si el error indica que la tabla no existe o no hay acceso, mostrar lista vacía
+        if (errorFavoritos.code === '42P01' || errorFavoritos.message?.includes('does not exist')) {
+          console.log('La tabla favoritos no existe o no es accesible, mostrando lista vacía');
+        }
+        
+        setPlaylistSongs([]);
+        return;
+      }
+
+      if (!favoritos || favoritos.length === 0) {
+        console.log('No hay canciones favoritas');
+        setPlaylistSongs([]);
+        return;
+      }
+
+      console.log('Favoritos encontrados:', favoritos.length);
+
+      // Obtener los detalles de cada canción favorita
+      const cancionesFormateadas = await Promise.all(
+        favoritos.map(async (item) => {
+          try {
+            // Obtener detalles de la canción
+            const { data: cancion, error: errorCancion } = await supabase
+              .from('canciones')
+              .select('*')
+              .eq('id', item.cancion_id)
+              .single();
+
+            if (errorCancion || !cancion) {
+              console.warn('Error obteniendo canción favorita:', item.cancion_id, errorCancion);
+              return null;
+            }
+
+            // Obtener nombre del artista
+            let artista = 'Artista desconocido';
+            if (cancion.usuario_subida_id) {
+              try {
+                const { data: usuario } = await supabase
+                  .from('usuarios')
+                  .select('nombre')
+                  .eq('id', cancion.usuario_subida_id)
+                  .single();
+                
+                if (usuario?.nombre) {
+                  artista = usuario.nombre;
+                }
+              } catch (userError) {
+                console.warn('Error obteniendo usuario para canción favorita:', userError);
+              }
+            }
+
+            return {
+              id: cancion.id,
+              titulo: cancion.titulo,
+              artista: artista,
+              duracion: cancion.duracion ? `${Math.floor(cancion.duracion / 60)}:${(cancion.duracion % 60).toString().padStart(2, '0')}` : '0:00',
+              archivo_audio: cancion.archivo_audio_url,
+              imagen_url: cancion.imagen_url
+            };
+          } catch (error) {
+            console.error('Error procesando canción favorita:', item.cancion_id, error);
+            return null;
+          }
+        })
+      );
+
+      // Filtrar las canciones válidas
+      const cancionesValidas = cancionesFormateadas.filter(cancion => cancion !== null);
+      console.log('Canciones favoritas válidas cargadas:', cancionesValidas.length);
+      
+      setPlaylistSongs(cancionesValidas);
+      
+    } catch (error) {
+      console.error('Error general cargando canciones favoritas:', error);
+      setPlaylistSongs([]);
+    }
+  };
+
   // Función para agregar canción a playlist
   const agregarCancionAPlaylist = async (cancionId: string, playlistId: string) => {
     try {
+      // Si es la playlist virtual de favoritos
+      if (playlistId === 'favoritos-virtual') {
+        return await agregarAFavoritos(cancionId);
+      }
+
       // Verificar si la canción ya está en la playlist
       const { data: existe, error: errorExiste } = await supabase
         .from('playlist_canciones')
@@ -449,9 +624,76 @@ export default function PlaylistsPage() {
     }
   };
 
+  // Función para agregar canción a favoritos
+  const agregarAFavoritos = async (cancionId: string) => {
+    try {
+      if (!user) {
+        alert('Debes estar autenticado para agregar favoritos');
+        return;
+      }
+
+      console.log('Agregando canción a favoritos:', cancionId);
+
+      // Verificar si ya está en favoritos
+      const { data: existe, error: errorExiste } = await supabase
+        .from('favoritos')
+        .select('id')
+        .eq('usuario_id', user.id)
+        .eq('cancion_id', cancionId)
+        .maybeSingle();
+
+      if (errorExiste) {
+        console.error('Error verificando favorito existente:', errorExiste);
+        alert('Error al verificar favoritos');
+        return;
+      }
+
+      if (existe) {
+        alert('Esta canción ya está en tus favoritos');
+        return;
+      }
+
+      // Agregar a favoritos
+      const { error } = await supabase
+        .from('favoritos')
+        .insert([{
+          usuario_id: user.id,
+          cancion_id: cancionId
+        }]);
+
+      if (error) {
+        console.error('Error agregando a favoritos:', error);
+        alert('Error al agregar la canción a favoritos');
+        return;
+      }
+
+      console.log('Canción agregada a favoritos exitosamente');
+      
+      // Actualizar la lista de canciones en favoritos
+      setSongsInCurrentPlaylist(prev => [...prev, cancionId]);
+      
+      // Recargar las canciones si estamos viendo favoritos
+      if (showPlaylistDetails === 'favoritos-virtual') {
+        cargarCancionesFavoritas();
+      }
+      
+      // Recargar las playlists para actualizar el conteo
+      cargarPlaylists();
+      
+    } catch (error) {
+      console.error('Error general agregando a favoritos:', error);
+      alert('Error al agregar la canción a favoritos');
+    }
+  };
+
   // Función para quitar canción de playlist (desde el modal de agregar música)
   const quitarCancionDePlaylist = async (cancionId: string, playlistId: string) => {
     try {
+      // Si es la playlist virtual de favoritos
+      if (playlistId === 'favoritos-virtual') {
+        return await quitarDeFavoritos(cancionId);
+      }
+
       const { error } = await supabase
         .from('playlist_canciones')
         .delete()
@@ -483,9 +725,55 @@ export default function PlaylistsPage() {
     }
   };
 
+  // Función para quitar canción de favoritos
+  const quitarDeFavoritos = async (cancionId: string) => {
+    try {
+      if (!user) {
+        alert('Debes estar autenticado para quitar favoritos');
+        return;
+      }
+
+      console.log('Quitando canción de favoritos:', cancionId);
+
+      const { error } = await supabase
+        .from('favoritos')
+        .delete()
+        .eq('usuario_id', user.id)
+        .eq('cancion_id', cancionId);
+
+      if (error) {
+        console.error('Error quitando de favoritos:', error);
+        alert('Error al quitar la canción de favoritos');
+        return;
+      }
+
+      console.log('Canción quitada de favoritos exitosamente');
+      
+      // Actualizar la lista de canciones en favoritos
+      setSongsInCurrentPlaylist(prev => prev.filter(id => id !== cancionId));
+      
+      // Recargar las canciones si estamos viendo favoritos
+      if (showPlaylistDetails === 'favoritos-virtual') {
+        cargarCancionesFavoritas();
+      }
+      
+      // Recargar las playlists para actualizar el conteo
+      cargarPlaylists();
+      
+    } catch (error) {
+      console.error('Error general quitando de favoritos:', error);
+      alert('Error al quitar la canción de favoritos');
+    }
+  };
+
   // Función para eliminar canción de playlist
   const eliminarCancionDePlaylist = async (cancionId: string, playlistId: string) => {
     try {
+      // Si es la playlist virtual de favoritos
+      if (playlistId === 'favoritos-virtual') {
+        return await quitarDeFavoritos(cancionId);
+      }
+
       const { error } = await supabase
         .from('playlist_canciones')
         .delete()
@@ -576,6 +864,12 @@ export default function PlaylistsPage() {
   };
 
   const eliminarPlaylist = async (playlistId: string) => {
+    // No permitir eliminar la playlist virtual de favoritos
+    if (playlistId === 'favoritos-virtual') {
+      alert('No puedes eliminar la playlist de favoritos');
+      return;
+    }
+
     if (!confirm('¿Estás seguro de que quieres eliminar esta playlist?')) return;
 
     if (!user) {
@@ -734,19 +1028,23 @@ export default function PlaylistsPage() {
                               className={`flex items-center space-x-2 w-full text-left px-4 py-2 text-sm ${themeClasses.text} ${themeClasses.bgHover}`}
                             >
                               <PlusIcon className="h-4 w-4" />
-                              <span>Agregar música</span>
+                              <span>{playlist.id === 'favoritos-virtual' ? 'Gestionar favoritos' : 'Agregar música'}</span>
                             </button>
-                            <button className={`flex items-center space-x-2 w-full text-left px-4 py-2 text-sm ${themeClasses.text} ${themeClasses.bgHover}`}>
-                              <PencilIcon className="h-4 w-4" />
-                              <span>Editar</span>
-                            </button>
-                            <button 
-                              onClick={() => eliminarPlaylist(playlist.id)}
-                              className="flex items-center space-x-2 w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
-                            >
-                              <TrashIcon className="h-4 w-4" />
-                              <span>Eliminar</span>
-                            </button>
+                            {playlist.id !== 'favoritos-virtual' && (
+                              <>
+                                <button className={`flex items-center space-x-2 w-full text-left px-4 py-2 text-sm ${themeClasses.text} ${themeClasses.bgHover}`}>
+                                  <PencilIcon className="h-4 w-4" />
+                                  <span>Editar</span>
+                                </button>
+                                <button 
+                                  onClick={() => eliminarPlaylist(playlist.id)}
+                                  className="flex items-center space-x-2 w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                                >
+                                  <TrashIcon className="h-4 w-4" />
+                                  <span>Eliminar</span>
+                                </button>
+                              </>
+                            )}
                           </div>
                         </div>
                       )}
@@ -754,7 +1052,9 @@ export default function PlaylistsPage() {
 
                     {/* Imagen de playlist */}
                     <div className="w-full h-32 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg mb-4 flex items-center justify-center">
-                      {playlist.imagen_url ? (
+                      {playlist.id === 'favoritos-virtual' ? (
+                        <div className="text-4xl">❤️</div>
+                      ) : playlist.imagen_url ? (
                         <img src={playlist.imagen_url} alt={playlist.nombre} className="w-full h-full object-cover rounded-lg" />
                       ) : (
                         <MusicalNoteIcon className="h-12 w-12 text-white" />
@@ -842,7 +1142,9 @@ export default function PlaylistsPage() {
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className={`${themeClasses.bgCard} rounded-lg p-6 w-full max-w-2xl mx-4 max-h-[80vh] overflow-hidden`}>
               <div className="flex justify-between items-center mb-4">
-                <h3 className={`text-lg font-medium ${themeClasses.text}`}>Agregar Música a Playlist</h3>
+                <h3 className={`text-lg font-medium ${themeClasses.text}`}>
+                  {selectedPlaylistId === 'favoritos-virtual' ? 'Gestionar Favoritos' : 'Agregar Música a Playlist'}
+                </h3>
                 <button
                   onClick={() => {
                     setShowAddMusicModal(false);
@@ -938,7 +1240,7 @@ export default function PlaylistsPage() {
             <div className={`${themeClasses.bgCard} rounded-lg p-6 w-full max-w-3xl mx-4 max-h-[80vh] overflow-hidden`}>
               <div className="flex justify-between items-center mb-4">
                 <h3 className={`text-lg font-medium ${themeClasses.text}`}>
-                  Canciones en Playlist
+                  {showPlaylistDetails === 'favoritos-virtual' ? 'Mis Canciones Favoritas' : 'Canciones en Playlist'}
                 </h3>
                 <button
                   onClick={() => setShowPlaylistDetails(null)}
@@ -953,7 +1255,12 @@ export default function PlaylistsPage() {
                 {playlistSongs.length === 0 ? (
                   <div className="text-center py-8">
                     <MusicalNoteIcon className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                    <p className={themeClasses.textMuted}>No hay canciones en esta playlist</p>
+                    <p className={themeClasses.textMuted}>
+                      {showPlaylistDetails === 'favoritos-virtual' 
+                        ? 'No tienes canciones favoritas aún' 
+                        : 'No hay canciones en esta playlist'
+                      }
+                    </p>
                     <button
                       onClick={() => {
                         setShowPlaylistDetails(null);
@@ -961,7 +1268,10 @@ export default function PlaylistsPage() {
                       }}
                       className="mt-2 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors"
                     >
-                      Agregar canciones
+                      {showPlaylistDetails === 'favoritos-virtual' 
+                        ? 'Agregar favoritos' 
+                        : 'Agregar canciones'
+                      }
                     </button>
                   </div>
                 ) : (
@@ -1002,7 +1312,10 @@ export default function PlaylistsPage() {
                     }}
                     className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition-colors"
                   >
-                    Agregar más canciones
+                    {showPlaylistDetails === 'favoritos-virtual' 
+                      ? 'Gestionar más favoritos' 
+                      : 'Agregar más canciones'
+                    }
                   </button>
                   <div className={`text-sm ${themeClasses.textMuted}`}>
                     Total: {playlistSongs.length} canciones

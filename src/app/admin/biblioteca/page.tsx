@@ -17,18 +17,24 @@ import {
 interface Cancion {
   id: string;
   titulo: string;
-  artista: string;
+  artista?: string;
   album?: string;
-  genero: string;
+  genero?: string;
   duracion: number;
-  fecha_subida: string;
-  estado: 'activa' | 'inactiva' | 'pendiente' | 'reportada';
+  created_at: string;
+  estado: 'activa' | 'inactiva' | 'borrador';
   reproducciones: number;
-  url_archivo?: string;
-  usuario_id: string;
+  archivo_audio_url?: string;
+  usuario_subida_id: string;
   usuarios?: {
     nombre: string;
     email: string;
+    perfiles_artista?: {
+      nombre_artistico: string;
+    }[];
+  };
+  albumes?: {
+    titulo: string;
   };
 }
 
@@ -53,7 +59,6 @@ export default function AdminBibliotecaPage() {
   ];
 
   useEffect(() => {
-    // Cargar datos simulados inmediatamente para debug
     console.log('🎵 Admin: Iniciando página de biblioteca');
     fetchCanciones();
   }, []);
@@ -69,100 +74,80 @@ export default function AdminBibliotecaPage() {
   const fetchCanciones = async () => {
     try {
       setLoading(true);
+      console.log('🎵 Cargando canciones desde Supabase...');
       
       const { data, error } = await supabase
         .from('canciones')
         .select(`
-          *,
+          id,
+          titulo,
+          duracion,
+          genero,
+          reproducciones,
+          archivo_audio_url,
+          usuario_subida_id,
+          estado,
+          created_at,
+          albumes (
+            titulo
+          ),
           usuarios (
             nombre,
-            email
+            email,
+            perfiles_artista (
+              nombre_artistico
+            )
           )
         `)
-        .order('fecha_subida', { ascending: false });
+        .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching canciones:', error);
-        setCanciones(getSimulatedSongs());
+        console.error('❌ Error fetching canciones:', error);
+        console.log('🔄 Mostrando array vacío debido al error');
+        setCanciones([]);
       } else {
-        setCanciones(data || []);
+        console.log('✅ Canciones cargadas desde Supabase:', data?.length || 0);
+        if (data?.length === 0) {
+          console.log('ℹ️ No hay canciones en la base de datos');
+        }
+        
+        // Procesar datos para formatear correctamente
+        const cancionesProcesadas: Cancion[] = (data || []).map(cancion => ({
+          id: cancion.id,
+          titulo: cancion.titulo,
+          artista: cancion.usuarios?.[0]?.perfiles_artista?.[0]?.nombre_artistico || 
+                  cancion.usuarios?.[0]?.nombre || 
+                  'Artista desconocido',
+          album: cancion.albumes?.[0]?.titulo,
+          genero: cancion.genero || 'Sin género',
+          duracion: cancion.duracion,
+          created_at: cancion.created_at,
+          estado: cancion.estado,
+          reproducciones: cancion.reproducciones || 0,
+          archivo_audio_url: cancion.archivo_audio_url,
+          usuario_subida_id: cancion.usuario_subida_id,
+          usuarios: cancion.usuarios?.[0] ? {
+            nombre: cancion.usuarios[0].nombre,
+            email: cancion.usuarios[0].email,
+            perfiles_artista: cancion.usuarios[0].perfiles_artista
+          } : undefined,
+          albumes: cancion.albumes?.[0]
+        }));
+        
+        setCanciones(cancionesProcesadas);
       }
     } catch (error) {
-      console.error('Error:', error);
-      setCanciones(getSimulatedSongs());
+      console.error('❌ Error general:', error);
+      setCanciones([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const getSimulatedSongs = (): Cancion[] => [
-    {
-      id: '1',
-      titulo: 'Canción de Prueba 1',
-      artista: 'Artista Demo',
-      album: 'Album Demo',
-      genero: 'Rock',
-      duracion: 210,
-      fecha_subida: '2024-07-15',
-      estado: 'activa',
-      reproducciones: 1250,
-      usuario_id: '2',
-      usuarios: {
-        nombre: 'María García',
-        email: 'artista@soundly.com'
-      }
-    },
-    {
-      id: '2',
-      titulo: 'Melodía Electrónica',
-      artista: 'DJ Soundly',
-      genero: 'Electrónica',
-      duracion: 180,
-      fecha_subida: '2024-07-20',
-      estado: 'activa',
-      reproducciones: 890,
-      usuario_id: '2',
-      usuarios: {
-        nombre: 'María García',
-        email: 'artista@soundly.com'
-      }
-    },
-    {
-      id: '3',
-      titulo: 'Canción Pendiente',
-      artista: 'Nuevo Artista',
-      genero: 'Pop',
-      duracion: 195,
-      fecha_subida: '2024-08-01',
-      estado: 'pendiente',
-      reproducciones: 0,
-      usuario_id: '3',
-      usuarios: {
-        nombre: 'Carlos López',
-        email: 'premium@soundly.com'
-      }
-    },
-    {
-      id: '4',
-      titulo: 'Track Reportado',
-      artista: 'Artista Problemático',
-      genero: 'Hip Hop',
-      duracion: 220,
-      fecha_subida: '2024-07-25',
-      estado: 'reportada',
-      reproducciones: 456,
-      usuario_id: '4',
-      usuarios: {
-        nombre: 'Ana Martínez',
-        email: 'usuario@soundly.com'
-      }
-    }
-  ];
-
   const filteredCanciones = canciones.filter(cancion => {
     const matchesSearch = cancion.titulo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         cancion.artista.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         cancion.album?.toLowerCase().includes(searchTerm.toLowerCase());
+                         (cancion.artista && cancion.artista.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                         (cancion.album && cancion.album.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesGenero = filterGenero === 'todos' || cancion.genero === filterGenero;
     const matchesEstado = filterEstado === 'todos' || cancion.estado === filterEstado;
     
@@ -261,12 +246,12 @@ export default function AdminBibliotecaPage() {
       const songToPlay = {
         id: cancion.id,
         titulo: cancion.titulo,
-        artista: cancion.artista,
+        artista: cancion.artista || 'Artista desconocido',
         album: cancion.album,
-        genero: cancion.genero,
+        genero: cancion.genero || 'Sin género',
         duracion: cancion.duracion,
-        url_archivo: cancion.url_archivo || '/placeholder-audio.mp3',
-        usuario_id: cancion.usuario_id
+        url_archivo: cancion.archivo_audio_url || '/placeholder-audio.mp3',
+        usuario_id: cancion.usuario_subida_id
       };
       
       // Crear playlist con las canciones filtradas activas
@@ -275,12 +260,12 @@ export default function AdminBibliotecaPage() {
         .map(c => ({
           id: c.id,
           titulo: c.titulo,
-          artista: c.artista,
+          artista: c.artista || 'Artista desconocido',
           album: c.album,
-          genero: c.genero,
+          genero: c.genero || 'Sin género',
           duracion: c.duracion,
-          url_archivo: c.url_archivo || '/placeholder-audio.mp3',
-          usuario_id: c.usuario_id
+          url_archivo: c.archivo_audio_url || '/placeholder-audio.mp3',
+          usuario_id: c.usuario_subida_id
         }));
       
       playSong(songToPlay, activePlaylist);
@@ -306,8 +291,8 @@ export default function AdminBibliotecaPage() {
   const getStatsCards = () => {
     const totalCanciones = canciones.length;
     const cancionesActivas = canciones.filter(c => c.estado === 'activa').length;
-    const cancionesPendientes = canciones.filter(c => c.estado === 'pendiente').length;
-    const cancionesReportadas = canciones.filter(c => c.estado === 'reportada').length;
+    const cancionesBorrador = canciones.filter(c => c.estado === 'borrador').length;
+    const cancionesInactivas = canciones.filter(c => c.estado === 'inactiva').length;
 
     return [
       {
@@ -323,15 +308,15 @@ export default function AdminBibliotecaPage() {
         color: 'text-green-600'
       },
       {
-        title: 'Pendientes',
-        value: cancionesPendientes,
-        icon: '⏳',
+        title: 'Borradores',
+        value: cancionesBorrador,
+        icon: '📝',
         color: 'text-yellow-600'
       },
       {
-        title: 'Reportadas',
-        value: cancionesReportadas,
-        icon: '🚨',
+        title: 'Inactivas',
+        value: cancionesInactivas,
+        icon: '⏸️',
         color: 'text-red-600'
       }
     ];
@@ -398,8 +383,7 @@ export default function AdminBibliotecaPage() {
               <option value="todos">Todos los estados</option>
               <option value="activa">Activa</option>
               <option value="inactiva">Inactiva</option>
-              <option value="pendiente">Pendiente</option>
-              <option value="reportada">Reportada</option>
+              <option value="borrador">Borrador</option>
             </select>
 
             <button
@@ -491,7 +475,7 @@ export default function AdminBibliotecaPage() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div>
                           <div className="text-sm font-medium text-gray-900">
-                            {cancion.artista}
+                            {cancion.artista || 'Artista desconocido'}
                           </div>
                           {cancion.usuarios && (
                             <div className="text-sm text-gray-500">
@@ -501,9 +485,13 @@ export default function AdminBibliotecaPage() {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
-                          {cancion.genero}
-                        </span>
+                        {cancion.genero ? (
+                          <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+                            {cancion.genero}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400 text-sm">Sin género</span>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getEstadoBadgeColor(cancion.estado)}`}>
@@ -590,7 +578,7 @@ export default function AdminBibliotecaPage() {
                 </div>
                 <div>
                   <span className="block text-sm font-medium text-gray-700 mb-1">Fecha de Subida</span>
-                  <p className="text-sm text-gray-900">{new Date(selectedCancion.fecha_subida).toLocaleDateString()}</p>
+                  <p className="text-sm text-gray-900">{new Date(selectedCancion.created_at).toLocaleDateString()}</p>
                 </div>
                 {selectedCancion.usuarios && (
                   <div className="col-span-2">
@@ -675,8 +663,7 @@ export default function AdminBibliotecaPage() {
                   >
                     <option value="activa">Activa</option>
                     <option value="inactiva">Inactiva</option>
-                    <option value="pendiente">Pendiente</option>
-                    <option value="reportada">Reportada</option>
+                    <option value="borrador">Borrador</option>
                   </select>
                 </div>
               </div>

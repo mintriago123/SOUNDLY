@@ -811,7 +811,7 @@ export default function ReproductorPage() {
 
   return (
     <DashboardLayout>
-      Estilos para la barra de volumen personalizada
+      {/* Estilos para la barra de volumen personalizada */}
       <style jsx>{`
         .slider-thumb::-webkit-slider-thumb {
           appearance: none;

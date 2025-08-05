@@ -5,14 +5,11 @@ import { supabase } from '@/lib/supabase';
 import DashboardLayout from '@/components/DashboardLayout';
 import { useMusicPlayer } from '@/contexts/MusicPlayerContext';
 import { 
-  MusicalNoteIcon, 
   MagnifyingGlassIcon,
   PencilIcon,
   TrashIcon,
   PlayIcon,
   PauseIcon,
-  CheckIcon,
-  XMarkIcon,
   ExclamationTriangleIcon,
   EyeIcon
 } from '@heroicons/react/24/outline';
@@ -155,7 +152,7 @@ export default function AdminBibliotecaPage() {
   const filteredCanciones = canciones.filter(cancion => {
     const matchesSearch = cancion.titulo.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          cancion.artista.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (cancion.album && cancion.album.toLowerCase().includes(searchTerm.toLowerCase()));
+                         cancion.album?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesGenero = filterGenero === 'todos' || cancion.genero === filterGenero;
     const matchesEstado = filterEstado === 'todos' || cancion.estado === filterEstado;
     
@@ -345,8 +342,8 @@ export default function AdminBibliotecaPage() {
 
         {/* Estadísticas */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          {getStatsCards().map((card, index) => (
-            <div key={index} className="bg-white rounded-lg shadow p-6">
+          {getStatsCards().map((card) => (
+            <div key={card.title} className="bg-white rounded-lg shadow p-6">
               <div className="flex items-center">
                 <div className="text-3xl mr-4">{card.icon}</div>
                 <div>
@@ -434,20 +431,28 @@ export default function AdminBibliotecaPage() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {loading ? (
-                  <tr>
-                    <td colSpan={7} className="px-6 py-4 text-center text-gray-500">
-                      Cargando canciones...
-                    </td>
-                  </tr>
-                ) : filteredCanciones.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="px-6 py-4 text-center text-gray-500">
-                      No se encontraron canciones
-                    </td>
-                  </tr>
-                ) : (
-                  filteredCanciones.map((cancion) => (
+                {(() => {
+                  if (loading) {
+                    return (
+                      <tr>
+                        <td colSpan={7} className="px-6 py-4 text-center text-gray-500">
+                          Cargando canciones...
+                        </td>
+                      </tr>
+                    );
+                  }
+                  
+                  if (filteredCanciones.length === 0) {
+                    return (
+                      <tr>
+                        <td colSpan={7} className="px-6 py-4 text-center text-gray-500">
+                          No se encontraron canciones
+                        </td>
+                      </tr>
+                    );
+                  }
+                  
+                  return filteredCanciones.map((cancion) => (
                     <tr key={cancion.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
@@ -528,7 +533,7 @@ export default function AdminBibliotecaPage() {
                       </td>
                     </tr>
                   ))
-                )}
+                })()}
               </tbody>
             </table>
           </div>
@@ -544,42 +549,42 @@ export default function AdminBibliotecaPage() {
               
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Título</label>
+                  <span className="block text-sm font-medium text-gray-700 mb-1">Título</span>
                   <p className="text-sm text-gray-900">{selectedCancion.titulo}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Artista</label>
+                  <span className="block text-sm font-medium text-gray-700 mb-1">Artista</span>
                   <p className="text-sm text-gray-900">{selectedCancion.artista}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Álbum</label>
+                  <span className="block text-sm font-medium text-gray-700 mb-1">Álbum</span>
                   <p className="text-sm text-gray-900">{selectedCancion.album || 'No especificado'}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Género</label>
+                  <span className="block text-sm font-medium text-gray-700 mb-1">Género</span>
                   <p className="text-sm text-gray-900">{selectedCancion.genero}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Duración</label>
+                  <span className="block text-sm font-medium text-gray-700 mb-1">Duración</span>
                   <p className="text-sm text-gray-900">{formatDuration(selectedCancion.duracion)}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Reproducciones</label>
+                  <span className="block text-sm font-medium text-gray-700 mb-1">Reproducciones</span>
                   <p className="text-sm text-gray-900">{selectedCancion.reproducciones.toLocaleString()}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
+                  <span className="block text-sm font-medium text-gray-700 mb-1">Estado</span>
                   <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getEstadoBadgeColor(selectedCancion.estado)}`}>
                     {selectedCancion.estado}
                   </span>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de Subida</label>
+                  <span className="block text-sm font-medium text-gray-700 mb-1">Fecha de Subida</span>
                   <p className="text-sm text-gray-900">{new Date(selectedCancion.fecha_subida).toLocaleDateString()}</p>
                 </div>
                 {selectedCancion.usuarios && (
                   <div className="col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Subido por</label>
+                    <span className="block text-sm font-medium text-gray-700 mb-1">Subido por</span>
                     <p className="text-sm text-gray-900">{selectedCancion.usuarios.nombre} ({selectedCancion.usuarios.email})</p>
                   </div>
                 )}
@@ -607,10 +612,11 @@ export default function AdminBibliotecaPage() {
               
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label htmlFor="edit-titulo" className="block text-sm font-medium text-gray-700 mb-2">
                     Título
                   </label>
                   <input
+                    id="edit-titulo"
                     type="text"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     value={editFormData.titulo || ''}
@@ -619,10 +625,11 @@ export default function AdminBibliotecaPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label htmlFor="edit-artista" className="block text-sm font-medium text-gray-700 mb-2">
                     Artista
                   </label>
                   <input
+                    id="edit-artista"
                     type="text"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     value={editFormData.artista || ''}
@@ -631,10 +638,11 @@ export default function AdminBibliotecaPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label htmlFor="edit-genero" className="block text-sm font-medium text-gray-700 mb-2">
                     Género
                   </label>
                   <select
+                    id="edit-genero"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     value={editFormData.genero || ''}
                     onChange={(e) => setEditFormData(prev => ({ ...prev, genero: e.target.value }))}
@@ -646,10 +654,11 @@ export default function AdminBibliotecaPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label htmlFor="edit-estado" className="block text-sm font-medium text-gray-700 mb-2">
                     Estado
                   </label>
                   <select
+                    id="edit-estado"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     value={editFormData.estado || ''}
                     onChange={(e) => setEditFormData(prev => ({ ...prev, estado: e.target.value as any }))}

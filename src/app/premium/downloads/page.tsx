@@ -1,7 +1,7 @@
 'use client';
 
 import DashboardLayout from '../../../components/DashboardLayout';
-import { CloudArrowDownIcon, DevicePhoneMobileIcon, ServerStackIcon, CloudIcon, InfinityIcon, LightBulbIcon } from '@heroicons/react/24/outline';
+import { CloudArrowDownIcon, DevicePhoneMobileIcon, ServerStackIcon, CloudIcon, LightBulbIcon } from '@heroicons/react/24/outline';
 
 export default function DownloadsPage() {
   return (

@@ -84,13 +84,13 @@ export default function ReproductorPage() {
     pauseSong, 
     resumeSong, 
     nextSong, 
-    previousSong 
+    previousSong,
+    volume,
+    setVolume
   } = useMusicPlayer();
 
   // Estados principales
   const [canciones, setCanciones] = useState<Cancion[]>([]);
-  const [volumen, setVolumen] = useState(0.8);
-  const [isMuted, setIsMuted] = useState(false);
   const [modoAleatorio, setModoAleatorio] = useState(false);
   const [modoRepetir, setModoRepetir] = useState<ModoRepetir>('off');
   const [mostrarPlaylist, setMostrarPlaylist] = useState(true);
@@ -717,36 +717,56 @@ export default function ReproductorPage() {
   };
   const renderControlVolumen = () => (
     <div className="space-y-3">
+      <h4 className="text-sm font-medium text-gray-700 mb-2">Control de Volumen</h4>
       <div className="flex items-center space-x-3">
         <button 
-          onClick={() => setIsMuted(!isMuted)}
-          className="text-gray-600 hover:text-gray-800"
+          onClick={() => setVolume(volume === 0 ? 0.8 : 0)}
+          className="text-gray-600 hover:text-purple-600 transition-colors p-1"
+          title={volume === 0 ? "Activar sonido" : "Silenciar"}
         >
-          {isMuted || volumen === 0 ? (
+          {volume === 0 ? (
             <SpeakerXMarkIcon className="w-5 h-5" />
           ) : (
             <SpeakerWaveIcon className="w-5 h-5" />
           )}
         </button>
         
-        <input
-          type="range"
-          min="0"
-          max="1"
-          step="0.01"
-          value={isMuted ? 0 : volumen}
-          onChange={(e) => {
-            const nuevoVolumen = parseFloat(e.target.value);
-            setVolumen(nuevoVolumen);
-            if (nuevoVolumen > 0) setIsMuted(false);
-          }}
-          className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-        />
+        <div className="flex-1 relative">
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.01"
+            value={volume}
+            onChange={(e) => {
+              const nuevoVolumen = parseFloat(e.target.value);
+              setVolume(nuevoVolumen);
+            }}
+            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider-thumb"
+            style={{
+              background: `linear-gradient(to right, #8b5cf6 0%, #8b5cf6 ${volume * 100}%, #e5e7eb ${volume * 100}%, #e5e7eb 100%)`
+            }}
+          />
+        </div>
         
-        <span className="text-sm text-gray-500 min-w-[3rem]">
-          {Math.round((isMuted ? 0 : volumen) * 100)}%
+        <span className="text-sm text-gray-500 min-w-[3rem] font-medium">
+          {Math.round(volume * 100)}%
         </span>
       </div>
+      
+      {/* Indicador visual del nivel de volumen */}
+      {/* <div className="flex justify-center space-x-1">
+        {[...Array(10)].map((_, i) => (
+          <div
+            key={i}
+            className={`w-1 h-2 rounded-full transition-colors ${
+              i < Math.floor(volume * 10) 
+                ? volume > 0.7 ? 'bg-green-500' : volume > 0.3 ? 'bg-yellow-500' : 'bg-red-500'
+                : 'bg-gray-300'
+            }`}
+          />
+        ))}
+      </div> */}
     </div>
   );
   const getRepeatModeTitle = (modo: ModoRepetir) => {
@@ -791,6 +811,41 @@ export default function ReproductorPage() {
 
   return (
     <DashboardLayout>
+      Estilos para la barra de volumen personalizada
+      <style jsx>{`
+        .slider-thumb::-webkit-slider-thumb {
+          appearance: none;
+          height: 16px;
+          width: 16px;
+          border-radius: 50%;
+          background: #8b5cf6;
+          cursor: pointer;
+          box-shadow: 0 0 4px rgba(139, 92, 246, 0.3);
+          transition: all 0.2s ease;
+        }
+        
+        .slider-thumb::-webkit-slider-thumb:hover {
+          transform: scale(1.1);
+          box-shadow: 0 0 8px rgba(139, 92, 246, 0.5);
+        }
+        
+        .slider-thumb::-moz-range-thumb {
+          height: 16px;
+          width: 16px;
+          border-radius: 50%;
+          background: #8b5cf6;
+          cursor: pointer;
+          border: none;
+          box-shadow: 0 0 4px rgba(139, 92, 246, 0.3);
+          transition: all 0.2s ease;
+        }
+        
+        .slider-thumb::-moz-range-thumb:hover {
+          transform: scale(1.1);
+          box-shadow: 0 0 8px rgba(139, 92, 246, 0.5);
+        }
+      `}</style>
+      
       {/* Notificación de favoritos */}
       {mensajeFavorito && (
         <div 

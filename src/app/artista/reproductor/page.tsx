@@ -84,13 +84,13 @@ export default function ReproductorPage() {
     pauseSong, 
     resumeSong, 
     nextSong, 
-    previousSong 
+    previousSong,
+    volume,
+    setVolume
   } = useMusicPlayer();
 
   // Estados principales
   const [canciones, setCanciones] = useState<Cancion[]>([]);
-  const [volumen, setVolumen] = useState(0.8);
-  const [isMuted, setIsMuted] = useState(false);
   const [modoAleatorio, setModoAleatorio] = useState(false);
   const [modoRepetir, setModoRepetir] = useState<ModoRepetir>('off');
   const [mostrarPlaylist, setMostrarPlaylist] = useState(true);
@@ -310,15 +310,22 @@ export default function ReproductorPage() {
     };
   };
   /**
-   * Cargar canciones reales del usuario desde la base de datos
+   * Cargar todas las canciones de la plataforma para el administrador
    */
   const cargarCancionesUsuario = async (usuarioData: any) => {
     try {
-      // Cargar canciones del artista desde la base de datos
+      // El administrador puede ver TODAS las canciones de la plataforma
+      // Incluir información del artista mediante un JOIN
       const { data: cancionesData, error } = await supabase
         .from('canciones')
-        .select('*')
-        .eq('usuario_subida_id', usuarioData.id)
+        .select(`
+          *,
+          usuario_subida:usuarios!canciones_usuario_subida_id_fkey(
+            id,
+            nombre,
+            email
+          )
+        `)
         .eq('estado', 'activa')
         .order('created_at', { ascending: false });
 
@@ -328,7 +335,7 @@ export default function ReproductorPage() {
       }
 
       if (!cancionesData || cancionesData.length === 0) {
-        console.log('No hay canciones disponibles');
+        console.log('No hay canciones disponibles en la plataforma');
         setCanciones([]);
         return;
       }
@@ -338,11 +345,22 @@ export default function ReproductorPage() {
         cancionesData.map(async (cancion) => {
           const urlAudio = await generarUrlAudio(cancion);
           await verificarUrlAudio(urlAudio);
-          return formatearCancionParaInterfaz(cancion, usuarioData, urlAudio);
+          
+          // Para el admin, mostrar el nombre del artista real que subió la canción
+          const artistaData = cancion.usuario_subida || { nombre: 'Artista Desconocido' };
+          
+          return {
+            ...cancion,
+            archivo_audio_url: urlAudio,
+            artista: artistaData.nombre || 'Artista Desconocido',
+            album: cancion.album_id ? 'Álbum' : 'Sin álbum',
+            es_favorita: false,
+            fecha_lanzamiento: cancion.created_at
+          };
         })
       );
 
-      console.log('Canciones cargadas:', cancionesFormateadas);
+      console.log('Canciones cargadas para admin:', cancionesFormateadas);
       setCanciones(cancionesFormateadas);
       
       // Nota: La configuración de playlist se hace mediante el contexto global
@@ -620,8 +638,8 @@ export default function ReproductorPage() {
           </span>
           <p>
             {mostrarSoloFavoritas 
-              ? 'No tienes canciones favoritas aún' 
-              : 'No hay canciones disponibles'
+              ? 'No hay canciones favoritas en la selección' 
+              : 'No hay canciones en la plataforma'
             }
           </p>
         </div>
@@ -661,7 +679,12 @@ export default function ReproductorPage() {
                 }`}>
                   {cancion.titulo}
                 </p>
-                <p className="text-sm text-gray-600 truncate">{cancion.artista}</p>
+                <p className="text-sm text-gray-600 truncate">
+                  👤 {cancion.artista} • 🎵 {cancion.genero || 'Sin género'}
+                </p>
+                <p className="text-xs text-gray-500 truncate">
+                  📊 {cancion.reproducciones || 0} reproducciones • ❤️ {cancion.favoritos || 0} favoritos
+                </p>
               </div>
             </button>
             
@@ -694,36 +717,56 @@ export default function ReproductorPage() {
   };
   const renderControlVolumen = () => (
     <div className="space-y-3">
+      <h4 className="text-sm font-medium text-gray-700 mb-2">Control de Volumen</h4>
       <div className="flex items-center space-x-3">
         <button 
-          onClick={() => setIsMuted(!isMuted)}
-          className="text-gray-600 hover:text-gray-800"
+          onClick={() => setVolume(volume === 0 ? 0.8 : 0)}
+          className="text-gray-600 hover:text-purple-600 transition-colors p-1"
+          title={volume === 0 ? "Activar sonido" : "Silenciar"}
         >
-          {isMuted || volumen === 0 ? (
+          {volume === 0 ? (
             <SpeakerXMarkIcon className="w-5 h-5" />
           ) : (
             <SpeakerWaveIcon className="w-5 h-5" />
           )}
         </button>
         
-        <input
-          type="range"
-          min="0"
-          max="1"
-          step="0.01"
-          value={isMuted ? 0 : volumen}
-          onChange={(e) => {
-            const nuevoVolumen = parseFloat(e.target.value);
-            setVolumen(nuevoVolumen);
-            if (nuevoVolumen > 0) setIsMuted(false);
-          }}
-          className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-        />
+        <div className="flex-1 relative">
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.01"
+            value={volume}
+            onChange={(e) => {
+              const nuevoVolumen = parseFloat(e.target.value);
+              setVolume(nuevoVolumen);
+            }}
+            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider-thumb"
+            style={{
+              background: `linear-gradient(to right, #8b5cf6 0%, #8b5cf6 ${volume * 100}%, #e5e7eb ${volume * 100}%, #e5e7eb 100%)`
+            }}
+          />
+        </div>
         
-        <span className="text-sm text-gray-500 min-w-[3rem]">
-          {Math.round((isMuted ? 0 : volumen) * 100)}%
+        <span className="text-sm text-gray-500 min-w-[3rem] font-medium">
+          {Math.round(volume * 100)}%
         </span>
       </div>
+      
+      {/* Indicador visual del nivel de volumen */}
+      {/* <div className="flex justify-center space-x-1">
+        {[...Array(10)].map((_, i) => (
+          <div
+            key={i}
+            className={`w-1 h-2 rounded-full transition-colors ${
+              i < Math.floor(volume * 10) 
+                ? volume > 0.7 ? 'bg-green-500' : volume > 0.3 ? 'bg-yellow-500' : 'bg-red-500'
+                : 'bg-gray-300'
+            }`}
+          />
+        ))}
+      </div> */}
     </div>
   );
   const getRepeatModeTitle = (modo: ModoRepetir) => {
@@ -768,6 +811,41 @@ export default function ReproductorPage() {
 
   return (
     <DashboardLayout>
+      Estilos para la barra de volumen personalizada
+      <style jsx>{`
+        .slider-thumb::-webkit-slider-thumb {
+          appearance: none;
+          height: 16px;
+          width: 16px;
+          border-radius: 50%;
+          background: #8b5cf6;
+          cursor: pointer;
+          box-shadow: 0 0 4px rgba(139, 92, 246, 0.3);
+          transition: all 0.2s ease;
+        }
+        
+        .slider-thumb::-webkit-slider-thumb:hover {
+          transform: scale(1.1);
+          box-shadow: 0 0 8px rgba(139, 92, 246, 0.5);
+        }
+        
+        .slider-thumb::-moz-range-thumb {
+          height: 16px;
+          width: 16px;
+          border-radius: 50%;
+          background: #8b5cf6;
+          cursor: pointer;
+          border: none;
+          box-shadow: 0 0 4px rgba(139, 92, 246, 0.3);
+          transition: all 0.2s ease;
+        }
+        
+        .slider-thumb::-moz-range-thumb:hover {
+          transform: scale(1.1);
+          box-shadow: 0 0 8px rgba(139, 92, 246, 0.5);
+        }
+      `}</style>
+      
       {/* Notificación de favoritos */}
       {mensajeFavorito && (
         <div 
@@ -793,9 +871,9 @@ export default function ReproductorPage() {
                 <MusicalNoteIcon className="w-8 h-8" />
               </div>
               <div>
-                <h1 className="text-3xl font-bold">Reproductor Musical</h1>
+                <h1 className="text-3xl font-bold">Reproductor Administrativo</h1>
                 <p className="text-purple-100 mt-1">
-                  Disfruta de tu música con calidad premium
+                  Gestiona y reproduce toda la música de la plataforma
                 </p>
               </div>
             </div>
@@ -807,12 +885,12 @@ export default function ReproductorPage() {
                 <div className="text-sm text-purple-200">En cola</div>
               </div>
               <div>
-                <div className="text-2xl font-bold">{cancionesFavoritas.size}</div>
-                <div className="text-sm text-purple-200">Favoritas</div>
+                <div className="text-2xl font-bold">{canciones.length}</div>
+                <div className="text-sm text-purple-200">Total canciones</div>
               </div>
               <div>
-                <div className="text-2xl font-bold">{usuario?.rol === 'premium' ? 'HD' : 'STD'}</div>
-                <div className="text-sm text-purple-200">Calidad</div>
+                <div className="text-2xl font-bold">ADMIN</div>
+                <div className="text-sm text-purple-200">Modo</div>
               </div>
             </div>
           </div>
@@ -930,15 +1008,15 @@ export default function ReproductorPage() {
             ) : (
               <div className="bg-white rounded-xl shadow-lg p-12 text-center">
                 <MusicalNoteIcon className="w-24 h-24 mx-auto text-gray-300 mb-6" />
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">No hay canciones disponibles</h2>
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">No hay canciones en la plataforma</h2>
                 <p className="text-gray-600 mb-6">
-                  Parece que aún no has subido ninguna canción a tu biblioteca.
+                  Aún no hay canciones subidas por los artistas en la plataforma.
                 </p>
                 <button
-                  onClick={() => router.push('/artista/musica')}
+                  onClick={() => router.push('/admin/biblioteca')}
                   className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700"
                 >
-                  Subir tu primera canción
+                  Ver biblioteca completa
                 </button>
               </div>
             )}

@@ -10,8 +10,7 @@ import {
   CheckIcon,
   XMarkIcon,
   MusicalNoteIcon,
-  GlobeAltIcon,
-  EnvelopeIcon 
+  GlobeAltIcon
 } from '@heroicons/react/24/outline';
 import DashboardLayout from '@/components/DashboardLayout';
 
@@ -324,8 +323,9 @@ export default function PerfilArtista() {
               {editando ? (
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">País</label>
+                    <label htmlFor="pais-input" className="block text-sm font-medium text-gray-700 mb-1">País</label>
                     <input
+                      id="pais-input"
                       type="text"
                       value={perfil.pais}
                       onChange={(e) => handleInputChange('pais', e.target.value)}
@@ -333,8 +333,9 @@ export default function PerfilArtista() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Ciudad</label>
+                    <label htmlFor="ciudad-input" className="block text-sm font-medium text-gray-700 mb-1">Ciudad</label>
                     <input
+                      id="ciudad-input"
                       type="text"
                       value={perfil.ciudad}
                       onChange={(e) => handleInputChange('ciudad', e.target.value)}
@@ -356,8 +357,9 @@ export default function PerfilArtista() {
               {editando ? (
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Website</label>
+                    <label htmlFor="website-input" className="block text-sm font-medium text-gray-700 mb-1">Website</label>
                     <input
+                      id="website-input"
                       type="url"
                       value={perfil.website || ''}
                       onChange={(e) => handleInputChange('website', e.target.value)}
@@ -366,8 +368,9 @@ export default function PerfilArtista() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Instagram</label>
+                    <label htmlFor="instagram-input" className="block text-sm font-medium text-gray-700 mb-1">Instagram</label>
                     <input
+                      id="instagram-input"
                       type="text"
                       value={perfil.instagram || ''}
                       onChange={(e) => handleInputChange('instagram', e.target.value)}
@@ -376,8 +379,9 @@ export default function PerfilArtista() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Twitter</label>
+                    <label htmlFor="twitter-input" className="block text-sm font-medium text-gray-700 mb-1">Twitter</label>
                     <input
+                      id="twitter-input"
                       type="text"
                       value={perfil.twitter || ''}
                       onChange={(e) => handleInputChange('twitter', e.target.value)}
@@ -386,8 +390,9 @@ export default function PerfilArtista() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Spotify</label>
+                    <label htmlFor="spotify-input" className="block text-sm font-medium text-gray-700 mb-1">Spotify</label>
                     <input
+                      id="spotify-input"
                       type="text"
                       value={perfil.spotify || ''}
                       onChange={(e) => handleInputChange('spotify', e.target.value)}

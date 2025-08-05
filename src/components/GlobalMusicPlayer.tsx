@@ -88,13 +88,11 @@ export default function GlobalMusicPlayer({ userIsPremium = false }: Readonly<Gl
 
     audio.addEventListener('timeupdate', updateTime);
     audio.addEventListener('loadedmetadata', updateDuration);
-    audio.addEventListener('canplay', handleCanPlay);
     audio.addEventListener('ended', handleEnded);
 
     return () => {
       audio.removeEventListener('timeupdate', updateTime);
       audio.removeEventListener('loadedmetadata', updateDuration);
-      audio.removeEventListener('canplay', handleCanPlay);
       audio.removeEventListener('ended', handleEnded);
     };
   }, [currentSong, isDragging, playlist.length, nextSong, pauseSong, seekTo, setDuration]);

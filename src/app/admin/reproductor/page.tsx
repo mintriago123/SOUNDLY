@@ -19,7 +19,6 @@ import {
   ArrowPathIcon,
   EllipsisHorizontalIcon
 } from '@heroicons/react/24/outline';
-import { HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid';
 
 /**
  * Interfaces para tipado de datos
@@ -148,65 +147,9 @@ export default function ReproductorPage() {
   const cargarPlaylistPorDefecto = async () => {
     try {
       // En una implementación real, aquí cargarías las canciones del usuario/trending
-      const playlistEjemplo: Cancion[] = [
-        {
-          id: '1',
-          titulo: 'Midnight Dreams',
-          artista: 'Luna Nova',
-          album: 'Nocturnal Vibes',
-          duracion: 210,
-          genero: 'Electronic',
-          imagen_url: '/api/placeholder/300/300',
-          es_favorita: true,
-          reproducciones: 12450,
-          fecha_lanzamiento: '2024-03-15'
-        },
-        {
-          id: '2', 
-          titulo: 'Summer Breeze',
-          artista: 'Ocean Waves',
-          album: 'Coastal Sounds',
-          duracion: 185,
-          genero: 'Chill',
-          es_favorita: false,
-          reproducciones: 8320,
-          fecha_lanzamiento: '2024-02-20'
-        },
-        {
-          id: '3',
-          titulo: 'Electric Storm',
-          artista: 'Neon Lights',
-          album: 'Synthwave Collection',
-          duracion: 245,
-          genero: 'Synthwave',
-          es_favorita: true,
-          reproducciones: 15670,
-          fecha_lanzamiento: '2024-01-10'
-        },
-        {
-          id: '4',
-          titulo: 'Peaceful Morning',
-          artista: 'Zen Garden',
-          album: 'Meditation Sounds',
-          duracion: 320,
-          genero: 'Ambient',
-          es_favorita: false,
-          reproducciones: 5890,
-          fecha_lanzamiento: '2024-04-01'
-        },
-        {
-          id: '5',
-          titulo: 'City Lights',
-          artista: 'Urban Pulse',
-          album: 'Metropolitan',
-          duracion: 195,
-          genero: 'Hip Hop',
-          es_favorita: true,
-          reproducciones: 22340,
-          fecha_lanzamiento: '2024-03-28'
-        }
-      ];
-
+      // Canciones de ejemplo que serían cargadas desde la base de datos
+      // y asignadas al contexto global del reproductor de música
+      
       // Cargar playlist en el contexto global en lugar de estado local
       // setPlaylist y setCancionActual ya no son necesarios aquí
       // La lógica se maneja en el contexto
@@ -285,13 +228,6 @@ export default function ReproductorPage() {
     const minutos = Math.floor(segundos / 60);
     const segs = segundos % 60;
     return `${minutos}:${segs.toString().padStart(2, '0')}`;
-  };
-
-  /**
-   * Formatear número con separadores de miles
-   */
-  const formatearNumero = (numero: number) => {
-    return numero.toLocaleString('es-ES');
   };
 
   /**

@@ -13,18 +13,7 @@
 // Imports necesarios para React y Supabase
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase'; // Cliente de Supabase configurado
-
-/**
- * Interface para tipar las canciones (mejorar más adelante)
- * TODO: Crear types específicos en src/types/
- */
-interface Song {
-  id: string;
-  title: string;
-  artist?: string;
-  duration?: number;
-  // Agregar más campos según el esquema de la DB
-}
+import { Song } from '@/types/music'; // Tipos específicos para música
 
 /**
  * HomePage - Componente principal de prueba
@@ -67,7 +56,7 @@ export default function HomePage() {
           return;
         }
         
-        // Si todo va bien, guardar los datos en el estado
+        // Almacenar los datos obtenidos de Supabase en el estado del componente
         setSongs(data || []);
         
       } catch (err) {

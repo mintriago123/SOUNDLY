@@ -186,10 +186,11 @@ export default function AdminModeracionPage() {
       <div className="bg-white rounded-lg shadow p-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="filter_tipo" className="block text-sm font-medium text-gray-700 mb-2">
               Filtrar por tipo
             </label>
             <select
+              id="filter_tipo"
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               value={filterTipo}
               onChange={(e) => setFilterTipo(e.target.value)}
@@ -204,10 +205,11 @@ export default function AdminModeracionPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="filter_estado" className="block text-sm font-medium text-gray-700 mb-2">
               Filtrar por estado
             </label>
             <select
+              id="filter_estado"
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               value={filterEstado}
               onChange={(e) => setFilterEstado(e.target.value)}
@@ -285,20 +287,28 @@ export default function AdminModeracionPage() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {loading ? (
-                <tr>
-                  <td colSpan={6} className="px-6 py-4 text-center text-gray-500">
-                    Cargando reportes...
-                  </td>
-                </tr>
-              ) : filteredReportes.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-6 py-4 text-center text-gray-500">
-                    No se encontraron reportes
-                  </td>
-                </tr>
-              ) : (
-                filteredReportes.map((reporte) => (
+              {(() => {
+                if (loading) {
+                  return (
+                    <tr>
+                      <td colSpan={6} className="px-6 py-4 text-center text-gray-500">
+                        Cargando reportes...
+                      </td>
+                    </tr>
+                  );
+                }
+                
+                if (filteredReportes.length === 0) {
+                  return (
+                    <tr>
+                      <td colSpan={6} className="px-6 py-4 text-center text-gray-500">
+                        No se encontraron reportes
+                      </td>
+                    </tr>
+                  );
+                }
+                
+                return filteredReportes.map((reporte) => (
                   <tr key={reporte.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getTipoBadgeColor(reporte.tipo)}`}>
@@ -314,25 +324,33 @@ export default function AdminModeracionPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {reporte.canciones ? (
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">
-                            🎵 {reporte.canciones.titulo}
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            por {reporte.canciones.usuarios?.nombre}
-                          </div>
-                        </div>
-                      ) : reporte.usuarios_reportado ? (
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">
-                            👤 {reporte.usuarios_reportado.nombre}
-                          </div>
-                          <div className="text-sm text-gray-500">{reporte.usuarios_reportado.email}</div>
-                        </div>
-                      ) : (
-                        <span className="text-sm text-gray-500">No especificado</span>
-                      )}
+                      {(() => {
+                        if (reporte.canciones) {
+                          return (
+                            <div>
+                              <div className="text-sm font-medium text-gray-900">
+                                🎵 {reporte.canciones.titulo}
+                              </div>
+                              <div className="text-sm text-gray-500">
+                                por {reporte.canciones.usuarios?.nombre}
+                              </div>
+                            </div>
+                          );
+                        }
+                        
+                        if (reporte.usuarios_reportado) {
+                          return (
+                            <div>
+                              <div className="text-sm font-medium text-gray-900">
+                                👤 {reporte.usuarios_reportado.nombre}
+                              </div>
+                              <div className="text-sm text-gray-500">{reporte.usuarios_reportado.email}</div>
+                            </div>
+                          );
+                        }
+                        
+                        return <span className="text-sm text-gray-500">No especificado</span>;
+                      })()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getEstadoBadgeColor(reporte.estado)}`}>
@@ -355,7 +373,7 @@ export default function AdminModeracionPage() {
                     </td>
                   </tr>
                 ))
-              )}
+              })()}
             </tbody>
           </table>
         </div>
@@ -372,37 +390,37 @@ export default function AdminModeracionPage() {
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label htmlFor="tipo_reporte_display" className="block text-sm font-medium text-gray-700 mb-2">
                     Tipo de Reporte
                   </label>
-                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getTipoBadgeColor(selectedReporte.tipo)}`}>
+                  <span id="tipo_reporte_display" className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getTipoBadgeColor(selectedReporte.tipo)}`}>
                     {getTipoLabel(selectedReporte.tipo)}
                   </span>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label htmlFor="estado_actual_display" className="block text-sm font-medium text-gray-700 mb-2">
                     Estado Actual
                   </label>
-                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getEstadoBadgeColor(selectedReporte.estado)}`}>
+                  <span id="estado_actual_display" className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getEstadoBadgeColor(selectedReporte.estado)}`}>
                     {selectedReporte.estado}
                   </span>
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="descripcion_reporte_display" className="block text-sm font-medium text-gray-700 mb-2">
                   Descripción del Reporte
                 </label>
-                <div className="p-3 bg-gray-50 rounded-md">
+                <div id="descripcion_reporte_display" className="p-3 bg-gray-50 rounded-md">
                   <p className="text-sm text-gray-900">{selectedReporte.descripcion}</p>
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="reportado_por_display" className="block text-sm font-medium text-gray-700 mb-2">
                   Reportado por
                 </label>
-                <div className="p-3 bg-gray-50 rounded-md">
+                <div id="reportado_por_display" className="p-3 bg-gray-50 rounded-md">
                   <p className="text-sm text-gray-900">
                     {selectedReporte.usuarios_reporta?.nombre} ({selectedReporte.usuarios_reporta?.email})
                   </p>

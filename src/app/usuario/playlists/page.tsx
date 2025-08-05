@@ -9,50 +9,14 @@ interface Playlist {
   id: string;
   nombre: string;
   descripcion?: string;
-  canciones_count: number;
-  duracion_total: string;
-  fecha_creacion: string;
   usuario_id: string;
   es_publica: boolean;
   imagen_url?: string;
+  created_at: string;
 }
 
-// Datos mock para desarrollo - disponibles inmediatamente
-const mockPlaylists: Playlist[] = [
-  {
-    id: '1',
-    nombre: 'Favoritos del Mes',
-    descripcion: 'Las mejores canciones que he escuchado este mes',
-    canciones_count: 25,
-    duracion_total: '01:32:45',
-    fecha_creacion: '2025-01-15T10:30:00Z',
-    usuario_id: 'mock-user-id',
-    es_publica: false,
-  },
-  {
-    id: '2',
-    nombre: 'Música para Trabajar',
-    descripcion: 'Concentración y productividad',
-    canciones_count: 18,
-    duracion_total: '01:05:20',
-    fecha_creacion: '2025-01-10T14:20:00Z',
-    usuario_id: 'mock-user-id',
-    es_publica: true,
-  },
-  {
-    id: '3',
-    nombre: 'Workout Hits',
-    descripcion: 'Energía para el gimnasio',
-    canciones_count: 32,
-    duracion_total: '02:15:30',
-    fecha_creacion: '2025-01-05T08:45:00Z',
-    usuario_id: 'mock-user-id',
-    es_publica: false,
-  }
-];
-
 export default function PlaylistsPage() {
-  const [playlists, setPlaylists] = useState<Playlist[]>(mockPlaylists); // Inicializar con datos mock
+  const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -91,46 +55,111 @@ export default function PlaylistsPage() {
     
     getCurrentUser();
     
-    // Cargar playlists independientemente del usuario
-    cargarPlaylists();
+    // Inicializar base de datos y cargar playlists
+    initializeDatabase();
   }, []);
 
   useEffect(() => {
-    cargarPlaylists();
+    if (user) {
+      cargarPlaylists();
+    }
   }, [user]);
+
+  // Función para crear las tablas necesarias si no existen
+  const initializeDatabase = async () => {
+    try {
+      // Crear tabla playlists si no existe
+      const { error: playlistsError } = await supabase.rpc('create_playlists_table', {});
+      
+      if (playlistsError && !playlistsError.message.includes('already exists')) {
+        console.log('Intentando crear tabla playlists manualmente...');
+        
+        // Intentar crear la tabla directamente
+        const createPlaylistsSQL = `
+          CREATE TABLE IF NOT EXISTS playlists (
+            id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+            nombre varchar(255) NOT NULL,
+            descripcion text,
+            usuario_id uuid NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+            es_publica boolean DEFAULT false,
+            imagen_url text,
+            created_at timestamp with time zone DEFAULT now()
+          );
+        `;
+        
+        const { error } = await supabase.rpc('execute_sql', { sql: createPlaylistsSQL });
+        if (error) {
+          console.warn('No se pudo crear tabla playlists:', error);
+        }
+      }
+
+      // Crear tabla playlist_canciones si no existe
+      const createPlaylistCancionesSQL = `
+        CREATE TABLE IF NOT EXISTS playlist_canciones (
+          id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+          playlist_id uuid NOT NULL REFERENCES playlists(id) ON DELETE CASCADE,
+          cancion_id uuid NOT NULL REFERENCES canciones(id) ON DELETE CASCADE,
+          posicion integer NOT NULL DEFAULT 0,
+          created_at timestamp with time zone DEFAULT now(),
+          UNIQUE(playlist_id, cancion_id)
+        );
+      `;
+      
+      const { error: playlistCancionesError } = await supabase.rpc('execute_sql', { sql: createPlaylistCancionesSQL });
+      if (playlistCancionesError) {
+        console.warn('No se pudo crear tabla playlist_canciones:', playlistCancionesError);
+      }
+
+      console.log('Base de datos inicializada');
+      
+      // Cargar playlists después de inicializar
+      if (user) {
+        cargarPlaylists();
+      }
+    } catch (error) {
+      console.warn('Error inicializando base de datos:', error);
+      setLoading(false);
+    }
+  };
 
   const cargarPlaylists = async () => {
     try {
       setLoading(true);
       
-      // Si no hay usuario, usar datos mock
+      // Verificar que hay usuario autenticado
       if (!user) {
-        console.log('Usuario no encontrado, usando datos mock');
-        setPlaylists(mockPlaylists);
+        console.log('No hay usuario autenticado');
+        setPlaylists([]);
         return;
       }
 
-      // Intentar cargar desde Supabase
-      const { data, error } = await supabase
+      // Cargar playlists desde Supabase con información adicional
+      const { data: playlistsData, error } = await supabase
         .from('playlists')
         .select(`
-          *,
-          canciones_count:playlist_canciones(count),
-          duracion_total
+          id,
+          nombre,
+          descripcion,
+          usuario_id,
+          es_publica,
+          imagen_url,
+          created_at
         `)
         .eq('usuario_id', user.id)
-        .order('fecha_creacion', { ascending: false });
+        .order('created_at', { ascending: false });
 
       if (error) {
-        console.warn('Error de Supabase, usando datos mock:', error.message);
-        setPlaylists(mockPlaylists);
-      } else {
-        console.log('Datos cargados desde Supabase:', data);
-        setPlaylists(data || mockPlaylists);
+        console.error('Error cargando playlists:', error);
+        setPlaylists([]);
+        return;
       }
+
+      console.log('Playlists cargadas desde BD:', playlistsData);
+      setPlaylists(playlistsData || []);
+      
     } catch (error) {
-      console.warn('Error general, usando datos mock:', error);
-      setPlaylists(mockPlaylists);
+      console.error('Error general cargando playlists:', error);
+      setPlaylists([]);
     } finally {
       setLoading(false);
     }
@@ -138,92 +167,77 @@ export default function PlaylistsPage() {
 
   const crearPlaylist = async () => {
     if (!newPlaylistName.trim()) return;
+    
+    if (!user) {
+      console.error('Usuario no autenticado');
+      return;
+    }
 
     try {
-      // Crear nueva playlist mock (simular creación exitosa)
-      const playlistSimulada: Playlist = {
-        id: Date.now().toString(),
-        nombre: newPlaylistName.trim(),
-        descripcion: newPlaylistDescription.trim() || undefined,
-        usuario_id: user?.id || 'mock-user-id',
-        es_publica: false,
-        fecha_creacion: new Date().toISOString(),
-        canciones_count: 0,
-        duracion_total: '00:00:00'
-      };
+      // Crear nueva playlist en Supabase
+      const { data, error } = await supabase
+        .from('playlists')
+        .insert([{
+          nombre: newPlaylistName.trim(),
+          descripcion: newPlaylistDescription.trim() || null,
+          usuario_id: user.id,
+          es_publica: false
+        }])
+        .select()
+        .single();
 
-      // Si hay usuario real, intentar insertar en Supabase
-      if (user) {
-        try {
-          const { data, error } = await supabase
-            .from('playlists')
-            .insert([{
-              nombre: newPlaylistName.trim(),
-              descripcion: newPlaylistDescription.trim() || null,
-              usuario_id: user.id,
-              es_publica: false,
-              fecha_creacion: new Date().toISOString(),
-              canciones_count: 0,
-              duracion_total: '00:00:00'
-            }])
-            .select()
-            .single();
-
-          if (!error && data) {
-            setPlaylists(prev => [data, ...prev]);
-            console.log('Playlist creada en Supabase:', data);
-          } else {
-            console.warn('Error de Supabase, usando simulación:', error?.message);
-            setPlaylists(prev => [playlistSimulada, ...prev]);
-          }
-        } catch (supabaseError) {
-          console.warn('Error con Supabase, usando simulación:', supabaseError);
-          setPlaylists(prev => [playlistSimulada, ...prev]);
-        }
-      } else {
-        // Sin usuario, usar simulación
-        console.log('Sin usuario, simulando creación de playlist');
-        setPlaylists(prev => [playlistSimulada, ...prev]);
+      if (error) {
+        console.error('Error creando playlist:', error);
+        alert('Error al crear la playlist. Por favor intenta de nuevo.');
+        return;
       }
 
-      // Limpiar formulario
-      setNewPlaylistName('');
-      setNewPlaylistDescription('');
-      setShowCreateModal(false);
+      if (data) {
+        // Agregar la nueva playlist al estado
+        setPlaylists(prev => [data, ...prev]);
+        console.log('Playlist creada exitosamente:', data);
+        
+        // Limpiar formulario
+        setNewPlaylistName('');
+        setNewPlaylistDescription('');
+        setShowCreateModal(false);
+      }
       
     } catch (error) {
       console.error('Error general creando playlist:', error);
+      alert('Error al crear la playlist. Por favor intenta de nuevo.');
     }
   };
 
   const eliminarPlaylist = async (playlistId: string) => {
     if (!confirm('¿Estás seguro de que quieres eliminar esta playlist?')) return;
 
-    try {
-      // Si hay usuario real, intentar eliminar de Supabase
-      if (user) {
-        const { error } = await supabase
-          .from('playlists')
-          .delete()
-          .eq('id', playlistId);
+    if (!user) {
+      console.error('Usuario no autenticado');
+      return;
+    }
 
-        if (error) {
-          console.warn('Error eliminando de Supabase:', error.message);
-        } else {
-          console.log('Playlist eliminada de Supabase');
-        }
+    try {
+      // Eliminar de Supabase
+      const { error } = await supabase
+        .from('playlists')
+        .delete()
+        .eq('id', playlistId);
+
+      if (error) {
+        console.error('Error eliminando playlist:', error);
+        alert('Error al eliminar la playlist. Por favor intenta de nuevo.');
+        return;
       }
-      
-      // Actualizar estado local siempre (funciona tanto para mock como para datos reales)
+
+      // Actualizar estado local
       setPlaylists(prev => prev.filter(p => p.id !== playlistId));
       setShowPlaylistMenu(null);
-      console.log('Playlist eliminada del estado local');
+      console.log('Playlist eliminada exitosamente');
       
     } catch (error) {
-      console.warn('Error eliminando playlist:', error);
-      // Eliminar del estado local aunque haya error
-      setPlaylists(prev => prev.filter(p => p.id !== playlistId));
-      setShowPlaylistMenu(null);
+      console.error('Error general eliminando playlist:', error);
+      alert('Error al eliminar la playlist. Por favor intenta de nuevo.');
     }
   };
 
@@ -372,11 +386,10 @@ export default function PlaylistsPage() {
                         <p className={`text-sm ${themeClasses.textMuted} mb-2 line-clamp-2`}>{playlist.descripcion}</p>
                       )}
                       <div className={`text-xs ${themeClasses.textMuted} space-y-1`}>
-                        <p>{playlist.canciones_count} canciones</p>
-                        <p>{playlist.duracion_total}</p>
+                        <p>0 canciones</p>
                         <p>
                           {playlist.es_publica ? '🌍 Pública' : '🔒 Privada'} • 
-                          {new Date(playlist.fecha_creacion).toLocaleDateString('es-ES')}
+                          {new Date(playlist.created_at).toLocaleDateString('es-ES')}
                         </p>
                       </div>
                     </div>

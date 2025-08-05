@@ -9,11 +9,8 @@ import {
   ChevronRightIcon,
   HomeIcon,
   UserGroupIcon,
-  DocumentTextIcon,
   ChartBarIcon,
-  UserIcon,
   ClipboardDocumentListIcon,
-  PlusCircleIcon,
   Cog6ToothIcon,
   PowerIcon,
   ChevronDownIcon,
@@ -22,7 +19,6 @@ import {
   HeartIcon,
   CloudArrowDownIcon,
   SparklesIcon,
-  ComputerDesktopIcon,
   GlobeAltIcon,
   MagnifyingGlassIcon
 } from '@heroicons/react/24/outline';
@@ -277,6 +273,225 @@ const menuItems: MenuItem[] = [
   },
 ];
 
+/**
+ * Obtener el color de texto según el rol del usuario
+ */
+const getRoleTextColor = (isAdmin: boolean, isPremium: boolean) => {
+  if (isAdmin) return 'text-blue-600';
+  if (isPremium) return 'text-purple-600';
+  return 'text-gray-600';
+};
+
+/**
+ * Obtener la URL del perfil según el rol del usuario
+ */
+const getProfileUrl = (isAdmin: boolean, isPremium: boolean, isArtist: boolean) => {
+  if (isAdmin) return "/admin/perfil";
+  if (isPremium) return "/premium/perfil";
+  if (isArtist) return "/artista/perfil";
+  return "/usuario/perfil";
+};
+
+/**
+ * Obtener la URL de configuración según el rol del usuario
+ */
+const getConfigUrl = (isAdmin: boolean, isPremium: boolean, isArtist: boolean) => {
+  if (isAdmin) return "/admin/configuracion";
+  if (isPremium) return "/premium/configuracion";
+  if (isArtist) return "/artista/configuracion";
+  return "/usuario/configuracion";
+};
+
+/**
+ * Obtener la URL de upgrade según el rol del usuario
+ */
+const getUpgradeUrl = (isAdmin: boolean, isPremium: boolean, isArtist: boolean) => {
+  if (isAdmin) return "/admin/upgrade";
+  if (isPremium) return "/premium/upgrade";
+  if (isArtist) return "/artista/upgrade";
+  return "/usuario/upgrade";
+};
+
+/**
+ * Renderizar el menú de perfil desplegable
+ */
+const renderProfileMenu = (
+  isProfileMenuOpen: boolean,
+  isAdmin: boolean,
+  isPremium: boolean,
+  isArtist: boolean,
+  onClose: () => void,
+  handleLogout: () => void,
+  isLoggingOut: boolean
+) => {
+  if (!isProfileMenuOpen) return null;
+
+  return (
+    <div className="mt-2 space-y-1 bg-gray-50 dark:bg-gray-700/50 rounded-lg p-2">
+      {isAdmin && (
+        <>
+          <Link
+            href="/admin/configuracion-sistema"
+            className="w-full flex items-center px-3 py-2 text-left rounded-md hover:bg-white dark:hover:bg-gray-600 hover:shadow-sm transition-all duration-200"
+          >
+            <Cog6ToothIcon className="w-4 h-4 mr-2 text-gray-500 dark:text-gray-400" />
+            <span className="text-xs text-gray-700 dark:text-gray-200 font-medium">Configuración del Sistema</span>
+          </Link>
+
+          <Link
+            href="/admin/configuracion-global"
+            className="w-full flex items-center px-3 py-2 text-left rounded-md hover:bg-white dark:hover:bg-gray-600 hover:shadow-sm transition-all duration-200"
+          >
+            <Cog6ToothIcon className="w-4 h-4 mr-2 text-gray-500 dark:text-gray-400" />
+            <span className="text-xs text-gray-700 dark:text-gray-200 font-medium">Configuración Global</span>
+          </Link>
+        </>
+      )}
+
+      <Link
+        href={getProfileUrl(isAdmin, isPremium, isArtist)}
+        className="w-full flex items-center px-3 py-2 text-left rounded-md hover:bg-white dark:hover:bg-gray-600 hover:shadow-sm transition-all duration-200"
+        onClick={onClose}
+      >
+        <GlobeAltIcon className="w-4 h-4 mr-2 text-gray-500 dark:text-gray-400" />
+        <span className="text-xs text-gray-700 dark:text-gray-200 font-medium">Perfil</span>
+      </Link>
+
+      <Link
+        href={getConfigUrl(isAdmin, isPremium, isArtist)}
+        className="w-full flex items-center px-3 py-2 text-left rounded-md hover:bg-white dark:hover:bg-gray-600 hover:shadow-sm transition-all duration-200"
+        onClick={onClose}
+      >
+        <Cog6ToothIcon className="w-4 h-4 mr-2 text-gray-500 dark:text-gray-400" />
+        <span className="text-xs text-gray-700 dark:text-gray-200 font-medium">Configuración</span>
+      </Link>
+
+      <Link
+        href={getUpgradeUrl(isAdmin, isPremium, isArtist)}
+        className="w-full flex items-center px-3 py-2 text-left rounded-md hover:bg-white dark:hover:bg-gray-600 hover:shadow-sm transition-all duration-200"
+        onClick={onClose}
+      >
+        <SparklesIcon className="w-4 h-4 mr-2 text-gray-500 dark:text-gray-400" />
+        <span className="text-xs text-gray-700 dark:text-gray-200 font-medium">Ver planes</span>
+      </Link>
+
+      <button
+        onClick={handleLogout}
+        disabled={isLoggingOut}
+        className="w-full flex items-center px-3 py-2 text-left rounded-md hover:bg-white dark:hover:bg-gray-600 hover:shadow-sm transition-all duration-200 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 disabled:opacity-50"
+      >
+        <PowerIcon className="w-4 h-4 mr-2" />
+        <span className="text-xs font-medium">
+          {isLoggingOut ? "Cerrando..." : "Cerrar Sesión"}
+        </span>
+      </button>
+    </div>
+  );
+};
+
+/**
+ * Renderizar el header del sidebar
+ */
+const renderSidebarHeader = (props: {
+  isCollapsed: boolean;
+  setIsCollapsed: (value: boolean) => void;
+  userName: string;
+  getRoleColor: () => string;
+  getRoleLabel: () => string;
+  getUserInitials: (name: string) => string;
+  isAdmin: boolean;
+  isPremium: boolean;
+  isProfileMenuOpen: boolean;
+  setIsProfileMenuOpen: (value: boolean) => void;
+  onClose: () => void;
+  handleLogout: () => Promise<void> | void;
+  isLoggingOut: boolean;
+}) => {
+  const {
+    isCollapsed,
+    setIsCollapsed,
+    userName,
+    getRoleColor,
+    getRoleLabel,
+    getUserInitials,
+    isAdmin,
+    isPremium,
+    isProfileMenuOpen,
+    setIsProfileMenuOpen,
+    onClose,
+    handleLogout,
+    isLoggingOut
+  } = props;
+
+  return (
+    <div className="p-4 border-b border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800">
+      {!isCollapsed ? (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3 flex-1 min-w-0">
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shadow-md ${getRoleColor()}`}>
+                {getUserInitials(userName)}
+              </div>
+              <div className="flex-1 min-w-0">
+                <h2 className="text-sm font-semibold text-gray-900 truncate">
+                  {userName}
+                </h2>
+                <p className={`text-xs font-medium ${getRoleTextColor(isAdmin, isPremium)}`}>
+                  {getRoleLabel()}
+                </p>
+              </div>
+            </div>
+            
+            <button
+              onClick={() => setIsCollapsed(!isCollapsed)}
+              className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors flex-shrink-0"
+              aria-label="Contraer sidebar"
+              title="Contraer sidebar"
+            >
+              <ChevronLeftIcon className="w-4 h-4 text-gray-600" />
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-col items-center space-y-2">
+          <button
+            onClick={() => setIsCollapsed(false)}
+            className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shadow-md ${getRoleColor()}`}
+            title={`Expandir sidebar - ${userName}`}
+          >
+            {getUserInitials(userName)}
+          </button>
+          <button
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className="p-1 rounded-lg hover:bg-gray-100 transition-colors"
+            aria-label="Expandir sidebar"
+          >
+            <ChevronRightIcon className="w-4 h-4 text-gray-600" />
+          </button>
+        </div>
+      )}
+      
+      {!isCollapsed && (
+        <div className="mt-3">
+          <button
+            onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+            className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 transition-colors border border-gray-100"
+          >
+            <span className="text-xs text-gray-600 font-medium">Opciones de cuenta</span>
+            {isProfileMenuOpen ? (
+              <ChevronUpIcon className="w-3 h-3 text-gray-500" />
+            ) : (
+              <ChevronDownIcon className="w-3 h-3 text-gray-500" />
+            )}
+          </button>
+          
+          {renderProfileMenu(isProfileMenuOpen, isAdmin, isPremium, false, onClose, handleLogout, isLoggingOut)}
+        </div>
+      )}
+    </div>
+  );
+};
+
 export default function Sidebar({ 
   isOpen,
   onClose,
@@ -419,161 +634,21 @@ export default function Sidebar({
       } ${isOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 ${className}`}>
         
         {/* Header del Sidebar con Avatar */}
-        <div className="p-4 border-b border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800">
-          {!isCollapsed ? (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3 flex-1 min-w-0">
-                  {/* Avatar con iniciales */}
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shadow-md ${getRoleColor()}`}>
-                    {getUserInitials(userName)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h2 className="text-sm font-semibold text-gray-900 truncate">
-                      {userName}
-                    </h2>
-                    <p className={`text-xs font-medium ${
-                      isAdmin ? 'text-blue-600' : isPremium ? 'text-purple-600' : 'text-gray-600'
-                    }`}>
-                      {getRoleLabel()}
-                    </p>
-                  </div>
-                </div>
-                
-                <button
-                  onClick={() => setIsCollapsed(!isCollapsed)}
-                  className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors flex-shrink-0"
-                  aria-label="Contraer sidebar"
-                  title="Contraer sidebar"
-                >
-                  <ChevronLeftIcon className="w-4 h-4 text-gray-600" />
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center space-y-2">
-              <button
-                onClick={() => setIsCollapsed(false)}
-                className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shadow-md ${getRoleColor()}`}
-                title={`Expandir sidebar - ${userName}`}
-              >
-                {getUserInitials(userName)}
-              </button>
-              <button
-                onClick={() => setIsCollapsed(!isCollapsed)}
-                className="p-1 rounded-lg hover:bg-gray-100 transition-colors"
-                aria-label="Expandir sidebar"
-              >
-                <ChevronRightIcon className="w-4 h-4 text-gray-600" />
-              </button>
-            </div>
-          )}
-          
-          {/* Menú de perfil expandible cuando no está colapsado */}
-          {!isCollapsed && (
-            <div className="mt-3">
-              <button
-                onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
-                className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 transition-colors border border-gray-100"
-              >
-                <span className="text-xs text-gray-600 font-medium">Opciones de cuenta</span>
-                {isProfileMenuOpen ? (
-                  <ChevronUpIcon className="w-3 h-3 text-gray-500" />
-                ) : (
-                  <ChevronDownIcon className="w-3 h-3 text-gray-500" />
-                )}
-              </button>
-              
-              {isProfileMenuOpen && (
-                <div className="mt-2 space-y-1 bg-gray-50 dark:bg-gray-700/50 rounded-lg p-2">
-                  {isAdmin && (
-                    <>
-
-                      <Link
-                        href="/admin/configuracion-sistema"
-                        className="w-full flex items-center px-3 py-2 text-left rounded-md hover:bg-white dark:hover:bg-gray-600 hover:shadow-sm transition-all duration-200"
-                      >
-                        <Cog6ToothIcon className="w-4 h-4 mr-2 text-gray-500 dark:text-gray-400" />
-                        <span className="text-xs text-gray-700 dark:text-gray-200 font-medium">Configuración del Sistema</span>
-                      </Link>
-
-                      <Link
-                        href="/admin/configuracion-global"
-                        className="w-full flex items-center px-3 py-2 text-left rounded-md hover:bg-white dark:hover:bg-gray-600 hover:shadow-sm transition-all duration-200"
-                      >
-                        <Cog6ToothIcon className="w-4 h-4 mr-2 text-gray-500 dark:text-gray-400" />
-                        <span className="text-xs text-gray-700 dark:text-gray-200 font-medium">Configuración Global</span>
-                      </Link>
-                    </>
-                  )}
-
-                  <Link
-                    href={
-                      isAdmin
-                        ? "/admin/perfil"
-                        : isPremium
-                        ? "/premium/perfil"
-                        : isArtist
-                        ? "/artista/perfil"
-                        : "/usuario/perfil"
-                    }
-                    className="w-full flex items-center px-3 py-2 text-left rounded-md hover:bg-white dark:hover:bg-gray-600 hover:shadow-sm transition-all duration-200"
-                    onClick={onClose}
-                  >
-                    <GlobeAltIcon className="w-4 h-4 mr-2 text-gray-500 dark:text-gray-400" />
-                    <span className="text-xs text-gray-700 dark:text-gray-200 font-medium">Perfil</span>
-                  </Link>
-
-                  <Link
-                    href={
-                      isAdmin
-                        ? "/admin/configuracion"
-                        : isPremium
-                        ? "/premium/configuracion"
-                        : isArtist
-                        ? "/artista/configuracion"
-                        : "/usuario/configuracion"
-                    }
-                    className="w-full flex items-center px-3 py-2 text-left rounded-md hover:bg-white dark:hover:bg-gray-600 hover:shadow-sm transition-all duration-200"
-                    onClick={onClose}
-                  >
-                    <Cog6ToothIcon className="w-4 h-4 mr-2 text-gray-500 dark:text-gray-400" />
-                    <span className="text-xs text-gray-700 dark:text-gray-200 font-medium">Configuración</span>
-                  </Link>
-
-                  <Link
-                    href={
-                      isAdmin
-                        ? "/admin/upgrade"
-                        : isPremium
-                        ? "/premium/upgrade"
-                        : isArtist
-                        ? "/artista/upgrade"
-                        : "/usuario/upgrade"
-                    }
-                    className="w-full flex items-center px-3 py-2 text-left rounded-md hover:bg-white dark:hover:bg-gray-600 hover:shadow-sm transition-all duration-200"
-                    onClick={onClose}
-                  >
-                    <SparklesIcon className="w-4 h-4 mr-2 text-gray-500 dark:text-gray-400" />
-                    <span className="text-xs text-gray-700 dark:text-gray-200 font-medium">Ver planes</span>
-                  </Link>
-
-
-                  <button
-                    onClick={handleLogout}
-                    disabled={isLoggingOut}
-                    className="w-full flex items-center px-3 py-2 text-left rounded-md hover:bg-white dark:hover:bg-gray-600 hover:shadow-sm transition-all duration-200 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 disabled:opacity-50"
-                  >
-                    <PowerIcon className="w-4 h-4 mr-2" />
-                    <span className="text-xs font-medium">
-                      {isLoggingOut ? "Cerrando..." : "Cerrar Sesión"}
-                    </span>
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+        {renderSidebarHeader({
+          isCollapsed,
+          setIsCollapsed,
+          userName,
+          getRoleColor,
+          getRoleLabel,
+          getUserInitials,
+          isAdmin,
+          isPremium,
+          isProfileMenuOpen,
+          setIsProfileMenuOpen,
+          onClose,
+          handleLogout,
+          isLoggingOut
+        })}
 
         {/* Navegación */}
         <nav className="flex-1 p-2 overflow-y-auto">

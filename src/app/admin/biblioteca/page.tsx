@@ -53,8 +53,18 @@ export default function AdminBibliotecaPage() {
   ];
 
   useEffect(() => {
+    // Cargar datos simulados inmediatamente para debug
+    console.log('🎵 Admin: Iniciando página de biblioteca');
     fetchCanciones();
   }, []);
+
+  useEffect(() => {
+    console.log('🎵 Admin: Estado del reproductor actualizado:', {
+      currentSong: currentSong?.titulo || 'Ninguna',
+      isPlaying,
+      totalCanciones: canciones.length
+    });
+  }, [currentSong, isPlaying, canciones]);
 
   const fetchCanciones = async () => {
     try {

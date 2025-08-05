@@ -631,34 +631,39 @@ export default function ReproductorPage() {
     return cancionesFiltradas.map((cancion, indice) => {
       const isCurrentSong = currentSong?.id === cancion.id;
       return (
-        <button
+        <div
           key={cancion.id}
-          onClick={() => seleccionarCancion(cancion)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              seleccionarCancion(cancion);
-            }
-          }}
-          className={`w-full p-4 border-b border-gray-100 transition-colors hover:bg-gray-50 text-left ${
+          className={`w-full p-4 border-b border-gray-100 transition-colors hover:bg-gray-50 ${
             isCurrentSong ? 'bg-purple-50 border-purple-200' : ''
           }`}
         >
           <div className="flex items-center space-x-3">
-            {/* Indicador de reproducción */}
-            <div className="w-8 text-center">
-              {renderPlaylistIndicator(cancion, isCurrentSong, indice)}
-            </div>
-            
-            {/* Información de la canción */}
-            <div className="flex-1 min-w-0">
-              <p className={`font-medium truncate ${
-                isCurrentSong ? 'text-purple-700' : 'text-gray-900'
-              }`}>
-                {cancion.titulo}
-              </p>
-              <p className="text-sm text-gray-600 truncate">{cancion.artista}</p>
-            </div>
+            {/* Botón de reproducción */}
+            <button
+              onClick={() => seleccionarCancion(cancion)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  seleccionarCancion(cancion);
+                }
+              }}
+              className="flex items-center space-x-3 flex-1 text-left"
+            >
+              {/* Indicador de reproducción */}
+              <div className="w-8 text-center">
+                {renderPlaylistIndicator(cancion, isCurrentSong, indice)}
+              </div>
+              
+              {/* Información de la canción */}
+              <div className="flex-1 min-w-0">
+                <p className={`font-medium truncate ${
+                  isCurrentSong ? 'text-purple-700' : 'text-gray-900'
+                }`}>
+                  {cancion.titulo}
+                </p>
+                <p className="text-sm text-gray-600 truncate">{cancion.artista}</p>
+              </div>
+            </button>
             
             {/* Duración y favoritos */}
             <div className="flex items-center space-x-2">
@@ -683,7 +688,7 @@ export default function ReproductorPage() {
               <span className="text-sm text-gray-500">{formatearDuracion(cancion.duracion)}</span>
             </div>
           </div>
-        </button>
+        </div>
       );
     });
   };

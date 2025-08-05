@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation';
 import { useSupabase } from './SupabaseProvider';
 import Sidebar from './Sidebar';
 import GlobalMusicPlayer from './GlobalMusicPlayer';
-import { MusicPlayerProvider } from '@/contexts/MusicPlayerContext';
 import { Usuario } from '@/types/user';
 
 interface DashboardLayoutProps {
@@ -75,12 +74,11 @@ export default function DashboardLayout({ children }: Readonly<DashboardLayoutPr
   }
 
   return (
-    <MusicPlayerProvider>
-      <div className="min-h-screen" style={{ 
-        backgroundColor: 'var(--background)', 
-        color: 'var(--foreground)',
-        transition: 'background-color 0.3s ease, color 0.3s ease'
-      }}>
+    <div className="min-h-screen" style={{ 
+      backgroundColor: 'var(--background)', 
+      color: 'var(--foreground)',
+      transition: 'background-color 0.3s ease, color 0.3s ease'
+    }}>
         {/* Header - Solo visible en móvil */}
         <header className="shadow-sm border-b md:hidden" style={{
           backgroundColor: 'var(--card)',
@@ -146,6 +144,5 @@ export default function DashboardLayout({ children }: Readonly<DashboardLayoutPr
           userIsPremium={usuario.rol === 'premium' || usuario.rol === 'artista'}
         />
       </div>
-    </MusicPlayerProvider>
   );
 }

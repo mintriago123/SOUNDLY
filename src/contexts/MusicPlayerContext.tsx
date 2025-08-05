@@ -10,6 +10,7 @@ interface Cancion {
   genero: string;
   duracion: number;
   url_archivo?: string;
+  archivo_audio_url?: string; // Campo adicional para compatibilidad
   usuario_id: string;
   bitrate?: number;
 }
@@ -32,6 +33,7 @@ interface MusicPlayerContextType {
   previousSong: () => void;
   seekTo: (time: number) => void;
   setVolume: (volume: number) => void;
+  updateDuration: (duration: number) => void; // Nueva función para establecer duración
   clearPlaylist: () => void;
   
   // Estado de la UI
@@ -64,15 +66,36 @@ export function MusicPlayerProvider({ children }: MusicPlayerProviderProps) {
   const [isMinimized, setIsMinimized] = useState(false);
 
   const playSong = (song: Cancion, newPlaylist?: Cancion[]) => {
-    setCurrentSong(song);
+    console.log('🎵 Reproduciendo canción:', song.titulo, 'URL:', song.url_archivo || song.archivo_audio_url);
+    
+    // Asegurar que la canción tenga una URL válida
+    const audioUrl = song.url_archivo || song.archivo_audio_url;
+    if (!audioUrl) {
+      console.error('❌ No se encontró URL de audio para la canción:', song.titulo);
+      return;
+    }
+
+    // Normalizar la canción para asegurar que tenga url_archivo
+    const normalizedSong = {
+      ...song,
+      url_archivo: audioUrl
+    };
+
+    setCurrentSong(normalizedSong);
     setIsPlaying(true);
+    setCurrentTime(0);
+    
+    // Establecer duración si está disponible
+    if (song.duracion) {
+      setDuration(song.duracion);
+    }
     
     if (newPlaylist) {
       setPlaylist(newPlaylist);
       const index = newPlaylist.findIndex(s => s.id === song.id);
       setCurrentIndex(index >= 0 ? index : 0);
     } else if (playlist.length === 0) {
-      setPlaylist([song]);
+      setPlaylist([normalizedSong]);
       setCurrentIndex(0);
     }
   };
@@ -113,6 +136,10 @@ export function MusicPlayerProvider({ children }: MusicPlayerProviderProps) {
     setVolumeState(Math.max(0, Math.min(1, newVolume)));
   };
 
+  const updateDuration = (newDuration: number) => {
+    setDuration(newDuration);
+  };
+
   const clearPlaylist = () => {
     setCurrentSong(null);
     setIsPlaying(false);
@@ -141,6 +168,7 @@ export function MusicPlayerProvider({ children }: MusicPlayerProviderProps) {
     previousSong,
     seekTo,
     setVolume,
+    updateDuration,
     clearPlaylist,
     isMinimized,
     toggleMinimized

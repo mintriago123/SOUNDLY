@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, ReactNode, useMemo } from 'react';
+import React, { createContext, useContext, useState, ReactNode } from 'react';
 
 interface Cancion {
   id: string;
@@ -10,6 +10,7 @@ interface Cancion {
   genero: string;
   duracion: number;
   url_archivo?: string;
+  archivo_audio_url?: string; // Campo adicional para compatibilidad
   usuario_id: string;
   bitrate?: number;
 }
@@ -32,6 +33,7 @@ interface MusicPlayerContextType {
   previousSong: () => void;
   seekTo: (time: number) => void;
   setVolume: (volume: number) => void;
+  updateDuration: (duration: number) => void; // Nueva función para establecer duración
   clearPlaylist: () => void;
   
   // Estado de la UI
@@ -53,26 +55,47 @@ interface MusicPlayerProviderProps {
   children: ReactNode;
 }
 
-export function MusicPlayerProvider({ children }: Readonly<MusicPlayerProviderProps>) {
+export function MusicPlayerProvider({ children }: MusicPlayerProviderProps) {
   const [currentSong, setCurrentSong] = useState<Cancion | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [volumeValue, setVolumeValue] = useState(0.8);
+  const [volume, setVolumeState] = useState(0.8);
   const [playlist, setPlaylist] = useState<Cancion[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isMinimized, setIsMinimized] = useState(false);
 
   const playSong = (song: Cancion, newPlaylist?: Cancion[]) => {
-    setCurrentSong(song);
+    console.log('🎵 Reproduciendo canción:', song.titulo, 'URL:', song.url_archivo || song.archivo_audio_url);
+    
+    // Asegurar que la canción tenga una URL válida
+    const audioUrl = song.url_archivo || song.archivo_audio_url;
+    if (!audioUrl) {
+      console.error('❌ No se encontró URL de audio para la canción:', song.titulo);
+      return;
+    }
+
+    // Normalizar la canción para asegurar que tenga url_archivo
+    const normalizedSong = {
+      ...song,
+      url_archivo: audioUrl
+    };
+
+    setCurrentSong(normalizedSong);
     setIsPlaying(true);
+    setCurrentTime(0);
+    
+    // Establecer duración si está disponible
+    if (song.duracion) {
+      setDuration(song.duracion);
+    }
     
     if (newPlaylist) {
       setPlaylist(newPlaylist);
       const index = newPlaylist.findIndex(s => s.id === song.id);
       setCurrentIndex(index >= 0 ? index : 0);
     } else if (playlist.length === 0) {
-      setPlaylist([song]);
+      setPlaylist([normalizedSong]);
       setCurrentIndex(0);
     }
   };
@@ -110,7 +133,11 @@ export function MusicPlayerProvider({ children }: Readonly<MusicPlayerProviderPr
   };
 
   const setVolume = (newVolume: number) => {
-    setVolumeValue(Math.max(0, Math.min(1, newVolume)));
+    setVolumeState(Math.max(0, Math.min(1, newVolume)));
+  };
+
+  const updateDuration = (newDuration: number) => {
+    setDuration(newDuration);
   };
 
   const clearPlaylist = () => {
@@ -126,12 +153,12 @@ export function MusicPlayerProvider({ children }: Readonly<MusicPlayerProviderPr
     setIsMinimized(!isMinimized);
   };
 
-  const value: MusicPlayerContextType = useMemo(() => ({
+  const value: MusicPlayerContextType = {
     currentSong,
     isPlaying,
     currentTime,
     duration,
-    volume: volumeValue,
+    volume,
     playlist,
     currentIndex,
     playSong,
@@ -141,19 +168,11 @@ export function MusicPlayerProvider({ children }: Readonly<MusicPlayerProviderPr
     previousSong,
     seekTo,
     setVolume,
+    updateDuration,
     clearPlaylist,
     isMinimized,
     toggleMinimized
-  }), [
-    currentSong,
-    isPlaying,
-    currentTime,
-    duration,
-    volumeValue,
-    playlist,
-    currentIndex,
-    isMinimized
-  ]);
+  };
 
   return (
     <MusicPlayerContext.Provider value={value}>

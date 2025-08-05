@@ -348,14 +348,14 @@ const renderProfileMenu = (
         </>
       )}
 
-      <Link
+      {/* <Link
         href={getProfileUrl(isAdmin, isPremium, isArtist)}
         className="w-full flex items-center px-3 py-2 text-left rounded-md hover:bg-white dark:hover:bg-gray-600 hover:shadow-sm transition-all duration-200"
         onClick={onClose}
       >
         <GlobeAltIcon className="w-4 h-4 mr-2 text-gray-500 dark:text-gray-400" />
         <span className="text-xs text-gray-700 dark:text-gray-200 font-medium">Perfil</span>
-      </Link>
+      </Link> */}
 
       <Link
         href={getConfigUrl(isAdmin, isPremium, isArtist)}

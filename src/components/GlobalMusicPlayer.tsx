@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useMusicPlayer } from '@/contexts/MusicPlayerContext';
-import { useFeatureAccess } from '@/hooks/useConfiguracionGlobal';
+import { useConfiguracionGlobal, useFeatureAccess } from '@/hooks/useConfiguracionGlobal';
 import {
   PlayIcon,
   PauseIcon,
@@ -19,7 +19,7 @@ interface GlobalMusicPlayerProps {
   userIsPremium?: boolean;
 }
 
-export default function GlobalMusicPlayer({ userIsPremium = false }: Readonly<GlobalMusicPlayerProps>) {
+export default function GlobalMusicPlayer({ userIsPremium = false }: GlobalMusicPlayerProps) {
   const {
     currentSong,
     isPlaying,
@@ -33,6 +33,7 @@ export default function GlobalMusicPlayer({ userIsPremium = false }: Readonly<Gl
     previousSong,
     seekTo,
     setVolume,
+    updateDuration,
     clearPlaylist,
     isMinimized,
     toggleMinimized
@@ -42,12 +43,13 @@ export default function GlobalMusicPlayer({ userIsPremium = false }: Readonly<Gl
   const [isDragging, setIsDragging] = useState(false);
   const [tempTime, setTempTime] = useState(0);
 
-  // Configuración global - solo importamos lo que necesitamos
+  // Configuración global
+  const { config, isFeatureEnabled } = useConfiguracionGlobal();
   const { canAccessFeature } = useFeatureAccess();
 
   // Verificar características disponibles
   const hasHighQualityAudio = canAccessFeature('high_quality_audio', userIsPremium);
-  // hasOfflineDownloads removido por no estar en uso
+  const hasOfflineDownloads = canAccessFeature('offline_downloads', userIsPremium);
 
   useEffect(() => {
     if (audioRef.current) {
@@ -66,9 +68,10 @@ export default function GlobalMusicPlayer({ userIsPremium = false }: Readonly<Gl
       }
     };
 
-    const updateDuration = () => {
+    const handleDurationUpdate = () => {
       if (audio.duration && !isNaN(audio.duration)) {
-        // El duration se maneja en el contexto
+        console.log('🎵 Duración cargada:', audio.duration, 'segundos para:', currentSong?.titulo);
+        updateDuration(audio.duration);
       }
     };
 
@@ -81,21 +84,31 @@ export default function GlobalMusicPlayer({ userIsPremium = false }: Readonly<Gl
     };
 
     audio.addEventListener('timeupdate', updateTime);
-    audio.addEventListener('loadedmetadata', updateDuration);
+    audio.addEventListener('loadedmetadata', handleDurationUpdate);
     audio.addEventListener('ended', handleEnded);
 
     return () => {
       audio.removeEventListener('timeupdate', updateTime);
-      audio.removeEventListener('loadedmetadata', updateDuration);
+      audio.removeEventListener('loadedmetadata', handleDurationUpdate);
       audio.removeEventListener('ended', handleEnded);
     };
   }, [currentSong, isDragging, playlist.length, nextSong, pauseSong, seekTo]);
 
   useEffect(() => {
     if (audioRef.current && currentSong) {
+      console.log('🎵 Efecto de reproducción:', { 
+        isPlaying, 
+        currentSong: currentSong.titulo, 
+        audioUrl: currentSong.url_archivo 
+      });
+      
       if (isPlaying) {
-        audioRef.current.play().catch(console.error);
+        console.log('▶️ Intentando reproducir audio...');
+        audioRef.current.play()
+          .then(() => console.log('✅ Audio reproduciendo exitosamente'))
+          .catch(error => console.error('❌ Error reproduciendo audio:', error));
       } else {
+        console.log('⏸️ Pausando audio...');
         audioRef.current.pause();
       }
     }
@@ -151,9 +164,12 @@ export default function GlobalMusicPlayer({ userIsPremium = false }: Readonly<Gl
           ref={audioRef}
           src={currentSong.url_archivo || '/placeholder-audio.mp3'}
           preload="metadata"
-        >
-          <track kind="captions" srcLang="es" label="Español" />
-        </audio>
+          onLoadStart={() => console.log('🔄 Iniciando carga de audio:', currentSong.titulo)}
+          onLoadedData={() => console.log('📁 Datos de audio cargados:', currentSong.titulo)}
+          onLoadedMetadata={() => console.log('📋 Metadatos cargados:', currentSong.titulo)}
+          onCanPlay={() => console.log('✅ Audio listo para reproducir:', currentSong.titulo)}
+          onError={(e) => console.error('❌ Error en elemento audio:', e, 'URL:', currentSong.url_archivo)}
+        />
       )}
 
       {/* Fixed music player */}

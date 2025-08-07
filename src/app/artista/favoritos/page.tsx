@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import DashboardLayout from '../../../components/DashboardLayout';
 import { useSupabase } from '@/components/SupabaseProvider';
-import { HeartIcon, MagnifyingGlassIcon, MusicalNoteIcon, ClipboardDocumentListIcon, PlayIcon } from '@heroicons/react/24/outline';
+import { useMusicPlayer } from '@/contexts/MusicPlayerContext';
+import { HeartIcon, MagnifyingGlassIcon, MusicalNoteIcon, PlayIcon } from '@heroicons/react/24/outline';
 import { HeartIcon as HeartSolidIcon } from '@heroicons/react/24/solid';
 
 interface CancionFavorita {
@@ -19,63 +20,14 @@ interface CancionFavorita {
   usuario_subida_id: string;
 }
 
-interface PlaylistFavorita {
-  id: string;
-  nombre: string;
-  descripcion?: string;
-  creador: string;
-  canciones_count: number;
-  duracion_total: string;
-  fecha_agregada: string;
-  imagen_url?: string;
-  es_publica: boolean;
-}
-
-type TabType = 'canciones' | 'playlists';
-
-// Datos mock solo para playlists (las canciones se cargan desde la DB)
-const mockPlaylistsFavoritas: PlaylistFavorita[] = [
-  {
-    id: '1',
-    nombre: 'Classic Rock Essentials',
-    descripcion: 'Los clásicos del rock que nunca pasan de moda',
-    creador: 'RockMaster',
-    canciones_count: 50,
-    duracion_total: '03:15:45',
-    fecha_agregada: '2025-01-19T12:00:00Z',
-    es_publica: true,
-  },
-  {
-    id: '2',
-    nombre: 'Chill Vibes',
-    descripcion: 'Música relajante para momentos de calma',
-    creador: 'ChillExpert',
-    canciones_count: 30,
-    duracion_total: '02:05:20',
-    fecha_agregada: '2025-01-17T08:30:00Z',
-    es_publica: true,
-  },
-  {
-    id: '3',
-    nombre: 'Workout Energy',
-    descripcion: 'Alta energía para tus entrenamientos',
-    creador: 'FitnessBeats',
-    canciones_count: 40,
-    duracion_total: '02:45:10',
-    fecha_agregada: '2025-01-14T07:15:00Z',
-    es_publica: true,
-  }
-];
-
 export default function FavoritosPage() {
-  const [activeTab, setActiveTab] = useState<TabType>('canciones');
   const [cancionesFavoritas, setCancionesFavoritas] = useState<CancionFavorita[]>([]);
-  const [playlistsFavoritas, setPlaylistsFavoritas] = useState<PlaylistFavorita[]>(mockPlaylistsFavoritas);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [user, setUser] = useState<any>(null);
   
   const { supabase } = useSupabase();
+  const { playSong } = useMusicPlayer();
 
   // Función para formatear duración
   const formatearDuracion = (duracionSegundos: number): string => {
@@ -118,6 +70,43 @@ export default function FavoritosPage() {
     cargarFavoritos();
   }, [user]);
 
+
+  // Función para generar URL de audio desde Supabase Storage
+  const generarUrlAudio = async (cancion: any): Promise<string> => {
+    let urlAudio = cancion.archivo_audio_url;
+    
+    // Si la URL no es completa, generar URL pública desde Supabase Storage
+    if (urlAudio && !urlAudio.startsWith('http')) {
+      try {
+        // Primero intentar URL pública
+        const { data: urlData } = supabase.storage
+          .from('music')
+          .getPublicUrl(urlAudio);
+        
+        if (urlData?.publicUrl) {
+          urlAudio = urlData.publicUrl;
+        }
+      } catch (error) {
+        console.error('Error generando URL pública, intentando URL firmada para:', cancion.titulo, error);
+        
+        // Si falla la URL pública, intentar URL firmada (válida por 1 hora)
+        try {
+          const { data: signedUrlData, error: signedError } = await supabase.storage
+            .from('music')
+            .createSignedUrl(urlAudio, 3600); // 1 hora de validez
+          
+          if (signedUrlData?.signedUrl && !signedError) {
+            urlAudio = signedUrlData.signedUrl;
+          }
+        } catch (signedErrorCatch) {
+          console.error('Error en URL firmada:', signedErrorCatch);
+        }
+      }
+    }
+    
+    return urlAudio;
+  };
+
   const cargarFavoritos = async () => {
     try {
       setLoading(true);
@@ -125,7 +114,6 @@ export default function FavoritosPage() {
       if (!user) {
         console.log('Usuario no encontrado');
         setCancionesFavoritas([]);
-        setPlaylistsFavoritas([]);
         return;
       }
 
@@ -183,6 +171,9 @@ export default function FavoritosPage() {
                   console.warn('Error obteniendo info del artista:', artistaError);
                 }
                 
+                // Generar URL de audio corregida
+                const urlAudioCorregida = await generarUrlAudio(cancion);
+                
                 return {
                   id: cancion.id,
                   titulo: cancion.titulo,
@@ -192,7 +183,7 @@ export default function FavoritosPage() {
                   genero: cancion.genero,
                   fecha_agregada: fav.fecha_agregada,
                   imagen_url: cancion.imagen_url,
-                  archivo_audio_url: cancion.archivo_audio_url,
+                  archivo_audio_url: urlAudioCorregida,
                   usuario_subida_id: cancion.usuario_subida_id
                 };
               })
@@ -200,78 +191,113 @@ export default function FavoritosPage() {
           
           setCancionesFavoritas(cancionesProcesadas);
         }
-
-        // Para playlists, por ahora usar datos mock ya que no están en el esquema actual
-        setPlaylistsFavoritas(mockPlaylistsFavoritas);
         
       } catch (supabaseError) {
         console.error('Error con Supabase:', supabaseError);
         setCancionesFavoritas([]);
-        setPlaylistsFavoritas(mockPlaylistsFavoritas);
       }
     } catch (error) {
       console.error('Error general:', error);
       setCancionesFavoritas([]);
-      setPlaylistsFavoritas(mockPlaylistsFavoritas);
     } finally {
       setLoading(false);
     }
   };
 
-  const toggleFavorito = async (id: string, tipo: 'cancion' | 'playlist') => {
+  // Función para reproducir una canción específica
+  const reproducirCancion = async (cancion: CancionFavorita) => {
+    try {
+      // Convertir la canción al formato del contexto
+      const cancionParaContexto = {
+        id: cancion.id,
+        titulo: cancion.titulo,
+        artista: cancion.artista,
+        album: cancion.album,
+        genero: cancion.genero ?? '',
+        duracion: cancion.duracion,
+        url_archivo: cancion.archivo_audio_url,
+        usuario_id: cancion.usuario_subida_id
+      };
+
+      // Convertir toda la lista de favoritos para la playlist
+      const playlistParaContexto = cancionesFavoritas.map(c => ({
+        id: c.id,
+        titulo: c.titulo,
+        artista: c.artista,
+        album: c.album,
+        genero: c.genero ?? '',
+        duracion: c.duracion,
+        url_archivo: c.archivo_audio_url,
+        usuario_id: c.usuario_subida_id
+      }));
+
+      // Reproducir usando el contexto global
+      playSong(cancionParaContexto, playlistParaContexto);
+      console.log('Reproduciendo canción:', cancion.titulo);
+    } catch (error) {
+      console.error('Error reproduciendo canción:', error);
+    }
+  };
+
+  // Función para reproducir todas las canciones favoritas
+  const reproducirTodosFavoritos = () => {
+    if (cancionesFavoritas.length === 0) {
+      console.warn('No hay canciones favoritas para reproducir');
+      return;
+    }
+
+    // Reproducir la primera canción de la lista
+    reproducirCancion(cancionesFavoritas[0]);
+  };
+
+  const toggleFavorito = async (id: string) => {
     try {
       if (!user) {
         console.warn('Usuario no autenticado');
         return;
       }
 
-      if (tipo === 'cancion') {
-        // Verificar si ya está en favoritos
-        const { data: existeFavorito } = await supabase
+      // Verificar si ya está en favoritos
+      const { data: existeFavorito } = await supabase
+        .from('favoritos')
+        .select('id')
+        .eq('usuario_id', user.id)
+        .eq('cancion_id', id)
+        .single();
+
+      if (existeFavorito) {
+        // Remover de favoritos
+        const { error } = await supabase
           .from('favoritos')
-          .select('id')
+          .delete()
           .eq('usuario_id', user.id)
-          .eq('cancion_id', id)
-          .single();
+          .eq('cancion_id', id);
 
-        if (existeFavorito) {
-          // Remover de favoritos
-          const { error } = await supabase
-            .from('favoritos')
-            .delete()
-            .eq('usuario_id', user.id)
-            .eq('cancion_id', id);
-
-          if (error) {
-            console.error('Error removiendo favorito:', error);
-            return;
-          }
-
-          // Actualizar estado local
-          setCancionesFavoritas(prev => prev.filter(cancion => cancion.id !== id));
-          console.log(`Canción ${id} removida de favoritos`);
-        } else {
-          // Agregar a favoritos
-          const { error } = await supabase
-            .from('favoritos')
-            .insert({
-              usuario_id: user.id,
-              cancion_id: id
-            });
-
-          if (error) {
-            console.error('Error agregando favorito:', error);
-            return;
-          }
-
-          console.log(`Canción ${id} agregada a favoritos`);
-          // Recargar favoritos para obtener la canción completa
-          cargarFavoritos();
+        if (error) {
+          console.error('Error removiendo favorito:', error);
+          return;
         }
+
+        // Actualizar estado local
+        setCancionesFavoritas(prev => prev.filter(cancion => cancion.id !== id));
+        console.log(`Canción ${id} removida de favoritos`);
       } else {
-        // Para playlists, solo remover localmente por ahora
-        setPlaylistsFavoritas(prev => prev.filter(playlist => playlist.id !== id));
-        console.log(`Playlist ${id} removida de favoritos`);
+        // Agregar a favoritos
+        const { error } = await supabase
+          .from('favoritos')
+          .insert({
+            usuario_id: user.id,
+            cancion_id: id
+          });
+
+        if (error) {
+          console.error('Error agregando favorito:', error);
+          return;
+        }
+
+        console.log(`Canción ${id} agregada a favoritos`);
+        // Recargar favoritos para obtener la canción completa
+        cargarFavoritos();
       }
     } catch (error) {
       console.error('Error toggling favorito:', error);
@@ -282,13 +308,7 @@ export default function FavoritosPage() {
   const filteredCanciones = cancionesFavoritas.filter(cancion =>
     cancion.titulo.toLowerCase().includes(searchTerm.toLowerCase()) ||
     cancion.artista.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (cancion.album && cancion.album.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
-
-  const filteredPlaylists = playlistsFavoritas.filter(playlist =>
-    playlist.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    playlist.creador.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    playlist.descripcion?.toLowerCase().includes(searchTerm.toLowerCase())
+    cancion.album?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -309,43 +329,25 @@ export default function FavoritosPage() {
 
         {/* Controles y Pestañas */}
         <div className={`${themeClasses.bgCard} rounded-lg shadow`}>
-          {/* Pestañas */}
-          <div className={`border-b ${themeClasses.border}`}>
-            <nav className="flex space-x-8 px-6">
-              <button
-                onClick={() => setActiveTab('canciones')}
-                className={`py-4 px-2 border-b-2 font-medium text-sm transition-colors ${
-                  activeTab === 'canciones'
-                    ? 'border-red-500 text-red-600'
-                    : `border-transparent ${themeClasses.textMuted} hover:text-gray-700 hover:border-gray-300`
-                }`}
-              >
-                <div className="flex items-center space-x-2">
-                  <MusicalNoteIcon className="h-5 w-5" />
-                  <span>Canciones ({filteredCanciones.length})</span>
-                </div>
-              </button>
-              <button
-                onClick={() => setActiveTab('playlists')}
-                className={`py-4 px-2 border-b-2 font-medium text-sm transition-colors ${
-                  activeTab === 'playlists'
-                    ? 'border-red-500 text-red-600'
-                    : `border-transparent ${themeClasses.textMuted} hover:text-gray-700 hover:border-gray-300`
-                }`}
-              >
-                <div className="flex items-center space-x-2">
-                  <ClipboardDocumentListIcon className="h-5 w-5" />
-                  <span>Playlists ({filteredPlaylists.length})</span>
-                </div>
-              </button>
-            </nav>
+          {/* Header de canciones */}
+          <div className={`border-b ${themeClasses.border} px-6 py-4`}>
+            <div className="flex items-center space-x-2">
+              <MusicalNoteIcon className="h-5 w-5 text-red-600" />
+              <h3 className={`text-lg font-semibold ${themeClasses.text}`}>
+                Canciones Favoritas ({filteredCanciones.length})
+              </h3>
+            </div>
           </div>
 
           {/* Controles */}
           <div className="p-6">
             <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
               <div className="flex gap-4">
-                <button className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors flex items-center space-x-2">
+                <button 
+                  onClick={reproducirTodosFavoritos}
+                  disabled={cancionesFavoritas.length === 0}
+                  className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors flex items-center space-x-2 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                >
                   <PlayIcon className="h-5 w-5" />
                   <span>Reproducir Todo</span>
                 </button>
@@ -357,7 +359,7 @@ export default function FavoritosPage() {
                 <div className="relative">
                   <input
                     type="text"
-                    placeholder={`Buscar ${activeTab}...`}
+                    placeholder="Buscar canciones..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className={`${themeClasses.inputBg} border ${themeClasses.inputBorder} rounded-lg px-3 py-2 pl-10 w-64 focus:ring-2 focus:ring-red-400 outline-none ${themeClasses.text}`}
@@ -379,7 +381,7 @@ export default function FavoritosPage() {
               </div>
             )}
 
-            {!loading && activeTab === 'canciones' && (
+            {!loading && (
               <>
                 {filteredCanciones.length === 0 ? (
                   <div className="text-center py-12">
@@ -399,11 +401,16 @@ export default function FavoritosPage() {
                 ) : (
                   <div className="space-y-2">
                     {filteredCanciones.map((cancion, index) => (
-                      <div key={cancion.id} className={`playlist-card ${themeClasses.bgHover} border ${themeClasses.border} rounded-lg p-4 transition-colors group relative`}>
+                      <div key={cancion.id} className={`playlist-card ${themeClasses.bgHover} border ${themeClasses.border} rounded-lg p-4 transition-all duration-200 group relative cursor-pointer hover:shadow-md hover:border-red-300`}
+                           onClick={() => reproducirCancion(cancion)}
+                           title="Clic para reproducir">
                         <div className="flex items-center space-x-4">
-                          {/* Número */}
-                          <div className={`w-8 text-center ${themeClasses.textMuted} text-sm`}>
+                          {/* Número/Play icon */}
+                          <div className={`w-8 text-center ${themeClasses.textMuted} text-sm group-hover:hidden`}>
                             {index + 1}
+                          </div>
+                          <div className="w-8 text-center hidden group-hover:block">
+                            <PlayIcon className="w-5 h-5 text-red-600 mx-auto" />
                           </div>
 
                           {/* Imagen/Icono */}
@@ -440,78 +447,25 @@ export default function FavoritosPage() {
                           {/* Acciones */}
                           <div className="flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button
-                              onClick={() => toggleFavorito(cancion.id, 'cancion')}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleFavorito(cancion.id);
+                              }}
                               className="text-red-500 hover:text-red-700 p-1 rounded"
                               title="Quitar de favoritos"
                             >
                               <HeartSolidIcon className="h-5 w-5" />
                             </button>
-                            <button className={`${themeClasses.textMuted} hover:${themeClasses.text} p-1 rounded`}>
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                reproducirCancion(cancion);
+                              }}
+                              className={`${themeClasses.textMuted} hover:text-red-600 p-1 rounded transition-colors`}
+                              title="Reproducir canción"
+                            >
                               <PlayIcon className="h-5 w-5" />
                             </button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </>
-            )}
-
-            {!loading && activeTab === 'playlists' && (
-              <>
-                {filteredPlaylists.length === 0 ? (
-                  <div className="text-center py-12">
-                    <div className="text-6xl mb-4">📋</div>
-                    <h4 className={`text-xl font-medium mb-2 ${themeClasses.text}`}>
-                      {searchTerm ? 'No se encontraron playlists' : 'No tienes playlists favoritas'}
-                    </h4>
-                    <p className={`${themeClasses.textMuted} mb-6`}>
-                      {searchTerm ? 'Intenta con otros términos de búsqueda' : 'Explora playlists y marca tus favoritas'}
-                    </p>
-                    {!searchTerm && (
-                      <button className="bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition-colors">
-                        🔍 Explorar Playlists
-                      </button>
-                    )}
-                  </div>
-                ) : (
-                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {filteredPlaylists.map((playlist) => (
-                      <div key={playlist.id} className={`playlist-card ${themeClasses.bgHover} border ${themeClasses.border} rounded-lg p-4 transition-colors group relative`}>
-                        {/* Botón de favorito */}
-                        <div className="absolute top-3 right-3 z-10">
-                          <button
-                            onClick={() => toggleFavorito(playlist.id, 'playlist')}
-                            className="text-red-500 hover:text-red-700 p-1 rounded bg-white shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
-                            title="Quitar de favoritos"
-                          >
-                            <HeartSolidIcon className="h-5 w-5" />
-                          </button>
-                        </div>
-
-                        {/* Imagen de playlist */}
-                        <div className="w-full h-32 bg-gradient-to-br from-red-500 to-pink-600 rounded-lg mb-4 flex items-center justify-center">
-                          {playlist.imagen_url ? (
-                            <img src={playlist.imagen_url} alt={playlist.nombre} className="w-full h-full object-cover rounded-lg" />
-                          ) : (
-                            <ClipboardDocumentListIcon className="h-12 w-12 text-white" />
-                          )}
-                        </div>
-
-                        {/* Información de playlist */}
-                        <div>
-                          <h4 className={`font-medium ${themeClasses.text} mb-1`}>{playlist.nombre}</h4>
-                          {playlist.descripcion && (
-                            <p className={`text-sm ${themeClasses.textMuted} mb-2 line-clamp-2`}>{playlist.descripcion}</p>
-                          )}
-                          <div className={`text-xs ${themeClasses.textMuted} space-y-1`}>
-                            <p>Por {playlist.creador}</p>
-                            <p>{playlist.canciones_count} canciones • {playlist.duracion_total}</p>
-                            <p>
-                              {playlist.es_publica ? '🌍 Pública' : '🔒 Privada'} • 
-                              {new Date(playlist.fecha_agregada).toLocaleDateString('es-ES')}
-                            </p>
                           </div>
                         </div>
                       </div>
@@ -525,4 +479,4 @@ export default function FavoritosPage() {
       </div>
     </DashboardLayout>
   );
-}
+} 

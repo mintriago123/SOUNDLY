@@ -1,6 +1,13 @@
 'use client';
 
 import { useConfiguracionGlobal } from '@/hooks/useConfiguracionGlobal';
+import { useStripeSubscription } from '@/hooks/useStripeSubscription';
+import { useState, useEffect } from 'react';
+import { createClient } from '@/lib/supabaseCLient';
+import { loadStripe } from '@stripe/stripe-js';
+
+// Inicializar Stripe
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
 interface PricingCardProps {
   title: string;
@@ -10,6 +17,10 @@ interface PricingCardProps {
   isPopular?: boolean;
   discount?: number;
   savings?: number;
+  priceId?: string;
+  onSubscribe?: (priceId: string) => void;
+  isCurrentPlan?: boolean;
+  loading?: boolean;
 }
 
 function PricingCard({ 
@@ -19,18 +30,38 @@ function PricingCard({
   features, 
   isPopular = false, 
   discount, 
-  savings 
+  savings,
+  priceId,
+  onSubscribe,
+  isCurrentPlan = false,
+  loading = false,
 }: Readonly<PricingCardProps>) {
+  const handleSubscribe = () => {
+    if (priceId && onSubscribe && !isCurrentPlan) {
+      onSubscribe(priceId);
+    }
+  };
+
   return (
     <div className={`relative rounded-lg border-2 p-6 ${
       isPopular 
         ? 'border-blue-500 bg-blue-50' 
+        : isCurrentPlan
+        ? 'border-green-500 bg-green-50'
         : 'border-gray-200 bg-white'
     }`}>
-      {isPopular && (
+      {isPopular && !isCurrentPlan && (
         <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
           <span className="bg-blue-500 text-white px-3 py-1 rounded-full text-sm font-semibold">
             Más Popular
+          </span>
+        </div>
+      )}
+      
+      {isCurrentPlan && (
+        <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+          <span className="bg-green-500 text-white px-3 py-1 rounded-full text-sm font-semibold">
+            Plan Actual
           </span>
         </div>
       )}
@@ -68,21 +99,83 @@ function PricingCard({
         ))}
       </ul>
 
-      <button className={`w-full py-3 px-4 rounded-lg font-semibold transition-colors ${
-        isPopular
-          ? 'bg-blue-600 text-white hover:bg-blue-700'
-          : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
-      }`}>
-        {price === 0 ? 'Empezar Gratis' : 'Suscribirse'}
+      <button 
+        onClick={handleSubscribe}
+        disabled={loading || isCurrentPlan || (price > 0 && !priceId)}
+        className={`w-full py-3 px-4 rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+          isCurrentPlan
+            ? 'bg-green-100 text-green-800'
+            : isPopular
+            ? 'bg-blue-600 text-white hover:bg-blue-700'
+            : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
+        }`}
+      >
+        {loading ? 'Procesando...' : 
+         isCurrentPlan ? 'Plan Actual' :
+         price === 0 ? 'Plan Actual' : 'Suscribirse'}
       </button>
     </div>
   );
 }
 
 export default function PricingDisplay() {
-  const { config, loading, getPremiumPricing } = useConfiguracionGlobal();
+  const { config, loading: configLoading, getPremiumPricing } = useConfiguracionGlobal();
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [userLoading, setUserLoading] = useState(true);
+  const [subscribing, setSubscribing] = useState(false);
+  
+  const { 
+    prices, 
+    subscription, 
+    createCheckoutSession, 
+    isPremium, 
+    getPlanType 
+  } = useStripeSubscription(currentUser?.id);
 
-  if (loading) {
+  // Obtener usuario actual
+  useEffect(() => {
+    const getCurrentUser = async () => {
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        setCurrentUser(user);
+      } catch (error) {
+        console.error('Error getting current user:', error);
+      } finally {
+        setUserLoading(false);
+      }
+    };
+
+    getCurrentUser();
+  }, []);
+
+  const handleSubscribe = async (priceId: string) => {
+    if (!currentUser) {
+      // Redirigir al login si no está autenticado
+      window.location.href = '/auth/login';
+      return;
+    }
+
+    try {
+      setSubscribing(true);
+      const sessionId = await createCheckoutSession(priceId, currentUser.id);
+      
+      // Redirigir a Stripe Checkout
+      const stripe = await stripePromise;
+      if (stripe) {
+        const { error } = await stripe.redirectToCheckout({ sessionId });
+        if (error) {
+          console.error('Error redirecting to checkout:', error);
+        }
+      }
+    } catch (error) {
+      console.error('Error creating checkout session:', error);
+    } finally {
+      setSubscribing(false);
+    }
+  };
+
+  if (configLoading || userLoading) {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -92,6 +185,7 @@ export default function PricingDisplay() {
   }
 
   const pricing = getPremiumPricing();
+  const currentPlanType = getPlanType();
 
   const freeFeatures = [
     `Hasta ${config.max_playlists_free} playlists`,
@@ -124,6 +218,13 @@ export default function PricingDisplay() {
     'API para desarrolladores'
   ];
 
+  // Usar precios de Stripe si están disponibles, sino usar configuración
+  const monthlyPrice = prices.monthly?.amount || pricing.monthly;
+  const yearlyPrice = prices.yearly?.amount || (pricing.yearly / 12);
+  const yearlyTotal = prices.yearly?.amount ? (prices.yearly.amount * 12) : pricing.yearly;
+  const actualSavings = (monthlyPrice * 12) - yearlyTotal;
+  const actualDiscount = Math.round((actualSavings / (monthlyPrice * 12)) * 100);
+
   return (
     <div className="bg-gray-50 py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -143,25 +244,35 @@ export default function PricingDisplay() {
             price={0}
             period="siempre"
             features={freeFeatures}
+            isCurrentPlan={currentPlanType === 'free' || !isPremium()}
+            loading={subscribing}
           />
 
-          {/* Plan Premium */}
+          {/* Plan Premium Mensual */}
           <PricingCard
             title="Premium"
-            price={pricing.monthly}
+            price={monthlyPrice}
             period="mes"
             features={premiumFeatures}
             isPopular={true}
+            priceId={prices.monthly?.id || process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_MENSUAL}
+            onSubscribe={handleSubscribe}
+            isCurrentPlan={currentPlanType === 'premium_monthly'}
+            loading={subscribing}
           />
 
-          {/* Plan Anual */}
+          {/* Plan Premium Anual */}
           <PricingCard
             title="Premium Anual"
-            price={pricing.yearly / 12}
+            price={yearlyPrice}
             period="mes"
             features={[...premiumFeatures, 'Facturación anual']}
-            discount={pricing.actualDiscount}
-            savings={pricing.savings}
+            discount={actualDiscount}
+            savings={actualSavings}
+            priceId={prices.yearly?.id || process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_ANUAL}
+            onSubscribe={handleSubscribe}
+            isCurrentPlan={currentPlanType === 'premium_yearly'}
+            loading={subscribing}
           />
         </div>
 
@@ -173,6 +284,7 @@ export default function PricingDisplay() {
               price={config.artist_verification_fee}
               period={config.artist_verification_fee === 0 ? 'gratis' : 'una vez'}
               features={artistFeatures}
+              loading={subscribing}
             />
           </div>
         )}
@@ -203,6 +315,28 @@ export default function PricingDisplay() {
             </div>
           </div>
         </div>
+
+        {/* Estado de suscripción actual */}
+        {currentUser && isPremium() && subscription && (
+          <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-3xl mx-auto">
+            <div className="flex items-center">
+              <svg className="h-5 w-5 text-blue-400 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+              <div>
+                <h4 className="text-sm font-medium text-blue-800">
+                  ¡Tienes acceso Premium activo!
+                </h4>
+                <p className="text-sm text-blue-700">
+                  Tu suscripción {getPlanType() === 'premium_monthly' ? 'mensual' : 'anual'} está activa.
+                  {subscription.cancel_at_period_end && (
+                    <span className="font-medium"> Se cancelará el {new Date(subscription.current_period_end).toLocaleDateString('es-ES')}.</span>
+                  )}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Modo Mantenimiento */}
         {config.maintenance_mode && (

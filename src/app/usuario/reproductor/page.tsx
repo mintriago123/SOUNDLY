@@ -1172,15 +1172,15 @@ export default function ReproductorPage() {
             ) : (
               <div className="bg-white rounded-xl shadow-lg p-12 text-center">
                 <MusicalNoteIcon className="w-24 h-24 mx-auto text-gray-300 mb-6" />
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">No hay canciones en la plataforma</h2>
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">No hay canciones reproduciéndose</h2>
                 <p className="text-gray-600 mb-6">
-                  Aún no hay canciones subidas por los artistas en la plataforma.
+                  Busca y descubre nueva música para comenzar a reproducir.
                 </p>
                 <button
-                  onClick={() => router.push('/admin/biblioteca')}
+                  onClick={() => router.push('/usuario/buscar')}
                   className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700"
                 >
-                  Ver biblioteca completa
+                  Buscar música
                 </button>
               </div>
             )}

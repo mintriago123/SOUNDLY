@@ -177,13 +177,13 @@ const menuItems: MenuItem[] = [
     description: 'Panel principal del artista',
     artistOnly: true
   },
-  {
-    name: 'Mi Biblioteca',
-    href: '/artista/biblioteca',
-    icon: MusicalNoteIcon,
-    description: 'Tu colección musical',
-    artistOnly: true
-  },
+  // {
+  //   name: 'Mi Biblioteca',
+  //   href: '/artista/biblioteca',
+  //   icon: MusicalNoteIcon,
+  //   description: 'Tu colección musical',
+  //   artistOnly: true
+  // },
   {
     name: 'Mi Música',
     href: '/artista/musica',
@@ -234,12 +234,12 @@ const menuItems: MenuItem[] = [
     icon: HomeIcon,
     description: 'Panel principal'
   },
-  {
-    name: 'Mi Biblioteca',
-    href: '/usuario/biblioteca',
-    icon: MusicalNoteIcon,
-    description: 'Tu colección musical'
-  },
+  // {
+  //   name: 'Mi Biblioteca',
+  //   href: '/usuario/biblioteca',
+  //   icon: MusicalNoteIcon,
+  //   description: 'Tu colección musical'
+  // },
   {
     name: 'Buscar Música',
     href: '/usuario/buscar',

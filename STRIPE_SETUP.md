@@ -41,8 +41,6 @@ Actualiza tu archivo `.env.local` con las claves de Stripe:
 
 ```bash
 # Stripe - Claves de API
-STRIPE_SECRET_KEY=sk_test_51RtHKF3JCWqHHdO4pVA5TMcWFEoabhwJYq4EC9Fntk4wHSkUbiXN25k2bj7mD74BsNdtXWXBNKmQ5yJKY8yeUhTY00K0mkoben
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_51RtHKF3JCWqHHdO4tkf7allTO43wDgbw8uP11YuYLKHsialJrtpeuoCNwlLWvppJpoxzf6fQhnGoIHMGehnIZRTQ00C0wZX8x9
 STRIPE_WEBHOOK_SECRET=whsec_...
 
 # Stripe - Price IDs (ya configurados)

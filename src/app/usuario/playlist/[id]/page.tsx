@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/DashboardLayout';
 import { useSupabase } from '@/components/SupabaseProvider';
@@ -52,8 +52,9 @@ interface PlaylistDetalle {
 
 interface User {
   id: string;
-  email: string;
+  email?: string;
 }
+
 
 export default function PlaylistDetallePage() {
   const params = useParams();
@@ -98,7 +99,34 @@ export default function PlaylistDetallePage() {
     };
     
     inicializar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playlistId]);
+
+  // Función para reproducir siguiente
+  const reproducirSiguiente = useCallback(() => {
+    if (!cancionActual) return;
+    
+    const indiceActual = canciones.findIndex(c => c.id === cancionActual.id);
+    const siguienteIndice = (indiceActual + 1) % canciones.length;
+    
+    if (siguienteIndice < canciones.length) {
+      // Crear nuevo audio
+      const nuevoAudio = new Audio(canciones[siguienteIndice].archivo_audio_url);
+      nuevoAudio.volume = volumen;
+      
+      if (audio) {
+        audio.pause();
+      }
+      
+      setAudio(nuevoAudio);
+      setCancionActual(canciones[siguienteIndice]);
+      setReproduciendose(true);
+      
+      nuevoAudio.play().catch(error => {
+        console.error('Error reproduciendo siguiente canción:', error);
+      });
+    }
+  }, [cancionActual, canciones, audio, volumen]);
 
   // Manejar eventos del reproductor de audio
   useEffect(() => {
@@ -117,9 +145,9 @@ export default function PlaylistDetallePage() {
         audio.removeEventListener('ended', manejarFin);
       };
     }
-  }, [audio]);
+  }, [audio, reproducirSiguiente]);
 
-  const cargarPlaylistDetalle = async () => {
+  const cargarPlaylistDetalle = useCallback(async () => {
     try {
       const { data: playlistData, error } = await supabase
         .from('playlists')
@@ -151,9 +179,9 @@ export default function PlaylistDetallePage() {
     } catch (error) {
       console.error('Error cargando playlist:', error);
     }
-  };
+  }, [supabase, playlistId, user?.id]);
 
-  const cargarCancionesPlaylist = async () => {
+  const cargarCancionesPlaylist = useCallback(async () => {
     try {
       const { data: playlistCanciones, error } = await supabase
         .from('playlist_canciones')
@@ -183,7 +211,8 @@ export default function PlaylistDetallePage() {
       }
 
       const cancionesFormateadas = await Promise.all(
-        (playlistCanciones || []).map(async (item: any) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (playlistCanciones as any[] || []).map(async (item: any) => {
           const cancion = item.canciones;
           
           // Obtener información del artista/usuario
@@ -245,7 +274,7 @@ export default function PlaylistDetallePage() {
     } catch (error) {
       console.error('Error cargando canciones:', error);
     }
-  };
+  }, [supabase, playlistId, user?.id]);
 
   const toggleFavorito = async () => {
     if (!user || !playlist) return;
@@ -375,17 +404,6 @@ export default function PlaylistDetallePage() {
     if (audio) {
       audio.play();
       setReproduciendose(true);
-    }
-  };
-
-  const reproducirSiguiente = () => {
-    if (!cancionActual) return;
-    
-    const indiceActual = canciones.findIndex(c => c.id === cancionActual.id);
-    const siguienteIndice = (indiceActual + 1) % canciones.length;
-    
-    if (siguienteIndice < canciones.length) {
-      reproducirCancion(canciones[siguienteIndice]);
     }
   };
 

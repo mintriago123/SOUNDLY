@@ -134,13 +134,6 @@ const menuItems: MenuItem[] = [
     premiumOnly: true
   },
   {
-    name: 'Mi Biblioteca',
-    href: '/premium/biblioteca',
-    icon: MusicalNoteIcon,
-    description: 'Tu colección musical',
-    premiumOnly: true
-  },
-  {
     name: 'Playlists',
     href: '/premium/playlists',
     icon: ClipboardDocumentListIcon,

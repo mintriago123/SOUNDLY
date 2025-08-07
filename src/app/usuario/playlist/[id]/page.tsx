@@ -277,39 +277,56 @@ export default function PlaylistDetallePage() {
   }, [supabase, playlistId, user?.id]);
 
   const toggleFavorito = async () => {
-    if (!user || !playlist) return;
+    if (!user || !playlist) {
+      console.warn('Usuario no autenticado o playlist no disponible');
+      return;
+    }
 
     try {
-      if (playlist.es_favorito) {
+      const esFavorito = playlist.es_favorito;
+      
+      if (esFavorito) {
+        // Remover de favoritos
         const { error } = await supabase
           .from('playlist_favoritos')
           .delete()
-          .eq('playlist_id', playlistId)
-          .eq('usuario_id', user.id);
+          .eq('usuario_id', user.id)
+          .eq('playlist_id', playlistId);
 
-        if (error) throw error;
+        if (error) {
+          console.error('Error removiendo playlist de favoritos:', error);
+          return;
+        }
 
+        // Actualizar estado local
         setPlaylist(prev => prev ? { ...prev, es_favorito: false } : null);
-        setMensaje('Playlist quitada de favoritos');
+        setMensaje('💔 Playlist removida de favoritos');
+        setTimeout(() => setMensaje(''), 3000);
+        
+        console.log(`Playlist ${playlistId} removida de favoritos`);
       } else {
+        // Agregar a favoritos
         const { error } = await supabase
           .from('playlist_favoritos')
-          .insert([{
-            playlist_id: playlistId,
-            usuario_id: user.id
-          }]);
+          .insert({
+            usuario_id: user.id,
+            playlist_id: playlistId
+          });
 
-        if (error) throw error;
+        if (error) {
+          console.error('Error agregando playlist a favoritos:', error);
+          return;
+        }
 
+        // Actualizar estado local
         setPlaylist(prev => prev ? { ...prev, es_favorito: true } : null);
-        setMensaje('Playlist agregada a favoritos');
+        setMensaje('💖 Playlist agregada a favoritos');
+        setTimeout(() => setMensaje(''), 3000);
+        
+        console.log(`Playlist ${playlistId} agregada a favoritos`);
       }
-
-      setTimeout(() => setMensaje(''), 3000);
     } catch (error) {
-      console.error('Error toggling favorito:', error);
-      setMensaje('Error al actualizar favoritos');
-      setTimeout(() => setMensaje(''), 3000);
+      console.error('Error en toggleFavorito playlist:', error);
     }
   };
 

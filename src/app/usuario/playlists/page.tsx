@@ -184,6 +184,15 @@ export default function PlaylistsPage() {
           .eq('usuario_id', user.id);
 
         if (error) throw error;
+
+        setPlaylists(prev => 
+          prev.map(p => 
+            p.id === playlistId 
+              ? { ...p, es_favorito: false }
+              : p
+          )
+        );
+        setMensaje('Playlist quitada de favoritos');
       } else {
         const { error } = await supabase
           .from('playlist_favoritos')
@@ -193,17 +202,27 @@ export default function PlaylistsPage() {
           }]);
 
         if (error) throw error;
+
+        setPlaylists(prev => 
+          prev.map(p => 
+            p.id === playlistId 
+              ? { ...p, es_favorito: true }
+              : p
+          )
+        );
+        setMensaje('Playlist agregada a favoritos');
+        
+        // Navegar a la página de favoritos después de agregar
+        setTimeout(() => {
+          router.push('/usuario/favoritos?tab=playlists');
+        }, 1500);
       }
 
-      setPlaylists(prev => 
-        prev.map(p => 
-          p.id === playlistId 
-            ? { ...p, es_favorito: !p.es_favorito }
-            : p
-        )
-      );
+      setTimeout(() => setMensaje(''), 3000);
     } catch (error) {
       console.error('Error toggling favorito:', error);
+      setMensaje('Error al actualizar favoritos');
+      setTimeout(() => setMensaje(''), 3000);
     }
   };
 

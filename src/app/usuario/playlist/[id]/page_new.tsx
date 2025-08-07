@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/DashboardLayout';
 import { useSupabase } from '@/components/SupabaseProvider';
@@ -8,10 +8,39 @@ import {
   PlayIcon,
   PauseIcon,
   HeartIcon,
-  TrashIcon,
-  ClockIcon,
-  UserIcon,
-  MusicalNoteIcon,
+  TrashI        const { error } = await supabase
+          .from('playlist_favoritos')
+          .insert({
+            usuario_id: user.id,
+            playlist_id: playlistId
+          });
+
+        if (error) {
+          console.error('Error agregando playlist a favoritos:', error);
+          return;
+        }
+
+        console.log(`Playlist ${playlistId} agregada a favoritos`);
+        setPlaylist(prev => prev ? { ...prev, es_favorito: true } : null);
+        setMensaje('Playlist agregada a favoritos');       // Agregar a favoritos
+        const { error } = await supabase
+          .from('playlist_favoritos')
+          .insert({
+            usuario_id: user.id,
+            playlist_id: playlistId
+          });
+
+        if (error) {
+          console.error('Error agregando playlist a favoritos:', error);
+          return;
+        }
+
+        // Actualizar estado local
+        setPlaylist(prev => prev ? { ...prev, es_favorito: true } : null);
+        setMensaje('Playlist agregada a favoritos');
+        setTimeout(() => setMensaje(''), 3000);
+        
+        console.log(`Playlist ${playlistId} agregada a favoritos`);usicalNoteIcon,
   ArrowLeftIcon,
   EllipsisVerticalIcon,
   PencilIcon,
@@ -74,16 +103,20 @@ export default function PlaylistDetallePage() {
 
   useEffect(() => {
     const inicializar = async () => {
+      console.log('🚀 Inicializando componente...');
       try {
         const { data: { user } } = await supabase.auth.getUser();
+        console.log('👤 Usuario obtenido:', user);
         setUser(user);
         
-        if (user && playlistId) {
-          await cargarPlaylistDetalle();
+        if (playlistId) {
+          console.log('📋 Cargando datos de playlist...');
+          // Cargar datos de la playlist
+          await cargarPlaylistConUsuario(user, playlistId);
           await cargarCancionesPlaylist();
         }
       } catch (error) {
-        console.error('Error inicializando:', error);
+        console.error('💥 Error inicializando:', error);
       } finally {
         setCargando(false);
       }
@@ -92,37 +125,54 @@ export default function PlaylistDetallePage() {
     inicializar();
   }, [playlistId]);
 
-  const cargarPlaylistDetalle = async () => {
+  const cargarPlaylistConUsuario = async (usuario: any, id: string) => {
+    console.log('📋 Cargando playlist detalle...');
+    console.log('👤 User en cargarPlaylistDetalle:', usuario);
+    console.log('🆔 PlaylistId:', id);
+    
     try {
       const { data: playlistData, error } = await supabase
         .from('playlists')
         .select('*')
-        .eq('id', playlistId)
+        .eq('id', id)
         .single();
 
       if (error) {
-        console.error('Error cargando playlist:', error);
+        console.error('❌ Error cargando playlist:', error);
         return;
       }
 
-      // Verificar si está en favoritos
-      const { data: favoritoData } = await supabase
-        .from('playlist_favoritos')
-        .select('id')
-        .eq('playlist_id', playlistId)
-        .eq('usuario_id', user?.id)
-        .single();
+      console.log('📋 Playlist data:', playlistData);
+
+      // Verificar si está en favoritos solo si hay usuario
+      let esFavorito = false;
+      if (usuario?.id) {
+        console.log('🔍 Verificando si playlist está en favoritos...');
+        const { data: favoritoData, error: favoritoError } = await supabase
+          .from('playlist_favoritos')
+          .select('id')
+          .eq('playlist_id', id)
+          .eq('usuario_id', usuario.id)
+          .single();
+
+        console.log('❤️ Favorito data:', favoritoData);
+        console.log('❌ Favorito error:', favoritoError);
+        
+        esFavorito = !!favoritoData;
+      }
 
       setPlaylist({
         ...playlistData,
-        es_favorito: !!favoritoData
+        es_favorito: esFavorito
       });
 
       setNombrePlaylist(playlistData.nombre);
       setDescripcionPlaylist(playlistData.descripcion || '');
       setEsPublica(playlistData.es_publica);
+      
+      console.log('✅ Playlist cargada con es_favorito:', esFavorito);
     } catch (error) {
-      console.error('Error cargando playlist:', error);
+      console.error('💥 Error cargando playlist:', error);
     }
   };
 
@@ -136,10 +186,10 @@ export default function PlaylistDetallePage() {
           canciones:cancion_id (
             id,
             titulo,
-            archivo_audio,
+            archivo_audio_url,
             duracion,
             imagen_url,
-            usuario_id,
+            usuario_subida_id,
             created_at
           )
         `)
@@ -157,16 +207,15 @@ export default function PlaylistDetallePage() {
           
           // Obtener información del artista
           let artista = 'Artista desconocido';
-          if (cancion.usuario_id) {
+          if (cancion.usuario_subida_id) {
             const { data: usuarioData } = await supabase
               .from('usuarios')
-              .select('nombre_artistico, primer_nombre, primer_apellido')
-              .eq('id', cancion.usuario_id)
+              .select('nombre')
+              .eq('id', cancion.usuario_subida_id)
               .single();
             
             if (usuarioData) {
-              artista = usuarioData.nombre_artistico || 
-                       `${usuarioData.primer_nombre} ${usuarioData.primer_apellido}`;
+              artista = usuarioData.nombre || 'Artista desconocido';
             }
           }
 
@@ -186,13 +235,13 @@ export default function PlaylistDetallePage() {
             duracion: cancion.duracion || '0:00',
             genero: 'Desconocido',
             año: new Date(cancion.created_at).getFullYear(),
-            archivo_audio_url: cancion.archivo_audio,
+            archivo_audio_url: cancion.archivo_audio_url,
             imagen_url: cancion.imagen_url,
             es_favorito: !!favoritoData,
             reproducciones: 0,
             posicion: item.posicion,
             fecha_agregada: item.fecha_agregada,
-            usuario_subida_id: cancion.usuario_id
+            usuario_subida_id: cancion.usuario_subida_id
           };
         })
       );
@@ -203,41 +252,102 @@ export default function PlaylistDetallePage() {
     }
   };
 
+  // Función para hacer logging detallado de errores
+  const logError = (context: string, error: any) => {
+    console.error(`💥 Error en ${context}:`, error);
+    
+    // Intentar diferentes métodos para mostrar el error
+    try {
+      console.error(`🔍 Error stringified:`, JSON.stringify(error, null, 2));
+    } catch (jsonError) {
+      console.error(`⚠️ No se pudo serializar el error:`, jsonError);
+    }
+    
+    // Mostrar propiedades específicas del error
+    if (error) {
+      console.error(`🔍 Error.message:`, error.message);
+      console.error(`🔍 Error.code:`, error.code);
+      console.error(`🔍 Error.details:`, error.details);
+      console.error(`🔍 Error.hint:`, error.hint);
+      console.error(`🔍 Error type:`, typeof error);
+      console.error(`🔍 Error constructor:`, error.constructor?.name);
+      console.error(`🔍 Error keys:`, Object.keys(error || {}));
+      
+      // Intentar mostrar todas las propiedades
+      for (const key in error) {
+        console.error(`🔍 Error.${key}:`, error[key]);
+      }
+    }
+  };
+
   const toggleFavorito = async () => {
-    if (!user || !playlist) return;
+    console.log('Iniciando toggleFavorito simplificado...');
+    
+    if (!user || !playlist) {
+      console.warn('Usuario no autenticado o playlist no disponible');
+      return;
+    }
 
     try {
-      if (playlist.es_favorito) {
-        // Quitar de favoritos
+      const esFavorito = playlist.es_favorito;
+      
+      if (esFavorito) {
+        // Remover de favoritos
         const { error } = await supabase
           .from('playlist_favoritos')
           .delete()
-          .eq('playlist_id', playlistId)
-          .eq('usuario_id', user.id);
+          .eq('usuario_id', user.id)
+          .eq('playlist_id', playlistId);
 
-        if (error) throw error;
+        if (error) {
+          console.error('Error removiendo playlist de favoritos:', error);
+          return;
+        }
 
+        // Actualizar estado local
         setPlaylist(prev => prev ? { ...prev, es_favorito: false } : null);
-        setMensaje('Playlist quitada de favoritos');
+        setMensaje('Playlist removida de favoritos');
+        setTimeout(() => setMensaje(''), 3000);
+        
+        console.log(`Playlist ${playlistId} removida de favoritos`);
       } else {
+        console.log('Agregando a favoritos...');
+        
         // Agregar a favoritos
-        const { error } = await supabase
+        const { error, data } = await supabase
           .from('playlist_favoritos')
-          .insert([{
+          .insert({
             playlist_id: playlistId,
             usuario_id: user.id
-          }]);
+          })
+          .select();
 
-        if (error) throw error;
+        console.log('� Respuesta de inserción:', { data, error });
 
+        if (error) {
+          logError('agregar a favoritos', error);
+          throw error;
+        }
+
+        console.log('✅ Agregado a favoritos exitosamente');
         setPlaylist(prev => prev ? { ...prev, es_favorito: true } : null);
         setMensaje('Playlist agregada a favoritos');
       }
 
       setTimeout(() => setMensaje(''), 3000);
     } catch (error: any) {
-      console.error('Error toggling favorito:', error);
-      setMensaje('Error al actualizar favoritos');
+      logError('toggleFavorito', error);
+      
+      let mensajeError = 'Error al actualizar favoritos';
+      if (error?.message) {
+        mensajeError = `Error: ${error.message}`;
+      } else if (error?.code) {
+        mensajeError = `Error código: ${error.code}`;
+      } else if (error?.details) {
+        mensajeError = `Error: ${error.details}`;
+      }
+      
+      setMensaje(mensajeError);
       setTimeout(() => setMensaje(''), 3000);
     }
   };

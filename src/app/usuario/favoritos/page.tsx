@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import DashboardLayout from '../../../components/DashboardLayout';
 import { useSupabase } from '@/components/SupabaseProvider';
 import { HeartIcon, MagnifyingGlassIcon, MusicalNoteIcon, ClipboardDocumentListIcon, PlayIcon } from '@heroicons/react/24/outline';
@@ -29,48 +30,18 @@ interface PlaylistFavorita {
   fecha_agregada: string;
   imagen_url?: string;
   es_publica: boolean;
+  usuario_id: string;
 }
 
 type TabType = 'canciones' | 'playlists';
 
-// Datos mock solo para playlists (las canciones se cargan desde la DB)
-const mockPlaylistsFavoritas: PlaylistFavorita[] = [
-  {
-    id: '1',
-    nombre: 'Classic Rock Essentials',
-    descripcion: 'Los clásicos del rock que nunca pasan de moda',
-    creador: 'RockMaster',
-    canciones_count: 50,
-    duracion_total: '03:15:45',
-    fecha_agregada: '2025-01-19T12:00:00Z',
-    es_publica: true,
-  },
-  {
-    id: '2',
-    nombre: 'Chill Vibes',
-    descripcion: 'Música relajante para momentos de calma',
-    creador: 'ChillExpert',
-    canciones_count: 30,
-    duracion_total: '02:05:20',
-    fecha_agregada: '2025-01-17T08:30:00Z',
-    es_publica: true,
-  },
-  {
-    id: '3',
-    nombre: 'Workout Energy',
-    descripcion: 'Alta energía para tus entrenamientos',
-    creador: 'FitnessBeats',
-    canciones_count: 40,
-    duracion_total: '02:45:10',
-    fecha_agregada: '2025-01-14T07:15:00Z',
-    es_publica: true,
-  }
-];
-
 export default function FavoritosPage() {
-  const [activeTab, setActiveTab] = useState<TabType>('canciones');
+  const searchParams = useSearchParams();
+  const initialTab = (searchParams.get('tab') as TabType) || 'canciones';
+  
+  const [activeTab, setActiveTab] = useState<TabType>(initialTab);
   const [cancionesFavoritas, setCancionesFavoritas] = useState<CancionFavorita[]>([]);
-  const [playlistsFavoritas, setPlaylistsFavoritas] = useState<PlaylistFavorita[]>(mockPlaylistsFavoritas);
+  const [playlistsFavoritas, setPlaylistsFavoritas] = useState<PlaylistFavorita[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [user, setUser] = useState<any>(null);
@@ -117,6 +88,14 @@ export default function FavoritosPage() {
   useEffect(() => {
     cargarFavoritos();
   }, [user]);
+
+  // Efecto para actualizar el tab cuando cambien los parámetros de la URL
+  useEffect(() => {
+    const tabParam = searchParams.get('tab') as TabType;
+    if (tabParam && (tabParam === 'canciones' || tabParam === 'playlists')) {
+      setActiveTab(tabParam);
+    }
+  }, [searchParams]);
 
   const cargarFavoritos = async () => {
     try {
@@ -167,17 +146,12 @@ export default function FavoritosPage() {
                 try {
                   const { data: usuarioData } = await supabase
                     .from('usuarios')
-                    .select(`
-                      nombre,
-                      perfiles_artista (nombre_artistico)
-                    `)
+                    .select('nombre')
                     .eq('id', cancion.usuario_subida_id)
                     .single();
                   
-                  if (usuarioData) {
-                    nombreArtista = (usuarioData as any).perfiles_artista?.[0]?.nombre_artistico || 
-                                   (usuarioData as any).nombre || 
-                                   'Artista desconocido';
+                  if (usuarioData && usuarioData.nombre) {
+                    nombreArtista = usuarioData.nombre;
                   }
                 } catch (artistaError) {
                   console.warn('Error obteniendo info del artista:', artistaError);
@@ -201,18 +175,95 @@ export default function FavoritosPage() {
           setCancionesFavoritas(cancionesProcesadas);
         }
 
-        // Para playlists, por ahora usar datos mock ya que no están en el esquema actual
-        setPlaylistsFavoritas(mockPlaylistsFavoritas);
+        // Cargar playlists favoritas desde Supabase
+        const { data: playlistsFavoritasData, error: playlistsError } = await supabase
+          .from('playlist_favoritos')
+          .select(`
+            id,
+            fecha_agregada,
+            playlist_id,
+            playlists!inner (
+              id,
+              nombre,
+              descripcion,
+              numero_canciones,
+              duracion_total,
+              es_publica,
+              imagen_url,
+              usuario_id
+            )
+          `)
+          .eq('usuario_id', user.id);
+
+        if (playlistsError) {
+          console.error('Error cargando playlists favoritas:', playlistsError);
+          setPlaylistsFavoritas([]);
+        } else {
+          console.log('Playlists favoritas cargadas:', playlistsFavoritasData);
+          
+          // Procesar playlists y obtener información de creadores
+          const playlistsProcesadas: PlaylistFavorita[] = await Promise.all(
+            (playlistsFavoritasData || [])
+              .filter((fav: any) => fav.playlists)
+              .map(async (fav: any) => {
+                const playlist = fav.playlists;
+                
+                // Obtener información del creador
+                let nombreCreador = 'Usuario desconocido';
+                if (playlist.usuario_id) {
+                  const { data: usuarioData } = await supabase
+                    .from('usuarios')
+                    .select('nombre')
+                    .eq('id', playlist.usuario_id)
+                    .single();
+                  
+                  if (usuarioData && usuarioData.nombre) {
+                    nombreCreador = usuarioData.nombre;
+                  }
+                }
+
+                // Formatear duración total (convertir de segundos a formato MM:SS)
+                let duracionFormateada = '00:00';
+                if (playlist.duracion_total) {
+                  const totalSegundos = parseInt(playlist.duracion_total.toString()) || 0;
+                  const horas = Math.floor(totalSegundos / 3600);
+                  const minutos = Math.floor((totalSegundos % 3600) / 60);
+                  const segundos = totalSegundos % 60;
+                  
+                  if (horas > 0) {
+                    duracionFormateada = `${horas}:${minutos.toString().padStart(2, '0')}:${segundos.toString().padStart(2, '0')}`;
+                  } else {
+                    duracionFormateada = `${minutos}:${segundos.toString().padStart(2, '0')}`;
+                  }
+                }
+
+                return {
+                  id: playlist.id,
+                  nombre: playlist.nombre,
+                  descripcion: playlist.descripcion,
+                  creador: nombreCreador,
+                  canciones_count: playlist.numero_canciones || 0,
+                  duracion_total: duracionFormateada,
+                  fecha_agregada: fav.fecha_agregada,
+                  imagen_url: playlist.imagen_url,
+                  es_publica: playlist.es_publica,
+                  usuario_id: playlist.usuario_id
+                };
+              })
+          );
+
+          setPlaylistsFavoritas(playlistsProcesadas);
+        }
         
       } catch (supabaseError) {
         console.error('Error con Supabase:', supabaseError);
         setCancionesFavoritas([]);
-        setPlaylistsFavoritas(mockPlaylistsFavoritas);
+        setPlaylistsFavoritas([]);
       }
     } catch (error) {
       console.error('Error general:', error);
       setCancionesFavoritas([]);
-      setPlaylistsFavoritas(mockPlaylistsFavoritas);
+      setPlaylistsFavoritas([]);
     } finally {
       setLoading(false);
     }
@@ -269,9 +320,48 @@ export default function FavoritosPage() {
           cargarFavoritos();
         }
       } else {
-        // Para playlists, solo remover localmente por ahora
-        setPlaylistsFavoritas(prev => prev.filter(playlist => playlist.id !== id));
-        console.log(`Playlist ${id} removida de favoritos`);
+        // Para playlists, manejar favoritos en la base de datos
+        const { data: existeFavorito } = await supabase
+          .from('playlist_favoritos')
+          .select('id')
+          .eq('usuario_id', user.id)
+          .eq('playlist_id', id)
+          .single();
+
+        if (existeFavorito) {
+          // Remover de favoritos
+          const { error } = await supabase
+            .from('playlist_favoritos')
+            .delete()
+            .eq('usuario_id', user.id)
+            .eq('playlist_id', id);
+
+          if (error) {
+            console.error('Error removiendo playlist de favoritos:', error);
+            return;
+          }
+
+          // Actualizar estado local
+          setPlaylistsFavoritas(prev => prev.filter(playlist => playlist.id !== id));
+          console.log(`Playlist ${id} removida de favoritos`);
+        } else {
+          // Agregar a favoritos
+          const { error } = await supabase
+            .from('playlist_favoritos')
+            .insert({
+              usuario_id: user.id,
+              playlist_id: id
+            });
+
+          if (error) {
+            console.error('Error agregando playlist a favoritos:', error);
+            return;
+          }
+
+          console.log(`Playlist ${id} agregada a favoritos`);
+          // Recargar favoritos para obtener la playlist completa
+          cargarFavoritos();
+        }
       }
     } catch (error) {
       console.error('Error toggling favorito:', error);

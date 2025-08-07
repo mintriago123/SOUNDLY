@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { useSupabase } from '@/components/SupabaseProvider';
+import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { 
   MagnifyingGlassIcon,
@@ -46,6 +47,7 @@ interface FiltrosBusqueda {
 
 export default function BuscarMusicaPage() {
   const { supabase } = useSupabase();
+  const router = useRouter();
   const [termino, setTermino] = useState('');
   const [canciones, setCanciones] = useState<Cancion[]>([]);
   const [cancionesFiltradas, setCancionesFiltradas] = useState<Cancion[]>([]);
@@ -53,6 +55,9 @@ export default function BuscarMusicaPage() {
   const [cancionReproduciendo, setCancionReproduciendo] = useState<string | null>(null);
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
   const [audioActual, setAudioActual] = useState<HTMLAudioElement | null>(null);
+  const [user, setUser] = useState<any>(null);
+  const [favoritosUsuario, setFavoritosUsuario] = useState<Set<string>>(new Set());
+  const [mensajeFavorito, setMensajeFavorito] = useState<string>('');
   const [filtros, setFiltros] = useState<FiltrosBusqueda>({
     genero: '',
     año: '',
@@ -83,6 +88,45 @@ export default function BuscarMusicaPage() {
   useEffect(() => {
     actualizarFiltrosDinamicos();
   }, [actualizarFiltrosDinamicos]);
+
+  // Cargar usuario y sus favoritos al iniciar
+  useEffect(() => {
+    const cargarUsuarioYFavoritos = async () => {
+      try {
+        // Obtener usuario actual
+        const { data: { user } } = await supabase.auth.getUser();
+        setUser(user);
+        
+        if (user) {
+          // Cargar favoritos del usuario
+          const { data: favoritos, error } = await supabase
+            .from('favoritos')
+            .select('cancion_id')
+            .eq('usuario_id', user.id);
+
+          if (error) {
+            console.error('Error cargando favoritos:', error);
+          } else {
+            const favoritosSet = new Set(favoritos?.map(f => f.cancion_id) || []);
+            setFavoritosUsuario(favoritosSet);
+            console.log('Favoritos cargados:', favoritosSet.size);
+          }
+        }
+      } catch (error) {
+        console.error('Error cargando usuario y favoritos:', error);
+      }
+    };
+    
+    cargarUsuarioYFavoritos();
+  }, [supabase]);
+
+  // Actualizar el estado de favoritos en las canciones cuando cambian los favoritos del usuario
+  useEffect(() => {
+    setCanciones(prev => prev.map(cancion => ({
+      ...cancion,
+      es_favorito: favoritosUsuario.has(cancion.id)
+    })));
+  }, [favoritosUsuario]);
 
   /**
    * Cargar canciones públicas desde la base de datos de Supabase
@@ -117,9 +161,32 @@ export default function BuscarMusicaPage() {
         return;
       }
 
+      // Formatear duración desde segundos a MM:SS - función movida fuera del map
+      const formatearDuracion = (segundos: number) => {
+        if (!segundos) return '0:00';
+        const mins = Math.floor(segundos / 60);
+        const secs = segundos % 60;
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
+      };
+
       // Procesar y formatear las canciones
       const cancionesFormateadas = await Promise.all(
-        cancionesData.map(async (cancion: any) => {
+        cancionesData.map(async (cancion: {
+          id: string;
+          titulo: string;
+          duracion: number;
+          genero?: string;
+          año?: number;
+          archivo_audio_url: string;
+          imagen_url?: string;
+          reproducciones: number;
+          estado: string;
+          es_publica: boolean;
+          created_at: string;
+          usuario_subida_id: string;
+          usuarios?: { nombre?: string; email?: string };
+          album?: string;
+        }) => {
           let urlAudio = cancion.archivo_audio_url;
           
           // Si la URL no es completa, generar URL pública desde Supabase Storage
@@ -138,14 +205,6 @@ export default function BuscarMusicaPage() {
             }
           }
 
-          // Formatear duración desde segundos a MM:SS
-          const formatearDuracion = (segundos: number) => {
-            if (!segundos) return '0:00';
-            const mins = Math.floor(segundos / 60);
-            const secs = segundos % 60;
-            return `${mins}:${secs.toString().padStart(2, '0')}`;
-          };
-
           return {
             id: cancion.id,
             titulo: cancion.titulo,
@@ -157,7 +216,7 @@ export default function BuscarMusicaPage() {
             url_storage: urlAudio,
             archivo_audio_url: urlAudio,
             imagen_url: cancion.imagen_url,
-            es_favorito: false, // Se actualizará después
+            es_favorito: false, // Se actualizará después con el useEffect
             reproducciones: cancion.reproducciones || 0,
             estado: cancion.estado,
             es_publica: cancion.es_publica,
@@ -175,7 +234,7 @@ export default function BuscarMusicaPage() {
     } finally {
       setCargando(false);
     }
-  }, [supabase]);
+  }, [supabase]); // Solo supabase como dependencia
 
   const aplicarFiltros = useCallback(() => {
     let resultado = [...canciones];
@@ -373,11 +432,67 @@ export default function BuscarMusicaPage() {
   }, [cargarCanciones]);
 
   const toggleFavorito = async (cancionId: string) => {
-    setCanciones(prev => prev.map(cancion =>
-      cancion.id === cancionId
-        ? { ...cancion, es_favorito: !cancion.es_favorito }
-        : cancion
-    ));
+    if (!user) {
+      console.warn('Usuario no autenticado');
+      // Redirigir a favoritos para que vea que necesita autenticarse
+      router.push('/usuario/favoritos');
+      return;
+    }
+
+    try {
+      const esFavorito = favoritosUsuario.has(cancionId);
+      
+      if (esFavorito) {
+        // Remover de favoritos
+        const { error } = await supabase
+          .from('favoritos')
+          .delete()
+          .eq('usuario_id', user.id)
+          .eq('cancion_id', cancionId);
+
+        if (error) {
+          console.error('Error removiendo favorito:', error);
+          return;
+        }
+
+        // Actualizar estado local
+        setFavoritosUsuario(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(cancionId);
+          return newSet;
+        });
+
+        // Mostrar mensaje de confirmación
+        setMensajeFavorito('❤️ Canción removida de favoritos');
+        setTimeout(() => setMensajeFavorito(''), 3000);
+        
+        console.log(`Canción ${cancionId} removida de favoritos`);
+      } else {
+        // Agregar a favoritos
+        const { error } = await supabase
+          .from('favoritos')
+          .insert({
+            usuario_id: user.id,
+            cancion_id: cancionId
+          });
+
+        if (error) {
+          console.error('Error agregando favorito:', error);
+          return;
+        }
+
+        // Actualizar estado local
+        setFavoritosUsuario(prev => new Set([...prev, cancionId]));
+        
+        // Mostrar mensaje de confirmación
+        setMensajeFavorito('💖 Canción agregada a favoritos');
+        setTimeout(() => setMensajeFavorito(''), 3000);
+        
+        console.log(`Canción ${cancionId} agregada a favoritos`);
+      }
+    } catch (error) {
+      console.error('Error en toggleFavorito:', error);
+    }
   };
 
   const limpiarFiltros = () => {
@@ -397,15 +512,40 @@ export default function BuscarMusicaPage() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
+        {/* Mensaje de confirmación de favoritos */}
+        {mensajeFavorito && (
+          <div className="fixed top-4 right-4 z-50 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg shadow-lg">
+            {mensajeFavorito}
+          </div>
+        )}
+        
         {/* Header */}
         <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2 flex items-center">
-            <MagnifyingGlassIcon className="w-8 h-8 mr-3 text-purple-600" />
-            Buscar Música 🎵
-          </h2>
-          <p className="text-gray-600">
-            Explora y descubre nueva música en nuestra biblioteca
-          </p>
+          <div className="flex justify-between items-start">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2 flex items-center">
+                <MagnifyingGlassIcon className="w-8 h-8 mr-3 text-purple-600" />
+                Buscar Música 🎵
+              </h2>
+              <p className="text-gray-600">
+                Explora y descubre nueva música en nuestra biblioteca
+              </p>
+            </div>
+            <div className="flex space-x-3">
+              <button
+                onClick={() => router.push('/usuario/favoritos')}
+                className="flex items-center space-x-2 px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
+              >
+                <HeartIconSolid className="w-5 h-5" />
+                <span>Mis Favoritos</span>
+                {favoritosUsuario.size > 0 && (
+                  <span className="bg-red-600 text-white text-xs rounded-full px-2 py-1 min-w-[20px] text-center">
+                    {favoritosUsuario.size}
+                  </span>
+                )}
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Buscador y filtros */}

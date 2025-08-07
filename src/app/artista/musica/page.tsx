@@ -61,6 +61,15 @@ export default function MiMusica() {
   const [archivosSubiendo, setArchivosSubiendo] = useState<UploadProgress[]>([]);
   const [dragActive, setDragActive] = useState(false);
   const [albumsDisponibles, setAlbumsDisponibles] = useState<any[]>([]);
+  const [reproductorActual, setReproductorActual] = useState<{
+    cancionId: string;
+    isPlaying: boolean;
+    audio: HTMLAudioElement | null;
+  }>({
+    cancionId: '',
+    isPlaying: false,
+    audio: null
+  });
 
   useEffect(() => {
     verificarUsuarioYCargarMusica();
@@ -129,7 +138,8 @@ export default function MiMusica() {
                 return { ...cancion, duracion: duracionReal };
               }
             } catch (error) {
-              console.log(`No se pudo corregir duración para "${cancion.titulo}"`);
+              console.error(`Error al corregir duración para "${cancion.titulo}":`, error);
+              // Continuar con el siguiente archivo sin detener el proceso
             }
           }
           return cancion;
@@ -192,10 +202,6 @@ export default function MiMusica() {
     const minutos = Math.floor(segundos / 60);
     const segs = segundos % 60;
     return `${minutos}:${segs.toString().padStart(2, '0')}`;
-  };
-
-  const formatearFecha = (fecha: string) => {
-    return new Date(fecha).toLocaleDateString('es-ES');
   };
 
   // Función para obtener metadatos completos del archivo
@@ -279,55 +285,62 @@ export default function MiMusica() {
 
   // Validación de archivos de música
   const validarArchivo = (archivo: File): Promise<{ valido: boolean; error?: string; metadatos?: any }> => {
-    return new Promise(async (resolve) => {
-      // Validar tipo de archivo - incluir más formatos
-      const tiposPermitidos = [
-        'audio/mpeg', 
-        'audio/mp3', 
-        'audio/wav', 
-        'audio/ogg', 
-        'audio/aac',
-        'audio/webm',
-        'audio/mp4',
-        'audio/x-m4a',
-        'audio/opus'
-      ];
-      
-      // Para archivos OPUS de WhatsApp, verificar extensión
-      const esOpus = archivo.name.toLowerCase().includes('.opus') || archivo.type.includes('opus');
-      
-      if (!tiposPermitidos.includes(archivo.type) && !esOpus) {
-        resolve({ valido: false, error: 'Formato de archivo no soportado. Use MP3, WAV, OGG, AAC, OPUS o M4A.' });
-        return;
-      }
-
-      // Validar tamaño (máximo 100MB)
-      const tamañoMaximo = 100 * 1024 * 1024; // 100MB
-      if (archivo.size > tamañoMaximo) {
-        resolve({ valido: false, error: 'El archivo es demasiado grande. Tamaño máximo: 100MB.' });
-        return;
-      }
-
-      try {
-        // Obtener metadatos completos
-        const metadatos = await obtenerMetadatosArchivo(archivo);
+    return new Promise((resolve) => {
+      // Función async interna para manejar la lógica asíncrona
+      const procesarValidacion = async () => {
+        // Validar tipo de archivo - incluir más formatos
+        const tiposPermitidos = [
+          'audio/mpeg', 
+          'audio/mp3', 
+          'audio/wav', 
+          'audio/ogg', 
+          'audio/aac',
+          'audio/webm',
+          'audio/mp4',
+          'audio/x-m4a',
+          'audio/opus'
+        ];
         
-        if (metadatos.duracion > 3600) { // 1 hora máximo
-          resolve({ valido: false, error: 'La canción es demasiado larga. Duración máxima: 1 hora.' });
-        } else {
-          resolve({ valido: true, metadatos });
+        // Para archivos OPUS de WhatsApp, verificar extensión
+        const esOpus = archivo.name.toLowerCase().includes('.opus') || archivo.type.includes('opus');
+        
+        if (!tiposPermitidos.includes(archivo.type) && !esOpus) {
+          resolve({ valido: false, error: 'Formato de archivo no soportado. Use MP3, WAV, OGG, AAC, OPUS o M4A.' });
+          return;
         }
-      } catch (error) {
-        resolve({ valido: false, error: 'No se pudo procesar el archivo de audio.' });
-      }
+
+        // Validar tamaño (máximo 100MB)
+        const tamañoMaximo = 100 * 1024 * 1024; // 100MB
+        if (archivo.size > tamañoMaximo) {
+          resolve({ valido: false, error: 'El archivo es demasiado grande. Tamaño máximo: 100MB.' });
+          return;
+        }
+
+        try {
+          // Obtener metadatos completos
+          const metadatos = await obtenerMetadatosArchivo(archivo);
+          
+          if (metadatos.duracion > 3600) { // 1 hora máximo
+            resolve({ valido: false, error: 'La canción es demasiado larga. Duración máxima: 1 hora.' });
+          } else {
+            resolve({ valido: true, metadatos });
+          }
+        } catch (error) {
+          console.error('Error procesando archivo de audio:', error);
+          resolve({ valido: false, error: 'No se pudo procesar el archivo de audio.' });
+        }
+      };
+
+      // Ejecutar la función asíncrona
+      procesarValidacion();
     });
   };
 
   // Manejar selección de archivos
   const handleFileSelect = async (archivos: FileList) => {
-    for (let i = 0; i < archivos.length; i++) {
-      const archivo = archivos[i];
-      
+    const archivosArray = Array.from(archivos);
+    
+    for (const archivo of archivosArray) {
       // Validar archivo primero
       const validacion = await validarArchivo(archivo);
       if (!validacion.valido) {
@@ -398,7 +411,7 @@ export default function MiMusica() {
         )
       );
 
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from('music')
         .upload(nombreArchivo, upload.archivo, {
           cacheControl: '3600',
@@ -464,7 +477,7 @@ export default function MiMusica() {
       }
 
       // Guardar información en la base de datos
-      const { data: cancionData, error: dbError } = await supabase
+      const { error: dbError } = await supabase
         .from('canciones')
         .insert(datosCancion)
         .select()
@@ -511,6 +524,146 @@ export default function MiMusica() {
       prev.filter(upload => upload.fileName !== fileName)
     );
   };
+
+  // Funciones auxiliares para manejar errores de audio
+  const handleAudioPlayError = (error: any) => {
+    console.error('Error reproduciendo audio:', error);
+    alert('Error al reproducir la canción. Verifica que el archivo sea accesible.');
+    setReproductorActual(prev => ({ ...prev, isPlaying: false }));
+  };
+
+  const handleAudioLoadError = (e: any) => {
+    console.error('Error cargando audio:', e);
+    const audioElement = e.target;
+    let errorMsg = 'Error al cargar la canción. ';
+    
+    const getErrorMessage = (errorCode: number) => {
+      switch(errorCode) {
+        case 1: return 'Reproducción cancelada.';
+        case 2: return 'Error de red al cargar el archivo.';
+        case 3: return 'El archivo está dañado o en formato no válido.';
+        case 4: return 'Formato de archivo no soportado.';
+        default: return 'El archivo puede estar dañado o no ser accesible.';
+      }
+    };
+    
+    if (audioElement.error?.code) {
+      errorMsg += getErrorMessage(audioElement.error.code);
+    } else {
+      errorMsg += 'El archivo puede estar dañado o no ser accesible.';
+    }
+    
+    alert(errorMsg);
+    setReproductorActual(prev => ({ ...prev, isPlaying: false }));
+  };
+
+  const handleAudioSuccess = (cancion: Cancion, audio: HTMLAudioElement) => {
+    setReproductorActual({
+      cancionId: cancion.id,
+      isPlaying: true,
+      audio: audio
+    });
+  };
+
+  const handleAudioEnd = () => {
+    setReproductorActual(prev => ({
+      ...prev,
+      isPlaying: false
+    }));
+  };
+
+  // Funciones del reproductor de música
+  const reproducirCancion = async (cancion: Cancion) => {
+    try {
+      // Si hay una canción reproduciéndose, pausarla
+      if (reproductorActual.audio) {
+        reproductorActual.audio.pause();
+        reproductorActual.audio.currentTime = 0;
+      }
+
+      // Si es la misma canción, solo toggle play/pause
+      if (reproductorActual.cancionId === cancion.id && reproductorActual.isPlaying) {
+        setReproductorActual(prev => ({
+          ...prev,
+          isPlaying: false
+        }));
+        return;
+      }
+
+      // Verificar que la URL del archivo existe
+      if (!cancion.archivo_audio_url) {
+        alert('Esta canción no tiene un archivo de audio asociado.');
+        return;
+      }
+
+      // Crear nuevo audio element
+      const audio = new Audio();
+      
+      // Configurar eventos antes de cargar
+      const handleLoadedData = () => {
+        audio.play().then(() => {
+          handleAudioSuccess(cancion, audio);
+        }).catch(handleAudioPlayError);
+      };
+
+      audio.addEventListener('loadeddata', handleLoadedData);
+      audio.addEventListener('ended', handleAudioEnd);
+      audio.addEventListener('error', handleAudioLoadError);
+
+      // Cargar el archivo
+      audio.src = cancion.archivo_audio_url;
+      audio.load();
+
+    } catch (error) {
+      console.error('Error general reproduciendo canción:', error);
+      alert('Error inesperado al reproducir la canción.');
+    }
+  };
+
+  const pausarCancion = () => {
+    if (reproductorActual.audio) {
+      reproductorActual.audio.pause();
+      setReproductorActual(prev => ({
+        ...prev,
+        isPlaying: false
+      }));
+    }
+  };
+
+  const reanudarCancion = () => {
+    if (reproductorActual.audio) {
+      reproductorActual.audio.play().then(() => {
+        setReproductorActual(prev => ({
+          ...prev,
+          isPlaying: true
+        }));
+      }).catch(error => {
+        console.error('Error reanudando audio:', error);
+      });
+    }
+  };
+
+  const detenerCancion = () => {
+    if (reproductorActual.audio) {
+      reproductorActual.audio.pause();
+      reproductorActual.audio.currentTime = 0;
+      setReproductorActual({
+        cancionId: '',
+        isPlaying: false,
+        audio: null
+      });
+    }
+  };
+
+  // Limpiar audio al desmontar el componente
+  useEffect(() => {
+    return () => {
+      if (reproductorActual.audio) {
+        reproductorActual.audio.pause();
+        reproductorActual.audio.src = '';
+      }
+    };
+  }, [reproductorActual.audio]);
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -526,7 +679,7 @@ export default function MiMusica() {
     e.stopPropagation();
     setDragActive(false);
     
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+    if (e.dataTransfer.files?.[0]) {
       handleFileSelect(e.dataTransfer.files);
     }
   };
@@ -552,7 +705,8 @@ export default function MiMusica() {
               return { ...cancion, duracion: duracionReal };
             }
           } catch (error) {
-            console.log(`❌ Error corrigiendo "${cancion.titulo}"`);
+            console.error(`Error corrigiendo "${cancion.titulo}":`, error);
+            // Continuar con la siguiente canción sin detener el proceso
           }
         }
         return cancion;
@@ -568,6 +722,77 @@ export default function MiMusica() {
     setArchivosSubiendo(prev => 
       prev.filter(upload => upload.status !== 'complete')
     );
+  };
+
+  // Función auxiliar para renderizar el botón de reproducción
+  const renderBotonReproduccion = (cancion: Cancion) => {
+    const esCancionActual = reproductorActual.cancionId === cancion.id;
+    const estaReproduciendo = esCancionActual && reproductorActual.isPlaying;
+    const estaPausada = esCancionActual && !reproductorActual.isPlaying;
+
+    if (estaReproduciendo) {
+      return (
+        <button
+          onClick={pausarCancion}
+          className="p-2 rounded-full bg-purple-100 text-purple-600 hover:bg-purple-200 transition-colors"
+          title="Pausar"
+        >
+          <PauseIcon className="h-4 w-4" />
+        </button>
+      );
+    }
+
+    if (estaPausada) {
+      return (
+        <button
+          onClick={reanudarCancion}
+          className="p-2 rounded-full bg-purple-100 text-purple-600 hover:bg-purple-200 transition-colors"
+          title="Reanudar"
+        >
+          <PlayIcon className="h-4 w-4" />
+        </button>
+      );
+    }
+
+    return (
+      <button
+        onClick={() => reproducirCancion(cancion)}
+        className="p-2 rounded-full bg-gray-100 text-gray-600 hover:bg-purple-100 hover:text-purple-600 transition-colors"
+        title="Reproducir"
+      >
+        <PlayIcon className="h-4 w-4" />
+      </button>
+    );
+  };
+
+  // Función auxiliar para renderizar el estado de la canción
+  const renderEstadoCancion = (estado: string) => {
+    let clases = 'inline-flex px-2 py-1 text-xs font-medium rounded-full ';
+    
+    if (estado === 'activa') {
+      clases += 'bg-green-100 text-green-800';
+    } else if (estado === 'inactiva') {
+      clases += 'bg-red-100 text-red-800';
+    } else {
+      clases += 'bg-yellow-100 text-yellow-800';
+    }
+
+    return (
+      <span className={clases}>
+        {estado}
+      </span>
+    );
+  };
+
+  // Función auxiliar para obtener el mensaje de progreso
+  const obtenerMensajeProgreso = (progress: number) => {
+    if (progress < 50) {
+      return 'Validando archivo...';
+    } else if (progress < 90) {
+      return 'Subiendo a storage...';
+    } else {
+      return 'Guardando en base de datos...';
+    }
   };
 
   if (cargando) {
@@ -606,6 +831,54 @@ export default function MiMusica() {
         </div>
       </div>
 
+      {/* Mini Reproductor */}
+      {reproductorActual.cancionId && (
+        <div className="bg-purple-50 border-b border-purple-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between py-3">
+              <div className="flex items-center space-x-3">
+                <div className="flex items-center space-x-2">
+                  {reproductorActual.isPlaying ? (
+                    <button
+                      onClick={pausarCancion}
+                      className="p-2 rounded-full bg-purple-600 text-white hover:bg-purple-700"
+                    >
+                      <PauseIcon className="h-5 w-5" />
+                    </button>
+                  ) : (
+                    <button
+                      onClick={reanudarCancion}
+                      className="p-2 rounded-full bg-purple-600 text-white hover:bg-purple-700"
+                    >
+                      <PlayIcon className="h-5 w-5" />
+                    </button>
+                  )}
+                  <button
+                    onClick={detenerCancion}
+                    className="p-2 rounded-full bg-gray-200 text-gray-600 hover:bg-red-100 hover:text-red-600"
+                  >
+                    <XMarkIcon className="h-4 w-4" />
+                  </button>
+                </div>
+                
+                <div>
+                  <p className="text-sm font-medium text-purple-900">
+                    {canciones.find(c => c.id === reproductorActual.cancionId)?.titulo}
+                  </p>
+                  <p className="text-xs text-purple-600">
+                    {reproductorActual.isPlaying ? '♪ Reproduciendo ahora' : 'Pausado'}
+                  </p>
+                </div>
+              </div>
+              
+              <div className="text-xs text-purple-600">
+                Duración: {formatearDuracion(canciones.find(c => c.id === reproductorActual.cancionId)?.duracion || 0)}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Contenido Principal */}
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="px-4 py-6 sm:px-0">
@@ -618,6 +891,9 @@ export default function MiMusica() {
                 <div>
                   <p className="text-sm font-medium text-gray-600">Total Canciones</p>
                   <p className="text-2xl font-bold text-gray-900">{canciones.length}</p>
+                  {reproductorActual.isPlaying && (
+                    <p className="text-xs text-purple-600 mt-1">♪ Reproduciendo música</p>
+                  )}
                 </div>
               </div>
             </div>
@@ -672,6 +948,9 @@ export default function MiMusica() {
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Reproducir
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Canción
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -695,15 +974,45 @@ export default function MiMusica() {
                     {canciones.map((cancion) => (
                       <tr key={cancion.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center space-x-2">
+                            {renderBotonReproduccion(cancion)}
+                            
+                            {reproductorActual.cancionId === cancion.id && (
+                              <button
+                                onClick={detenerCancion}
+                                className="p-1 rounded text-gray-400 hover:text-red-600 transition-colors"
+                                title="Detener"
+                              >
+                                <XMarkIcon className="h-3 w-3" />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
                             <div className="flex-shrink-0 h-10 w-10">
-                              <div className="h-10 w-10 rounded bg-purple-100 flex items-center justify-center">
-                                <MusicalNoteIcon className="h-5 w-5 text-purple-600" />
+                              <div className={`h-10 w-10 rounded flex items-center justify-center transition-colors ${
+                                reproductorActual.cancionId === cancion.id 
+                                  ? 'bg-purple-200' 
+                                  : 'bg-purple-100'
+                              }`}>
+                                <MusicalNoteIcon className={`h-5 w-5 ${
+                                  reproductorActual.cancionId === cancion.id 
+                                    ? 'text-purple-700' 
+                                    : 'text-purple-600'
+                                }`} />
                               </div>
                             </div>
                             <div className="ml-4">
-                              <div className="text-sm font-medium text-gray-900">
+                              <div className={`text-sm font-medium ${
+                                reproductorActual.cancionId === cancion.id 
+                                  ? 'text-purple-900' 
+                                  : 'text-gray-900'
+                              }`}>
                                 {cancion.titulo}
+                                {reproductorActual.cancionId === cancion.id && reproductorActual.isPlaying && (
+                                  <span className="ml-2 text-xs text-purple-600">♪ Reproduciendo</span>
+                                )}
                               </div>
                               <div className="text-sm text-gray-500">
                                 {cancion.reproducciones.toLocaleString()} reproducciones
@@ -718,13 +1027,7 @@ export default function MiMusica() {
                           {cancion.genero}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                            cancion.estado === 'activa' ? 'bg-green-100 text-green-800' :
-                            cancion.estado === 'inactiva' ? 'bg-red-100 text-red-800' :
-                            'bg-yellow-100 text-yellow-800'
-                          }`}>
-                            {cancion.estado}
-                          </span>
+                          {renderEstadoCancion(cancion.estado)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {cancion.año}
@@ -790,10 +1093,12 @@ export default function MiMusica() {
             </div>
 
             {/* Zona de Drag & Drop */}
-            <div
-              className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+            <button
+              type="button"
+              className={`w-full border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
                 dragActive ? 'border-purple-400 bg-purple-50' : 'border-gray-300'
-              }`}
+              } hover:border-purple-400 hover:bg-purple-50 focus:outline-none focus:ring-2 focus:ring-purple-500`}
+              onClick={() => document.getElementById('file-input')?.click()}
               onDragEnter={handleDrag}
               onDragLeave={handleDrag}
               onDragOver={handleDrag}
@@ -801,22 +1106,22 @@ export default function MiMusica() {
             >
               <CloudArrowUpIcon className="mx-auto h-12 w-12 text-gray-400" />
               <p className="mt-2 text-sm text-gray-600">
-                Arrastra tus archivos de música aquí o
+                Arrastra tus archivos de música aquí o haz clic para seleccionar
               </p>
-              <label className="mt-2 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-purple-600 bg-purple-100 hover:bg-purple-200 cursor-pointer">
-                Seleccionar archivos
-                <input
-                  type="file"
-                  multiple
-                  accept="audio/*"
-                  onChange={(e) => e.target.files && handleFileSelect(e.target.files)}
-                  className="hidden"
-                />
-              </label>
               <p className="mt-1 text-xs text-gray-500">
                 Formatos soportados: MP3, WAV, OGG, AAC, OPUS, M4A (máx. 100MB)
               </p>
-            </div>
+            </button>
+
+            {/* Input oculto para selección de archivos */}
+            <input
+              id="file-input"
+              type="file"
+              multiple
+              accept="audio/*"
+              onChange={(e) => e.target.files && handleFileSelect(e.target.files)}
+              className="hidden"
+            />
 
             {/* Lista de archivos subiendo */}
             {archivosSubiendo.length > 0 && (
@@ -831,8 +1136,8 @@ export default function MiMusica() {
                   </button>
                 </div>
                 <div className="space-y-3 max-h-96 overflow-y-auto">
-                  {archivosSubiendo.map((upload, index) => (
-                    <div key={index} className="border rounded-lg p-3">
+                  {archivosSubiendo.map((upload) => (
+                    <div key={`${upload.fileName}-${upload.status}`} className="border rounded-lg p-3">
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-sm font-medium text-gray-900 truncate">
                           {upload.fileName}
@@ -859,10 +1164,11 @@ export default function MiMusica() {
                       {upload.status === 'editing' && upload.metadatos && (
                         <div className="space-y-3 bg-gray-50 p-3 rounded">
                           <div>
-                            <label className="block text-xs font-medium text-gray-700 mb-1">
+                            <label htmlFor={`titulo-${upload.fileName}`} className="block text-xs font-medium text-gray-700 mb-1">
                               Título de la canción
                             </label>
                             <input
+                              id={`titulo-${upload.fileName}`}
                               type="text"
                               value={upload.metadatos.titulo}
                               onChange={(e) => actualizarMetadatos(upload.fileName, 'titulo', e.target.value)}
@@ -873,10 +1179,11 @@ export default function MiMusica() {
                           
                           <div className="grid grid-cols-2 gap-2">
                             <div>
-                              <label className="block text-xs font-medium text-gray-700 mb-1">
+                              <label htmlFor={`genero-${upload.fileName}`} className="block text-xs font-medium text-gray-700 mb-1">
                                 Género
                               </label>
                               <select
+                                id={`genero-${upload.fileName}`}
                                 value={upload.metadatos.genero}
                                 onChange={(e) => actualizarMetadatos(upload.fileName, 'genero', e.target.value)}
                                 className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-purple-500"
@@ -898,10 +1205,11 @@ export default function MiMusica() {
                             </div>
                             
                             <div>
-                              <label className="block text-xs font-medium text-gray-700 mb-1">
+                              <label htmlFor={`album-${upload.fileName}`} className="block text-xs font-medium text-gray-700 mb-1">
                                 Álbum (opcional)
                               </label>
                               <select
+                                id={`album-${upload.fileName}`}
                                 value={upload.metadatos.albumId || ''}
                                 onChange={(e) => actualizarMetadatos(upload.fileName, 'albumId', e.target.value)}
                                 className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-purple-500"
@@ -943,8 +1251,7 @@ export default function MiMusica() {
                             ></div>
                           </div>
                           <p className="text-xs text-gray-500">
-                            {upload.progress < 50 ? 'Validando archivo...' : 
-                             upload.progress < 90 ? 'Subiendo a storage...' : 'Guardando en base de datos...'}
+                            {obtenerMensajeProgreso(upload.progress)}
                           </p>
                         </>
                       )}

@@ -319,7 +319,7 @@ export default function FavoritosPage() {
           <div className="flex items-center space-x-3 mb-4">
             <HeartIcon className={`h-8 w-8 text-red-500`} />
             <h2 className={`text-2xl font-bold ${themeClasses.text}`}>
-              Mis Favoritos ❤️
+              Mis Favoritos
             </h2>
           </div>
           <p className={themeClasses.textSecondary}>
@@ -351,8 +351,11 @@ export default function FavoritosPage() {
                   <PlayIcon className="h-5 w-5" />
                   <span>Reproducir Todo</span>
                 </button>
-                <button className={`border ${themeClasses.border} ${themeClasses.text} px-4 py-2 rounded-lg ${themeClasses.bgHover} transition-colors`}>
-                  📤 Exportar
+                <button className={`border ${themeClasses.border} ${themeClasses.text} px-4 py-2 rounded-lg ${themeClasses.bgHover} transition-colors flex items-center space-x-2`}>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+                  </svg>
+                  <span>Exportar</span>
                 </button>
               </div>
               <div className="flex gap-2">
@@ -385,7 +388,7 @@ export default function FavoritosPage() {
               <>
                 {filteredCanciones.length === 0 ? (
                   <div className="text-center py-12">
-                    <div className="text-6xl mb-4">💔</div>
+                    <HeartIcon className="h-16 w-16 text-gray-300 mx-auto mb-4" />
                     <h4 className={`text-xl font-medium mb-2 ${themeClasses.text}`}>
                       {searchTerm ? 'No se encontraron canciones' : 'No tienes canciones favoritas'}
                     </h4>
@@ -393,8 +396,9 @@ export default function FavoritosPage() {
                       {searchTerm ? 'Intenta con otros términos de búsqueda' : 'Explora música y marca tus canciones favoritas'}
                     </p>
                     {!searchTerm && (
-                      <button className="bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition-colors">
-                        🎵 Explorar Música
+                      <button className="bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition-colors flex items-center space-x-2 mx-auto">
+                        <MusicalNoteIcon className="h-5 w-5" />
+                        <span>Explorar Música</span>
                       </button>
                     )}
                   </div>

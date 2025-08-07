@@ -9,6 +9,7 @@ interface SubscriptionManagerProps {
 
 export default function SubscriptionManager({ userId }: SubscriptionManagerProps) {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [syncLoading, setSyncLoading] = useState(false);
   const {
     subscription,
     loading,
@@ -31,6 +32,37 @@ export default function SubscriptionManager({ userId }: SubscriptionManagerProps
       console.error('Error performing action:', err);
     } finally {
       setActionLoading(null);
+    }
+  };
+
+  const handleSyncRole = async () => {
+    try {
+      setSyncLoading(true);
+      const response = await fetch('/api/user/sync-role', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ userId }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Error al sincronizar rol');
+      }
+
+      // Refrescar la información de la suscripción
+      await fetchSubscription(userId);
+      
+      // Recargar la página para asegurar que el rol se actualice en toda la app
+      if (data.updated) {
+        window.location.reload();
+      }
+    } catch (err) {
+      console.error('Error syncing role:', err);
+    } finally {
+      setSyncLoading(false);
     }
   };
 
@@ -199,7 +231,7 @@ export default function SubscriptionManager({ userId }: SubscriptionManagerProps
           </div>
         )}
 
-        <div className="mt-6 flex space-x-3">
+        <div className="mt-6 flex flex-wrap gap-3">
           {willCancelAtPeriodEnd() ? (
             <button
               onClick={() => handleAction('reactivate')}
@@ -225,6 +257,24 @@ export default function SubscriptionManager({ userId }: SubscriptionManagerProps
           >
             {actionLoading === 'cancel_immediately' ? 'Cancelando...' : 'Cancelar inmediatamente'}
           </button>
+
+          <button
+            onClick={handleSyncRole}
+            disabled={syncLoading || actionLoading !== null}
+            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+          >
+            {syncLoading ? (
+              <>
+                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Sincronizando...
+              </>
+            ) : (
+              'Sincronizar rol'
+            )}
+          </button>
         </div>
 
         <div className="mt-4 text-xs text-gray-500">
@@ -233,6 +283,9 @@ export default function SubscriptionManager({ userId }: SubscriptionManagerProps
           </p>
           <p>
             • <strong>Cancelar inmediatamente:</strong> Perderás el acceso premium de inmediato (sin reembolso)
+          </p>
+          <p>
+            • <strong>Sincronizar rol:</strong> Verifica y actualiza tu rol de usuario según tu suscripción actual
           </p>
         </div>
       </div>

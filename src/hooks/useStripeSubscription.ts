@@ -51,7 +51,12 @@ export function useStripeSubscription(userId?: string) {
         throw new Error(supabaseError.message);
       }
 
-      setSubscription(data);
+      // Asegurar que los datos sean válidos antes de establecerlos
+      if (data && typeof data === 'object') {
+        setSubscription(data);
+      } else {
+        setSubscription(null);
+      }
     } catch (err) {
       console.error('Error fetching subscription:', err);
       setError(err instanceof Error ? err.message : 'Error desconocido');

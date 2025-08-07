@@ -329,7 +329,7 @@ export default function PricingDisplay() {
                 </h4>
                 <p className="text-sm text-blue-700">
                   Tu suscripción {getPlanType() === 'premium_monthly' ? 'mensual' : 'anual'} está activa.
-                  {subscription.cancel_at_period_end && (
+                  {subscription?.cancel_at_period_end && subscription?.current_period_end && (
                     <span className="font-medium"> Se cancelará el {new Date(subscription.current_period_end).toLocaleDateString('es-ES')}.</span>
                   )}
                 </p>

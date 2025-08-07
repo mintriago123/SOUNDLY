@@ -15,7 +15,8 @@ import {
   FunnelIcon,
   SpeakerWaveIcon,
   ClockIcon,
-  UserIcon
+  UserIcon,
+  XMarkIcon
 } from '@heroicons/react/24/outline';
 import { HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid';
 
@@ -45,6 +46,14 @@ interface FiltrosBusqueda {
   artista: string;
 }
 
+interface Playlist {
+  id: string;
+  nombre: string;
+  descripcion?: string;
+  numero_canciones: number;
+  created_at: string;
+}
+
 export default function BuscarMusicaPage() {
   const { supabase } = useSupabase();
   const router = useRouter();
@@ -58,6 +67,13 @@ export default function BuscarMusicaPage() {
   const [user, setUser] = useState<any>(null);
   const [favoritosUsuario, setFavoritosUsuario] = useState<Set<string>>(new Set());
   const [mensajeFavorito, setMensajeFavorito] = useState<string>('');
+  
+  // Estados para agregar a playlist
+  const [showPlaylistModal, setShowPlaylistModal] = useState(false);
+  const [selectedSongId, setSelectedSongId] = useState<string | null>(null);
+  const [userPlaylists, setUserPlaylists] = useState<Playlist[]>([]);
+  const [loadingPlaylists, setLoadingPlaylists] = useState(false);
+  
   const [filtros, setFiltros] = useState<FiltrosBusqueda>({
     genero: '',
     año: '',
@@ -89,6 +105,29 @@ export default function BuscarMusicaPage() {
     actualizarFiltrosDinamicos();
   }, [actualizarFiltrosDinamicos]);
 
+  /**
+   * Cargar playlists del usuario
+   */
+  const cargarPlaylistsUsuario = useCallback(async (userId: string) => {
+    try {
+      const { data: playlists, error } = await supabase
+        .from('playlists')
+        .select('id, nombre, descripcion, numero_canciones, created_at')
+        .eq('usuario_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error cargando playlists:', error);
+        return;
+      }
+
+      setUserPlaylists(playlists || []);
+      console.log('Playlists cargadas:', playlists?.length || 0);
+    } catch (error) {
+      console.error('Error en cargarPlaylistsUsuario:', error);
+    }
+  }, [supabase]);
+
   // Cargar usuario y sus favoritos al iniciar
   useEffect(() => {
     const cargarUsuarioYFavoritos = async () => {
@@ -111,6 +150,9 @@ export default function BuscarMusicaPage() {
             setFavoritosUsuario(favoritosSet);
             console.log('Favoritos cargados:', favoritosSet.size);
           }
+          
+          // Cargar playlists del usuario
+          await cargarPlaylistsUsuario(user.id);
         }
       } catch (error) {
         console.error('Error cargando usuario y favoritos:', error);
@@ -118,7 +160,7 @@ export default function BuscarMusicaPage() {
     };
     
     cargarUsuarioYFavoritos();
-  }, [supabase]);
+  }, [supabase, cargarPlaylistsUsuario]);
 
   // Actualizar el estado de favoritos en las canciones cuando cambian los favoritos del usuario
   useEffect(() => {
@@ -509,6 +551,108 @@ export default function BuscarMusicaPage() {
     return new Intl.NumberFormat('es-ES').format(num);
   };
 
+  /**
+   * Abrir modal para agregar canción a playlist
+   */
+  const abrirModalPlaylist = (cancionId: string) => {
+    if (!user) {
+      console.warn('Usuario no autenticado');
+      return;
+    }
+    setSelectedSongId(cancionId);
+    setShowPlaylistModal(true);
+  };
+
+  /**
+   * Cerrar modal de playlists
+   */
+  const cerrarModalPlaylist = () => {
+    setShowPlaylistModal(false);
+    setSelectedSongId(null);
+  };
+
+  /**
+   * Agregar canción a una playlist específica
+   */
+  const agregarCancionAPlaylist = async (playlistId: string) => {
+    if (!selectedSongId || !user) {
+      console.warn('Faltan datos para agregar canción a playlist');
+      return;
+    }
+
+    try {
+      setLoadingPlaylists(true);
+
+      // Verificar si la canción ya está en la playlist
+      const { data: existeCancion } = await supabase
+        .from('playlist_canciones')
+        .select('id')
+        .eq('playlist_id', playlistId)
+        .eq('cancion_id', selectedSongId)
+        .single();
+
+      if (existeCancion) {
+        setMensajeFavorito('La canción ya está en esta playlist');
+        setTimeout(() => setMensajeFavorito(''), 3000);
+        return;
+      }
+
+      // Obtener la siguiente posición en la playlist
+      const { data: ultimaPosicion } = await supabase
+        .from('playlist_canciones')
+        .select('posicion')
+        .eq('playlist_id', playlistId)
+        .order('posicion', { ascending: false })
+        .limit(1)
+        .single();
+
+      const nuevaPosicion = ultimaPosicion ? ultimaPosicion.posicion + 1 : 1;
+
+      // Agregar canción a la playlist
+      const { error: insertError } = await supabase
+        .from('playlist_canciones')
+        .insert({
+          playlist_id: playlistId,
+          cancion_id: selectedSongId,
+          posicion: nuevaPosicion,
+          agregada_por: user.id
+        });
+
+      if (insertError) {
+        console.error('Error agregando canción a playlist:', insertError);
+        setMensajeFavorito('Error al agregar canción a la playlist');
+        return;
+      }
+
+      // Actualizar contador de canciones en la playlist
+      const { error: updateError } = await supabase
+        .from('playlists')
+        .update({ 
+          numero_canciones: nuevaPosicion,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', playlistId);
+
+      if (updateError) {
+        console.error('Error actualizando contador de playlist:', updateError);
+      }
+
+      // Recargar playlists para actualizar contadores
+      await cargarPlaylistsUsuario(user.id);
+
+      setMensajeFavorito('¡Canción agregada a la playlist!');
+      setTimeout(() => setMensajeFavorito(''), 3000);
+      cerrarModalPlaylist();
+
+    } catch (error) {
+      console.error('Error en agregarCancionAPlaylist:', error);
+      setMensajeFavorito('Error al agregar canción a la playlist');
+      setTimeout(() => setMensajeFavorito(''), 3000);
+    } finally {
+      setLoadingPlaylists(false);
+    }
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -782,6 +926,7 @@ export default function BuscarMusicaPage() {
                       </button>
 
                       <button
+                        onClick={() => abrirModalPlaylist(cancion.id)}
                         className="p-2 text-gray-400 hover:text-gray-600 rounded-full transition-colors"
                         title="Agregar a playlist"
                       >
@@ -797,6 +942,76 @@ export default function BuscarMusicaPage() {
           )}
         </div>
       </div>
+
+      {/* Modal para agregar a playlist */}
+      {showPlaylistModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-96 overflow-hidden">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-medium text-gray-900">
+                  Agregar a Playlist
+                </h3>
+                <button
+                  onClick={cerrarModalPlaylist}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <XMarkIcon className="w-6 h-6" />
+                </button>
+              </div>
+            </div>
+            
+            <div className="p-6">
+              {loadingPlaylists ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+                </div>
+              ) : userPlaylists.length === 0 ? (
+                <div className="text-center py-8">
+                  <MusicalNoteIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-500 mb-4">No tienes playlists creadas</p>
+                  <button
+                    onClick={() => router.push('/usuario/dashboard')}
+                    className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors"
+                  >
+                    Crear Primera Playlist
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {userPlaylists.map((playlist) => (
+                    <button
+                      key={playlist.id}
+                      onClick={() => agregarCancionAPlaylist(playlist.id)}
+                      className="w-full p-3 text-left border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                      disabled={loadingPlaylists}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className="font-medium text-gray-900">{playlist.nombre}</h4>
+                          {playlist.descripcion && (
+                            <p className="text-sm text-gray-500 truncate">{playlist.descripcion}</p>
+                          )}
+                        </div>
+                        <div className="text-xs text-gray-400">
+                          {playlist.numero_canciones} canciones
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mensaje de confirmación */}
+      {mensajeFavorito && (
+        <div className="fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50">
+          {mensajeFavorito}
+        </div>
+      )}
     </DashboardLayout>
   );
 }

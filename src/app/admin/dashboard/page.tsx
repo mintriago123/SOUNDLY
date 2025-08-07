@@ -102,22 +102,22 @@ export default function AdminDashboard() {
 
         {/* Alertas */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <AlertCard
+          {/* <AlertCard
             title="Contenido Pendiente"
             description={`${stats.cancionesPendientes} canciones esperan aprobación`}
             icon={<ClockIcon className="w-6 h-6" />}
             actionText="Revisar Contenido"
             actionLink="/admin/contenido"
             urgent={stats.cancionesPendientes > 10}
-          />
-          <AlertCard
+          /> */}
+          {/* <AlertCard
             title="Reportes de Usuarios"
             description={`${stats.reportesPendientes} reportes requieren atención`}
             icon={<FlagIcon className="w-6 h-6" />}
             actionText="Ver Reportes"
             actionLink="/admin/moderacion"
             urgent={stats.reportesPendientes > 5}
-          />
+          /> */}
         </div>
 
         {/* Acciones rápidas */}
@@ -125,7 +125,7 @@ export default function AdminDashboard() {
           <h3 className="text-xl font-bold text-gray-900 mb-4">Acciones Rápidas</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <QuickActionButton title="Gestionar Usuarios" description="Ver, editar y administrar cuentas" icon={<UserIcon className="w-6 h-6" />} link="/admin/usuarios" />
-            <QuickActionButton title="Contenido Musical" description="Aprobar y gestionar música" icon={<MusicalNoteIcon className="w-6 h-6" />} link="/admin/biblioteca" />
+            {/* <QuickActionButton title="Contenido Musical" description="Aprobar y gestionar música" icon={<MusicalNoteIcon className="w-6 h-6" />} link="/admin/biblioteca" /> */}
             <QuickActionButton title="Configuración" description="Ajustes del sistema" icon={<Cog6ToothIcon className="w-6 h-6" />} link="/admin/configuracion" />
           </div>
         </div>

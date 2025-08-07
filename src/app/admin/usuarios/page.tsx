@@ -135,10 +135,19 @@ export default function AdminUsuariosPage() {
     return matchesSearch && matchesRol && matchesEstado;
   });
 
+  // FUNCIÓN DE EDICIÓN COMENTADA TEMPORALMENTE
+  /*
   const handleEdit = (usuario: Usuario) => {
     setSelectedUsuario(usuario);
     setEditFormData(usuario);
     setShowEditModal(true);
+  };
+  */
+  
+  const handleEdit = (usuario: Usuario) => {
+    // Función deshabilitada temporalmente
+    console.log('Edición de usuario deshabilitada:', usuario.email);
+    alert('La edición de usuarios está temporalmente deshabilitada');
   };
 
   const handleDelete = (usuario: Usuario) => {
@@ -146,6 +155,8 @@ export default function AdminUsuariosPage() {
     setShowDeleteModal(true);
   };
 
+  // FUNCIÓN DE GUARDADO DE EDICIÓN COMENTADA TEMPORALMENTE
+  /*
   const handleSaveEdit = async () => {
     if (!selectedUsuario) return;
 
@@ -173,6 +184,13 @@ export default function AdminUsuariosPage() {
       console.error('Error:', error);
       alert('Error al actualizar usuario');
     }
+  };
+  */
+  
+  const handleSaveEdit = async () => {
+    // Función deshabilitada temporalmente
+    console.log('Guardado de edición deshabilitado');
+    alert('La edición de usuarios está temporalmente deshabilitada');
   };
 
   const handleDeleteConfirm = async () => {

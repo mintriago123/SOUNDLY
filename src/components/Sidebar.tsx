@@ -739,7 +739,7 @@ export default function Sidebar({
             {isUser && !isAdmin && !isPremium && !isArtist && !isCollapsed && (
               <li className="pt-4 border-t border-gray-200 mt-4">
                 <Link
-                  href="/dashboard/upgrade"
+                  href="/usuario/upgrade"
                   className="flex items-center space-x-3 px-3 py-2 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600 transition-all"
                   onClick={onClose}
                 >

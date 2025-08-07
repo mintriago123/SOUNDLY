@@ -98,11 +98,21 @@ export async function POST(request: NextRequest) {
           const userId = subscription.metadata?.user_id;
 
           if (userId) {
+            // Determinar el tipo de plan
+            let planType = 'free';
+            const priceId = subscription.items.data[0]?.price.id;
+            if (priceId === process.env.STRIPE_PRICE_ID_MENSUAL) {
+              planType = 'premium_monthly';
+            } else if (priceId === process.env.STRIPE_PRICE_ID_ANUAL) {
+              planType = 'premium_yearly';
+            }
+
             // Actualizar la suscripción
             const { error: subscriptionError } = await supabase
               .from('subscriptions')
               .update({
                 status: subscription.status,
+                plan_type: planType,
                 current_period_start: new Date((subscription as any).current_period_start * 1000).toISOString(),
                 current_period_end: new Date((subscription as any).current_period_end * 1000).toISOString(),
                 updated_at: new Date().toISOString(),
@@ -113,11 +123,13 @@ export async function POST(request: NextRequest) {
               console.error('Error updating subscription:', subscriptionError);
             }
 
-            // Actualizar el usuario
+            // Actualizar el usuario con rol premium
             const { error: userError } = await supabase
               .from('usuarios')
               .update({
                 subscription_status: subscription.status,
+                subscription_tier: planType,
+                rol: 'premium',
                 updated_at: new Date().toISOString(),
               })
               .eq('id', userId);
@@ -152,11 +164,13 @@ export async function POST(request: NextRequest) {
               console.error('Error updating subscription:', subscriptionError);
             }
 
-            // Actualizar el usuario
+            // Actualizar el usuario - cambiar rol a 'usuario' cuando el pago falla
             const { error: userError } = await supabase
               .from('usuarios')
               .update({
                 subscription_status: 'past_due',
+                subscription_tier: 'free',
+                rol: 'usuario',
                 updated_at: new Date().toISOString(),
               })
               .eq('id', userId);

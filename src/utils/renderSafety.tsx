@@ -2,7 +2,7 @@
 import React from 'react';
 
 // Función para verificar si un valor es seguro para renderizar
-export const isSafeToRender = (value: any): boolean => {
+export const isSafeToRender = (value: unknown): boolean => {
   if (value === null || value === undefined) return true;
   if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return true;
   if (React.isValidElement(value)) return true;
@@ -10,9 +10,9 @@ export const isSafeToRender = (value: any): boolean => {
 };
 
 // Función para convertir cualquier valor a algo seguro para renderizar
-export const makeSafeForRender = (value: any): React.ReactNode => {
+export const makeSafeForRender = (value: unknown): React.ReactNode => {
   if (isSafeToRender(value)) {
-    return value;
+    return value as React.ReactNode;
   }
   
   // Si es un objeto, no lo renderices directamente
@@ -26,7 +26,7 @@ export const makeSafeForRender = (value: any): React.ReactNode => {
 
 // Hook para debugging seguro
 export const useDebugSafe = () => {
-  const debugRender = (data: any, label = 'Debug') => {
+  const debugRender = (data: unknown, label = 'Debug') => {
     if (process.env.NODE_ENV === 'development') {
       console.log(`[${label}]`, data);
     }
@@ -41,7 +41,7 @@ export class RenderErrorBoundary extends React.Component<
   { children: React.ReactNode; fallback?: React.ReactNode },
   { hasError: boolean }
 > {
-  constructor(props: any) {
+  constructor(props: { children: React.ReactNode; fallback?: React.ReactNode }) {
     super(props);
     this.state = { hasError: false };
   }
@@ -64,4 +64,6 @@ export class RenderErrorBoundary extends React.Component<
   }
 }
 
-export default { isSafeToRender, makeSafeForRender, useDebugSafe, RenderErrorBoundary };
+const renderSafetyUtils = { isSafeToRender, makeSafeForRender, useDebugSafe, RenderErrorBoundary };
+
+export default renderSafetyUtils;

@@ -130,7 +130,7 @@ export default function HomePage() {
             No hay canciones disponibles
           </h3>
           <p className="text-gray-600">
-            La tabla 'songs' está vacía o no existe en tu base de datos de Supabase.
+            La tabla &apos;songs&apos; está vacía o no existe en tu base de datos de Supabase.
           </p>
           <p className="text-sm text-gray-500 mt-2">
             Verifica la configuración de tu base de datos.

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useSupabase } from '@/components/SupabaseProvider';
 import DashboardLayout from '@/components/DashboardLayout';
 import ThemeSelectorClean from '@/components/ThemeSelectorClean';
+import SubscriptionManager from '@/components/SubscriptionManager';
 import {
   UserIcon,
   AtSymbolIcon,
@@ -20,7 +21,8 @@ import {
   DocumentTextIcon,
   EyeIcon,
   GlobeAltIcon,
-  CalendarDaysIcon
+  CalendarDaysIcon,
+  CreditCardIcon
 } from '@heroicons/react/24/outline';
 
 interface UserProfile {
@@ -849,6 +851,21 @@ export default function PerfilPage() {
                   </button>
                 </div>
               </form>
+            </div>
+
+            {/* Gestión de Suscripción */}
+            <div className="mt-6">
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                <div className="flex items-center mb-4">
+                  <CreditCardIcon className="w-6 h-6 text-purple-600 mr-3" />
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    Suscripción Premium
+                  </h3>
+                </div>
+                {profile && (
+                  <SubscriptionManager userId={profile.id} />
+                )}
+              </div>
             </div>
 
             {/* Selector de Tema */}

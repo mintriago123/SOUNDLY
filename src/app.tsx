@@ -12,7 +12,7 @@
 
 // Imports necesarios para React y Supabase
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase'; // Cliente de Supabase configurado
+import { supabase } from '@/lib/supabaseCLient'; // Cliente de Supabase configurado
 import { Song } from '@/types/music'; // Tipos específicos para música
 
 /**

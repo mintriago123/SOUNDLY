@@ -17,7 +17,11 @@ import {
   ShareIcon,
   QueueListIcon,
   ArrowPathIcon,
-  EllipsisHorizontalIcon
+  EllipsisHorizontalIcon,
+  ArrowsRightLeftIcon,
+  UserIcon,
+  ChartBarIcon,
+  SparklesIcon
 } from '@heroicons/react/24/outline';
 import { HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid';
 
@@ -341,7 +345,7 @@ export default function ReproductorPage() {
 
       const playlistFavoritos = {
         id: 'favoritos-virtual',
-        nombre: '❤️ Mis Favoritos',
+        nombre: 'Mis Favoritos',
         descripcion: 'Tus canciones favoritas',
         usuario_id: usuarioData.id,
         es_publica: false,
@@ -715,7 +719,7 @@ export default function ReproductorPage() {
         }`}
         title="Modo aleatorio"
       >
-        🔀
+        <ArrowsRightLeftIcon className="w-5 h-5" />
       </button>
       
       <button
@@ -749,9 +753,13 @@ export default function ReproductorPage() {
     if (cancionesFiltradas.length === 0) {
       return (
         <div className="p-8 text-center text-gray-500">
-          <span className="text-4xl mb-2 block">
-            {mostrarSoloFavoritas ? '💔' : '🎵'}
-          </span>
+          <div className="flex justify-center mb-2">
+            {mostrarSoloFavoritas ? (
+              <HeartIcon className="h-12 w-12 text-gray-400" />
+            ) : (
+              <MusicalNoteIcon className="h-12 w-12 text-gray-400" />
+            )}
+          </div>
           <p>
             {mostrarSoloFavoritas 
               ? 'No hay canciones favoritas en la selección' 
@@ -796,10 +804,16 @@ export default function ReproductorPage() {
                   {cancion.titulo}
                 </p>
                 <p className="text-sm text-gray-600 truncate">
-                  👤 {cancion.artista} • 🎵 {cancion.genero || 'Sin género'}
+                  <UserIcon className="w-4 h-4 inline mr-1" />
+                  {cancion.artista} • 
+                  <MusicalNoteIcon className="w-4 h-4 inline ml-2 mr-1" />
+                  {cancion.genero || 'Sin género'}
                 </p>
                 <p className="text-xs text-gray-500 truncate">
-                  📊 {cancion.reproducciones || 0} reproducciones • ❤️ {cancion.favoritos || 0} favoritos
+                  <ChartBarIcon className="w-4 h-4 inline mr-1" />
+                  {cancion.reproducciones || 0} reproducciones • 
+                  <HeartIcon className="w-4 h-4 inline ml-2 mr-1" />
+                  {cancion.favoritos || 0} favoritos
                 </p>
               </div>
             </button>
@@ -971,7 +985,7 @@ export default function ReproductorPage() {
           }}
         >
           <div className="flex items-center space-x-2">
-            <span className="text-lg">💜</span>
+            <HeartIcon className="w-5 h-5 text-white" />
             <span>{mensajeFavorito}</span>
           </div>
         </div>
@@ -1147,9 +1161,15 @@ export default function ReproductorPage() {
                         <span className="text-gray-500">Favorito:</span>
                         <span className="ml-2 font-medium">
                           {cancionesFavoritas.has(currentSong.id) ? (
-                            <span className="text-red-600">❤️ Sí</span>
+                            <span className="text-red-600 flex items-center">
+                              <HeartIcon className="w-4 h-4 mr-1" />
+                              Sí
+                            </span>
                           ) : (
-                            <span className="text-gray-400">🤍 No</span>
+                            <span className="text-gray-400 flex items-center">
+                              <HeartIcon className="w-4 h-4 mr-1" />
+                              No
+                            </span>
                           )}
                         </span>
                       </div>
@@ -1159,11 +1179,13 @@ export default function ReproductorPage() {
                     <div className="flex space-x-2 mt-6">
                       {usuario?.rol === 'premium' && (
                         <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-purple-100 to-pink-100 text-purple-800">
-                          💎 Calidad HD
+                          <SparklesIcon className="w-3 h-3 mr-1" />
+                          Calidad HD
                         </span>
                       )}
                       <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                        🎵 {currentSong.genero}
+                        <MusicalNoteIcon className="w-3 h-3 mr-1" />
+                        {currentSong.genero}
                       </span>
                     </div>
                   </div>
@@ -1205,8 +1227,18 @@ export default function ReproductorPage() {
                 ))}
               </div>
               
-              <div className="mt-4 text-center text-sm text-gray-500">
-                {isPlaying ? '🎵 Reproduciendo...' : '⏸️ En pausa'}
+              <div className="mt-4 text-center text-sm text-gray-500 flex items-center justify-center space-x-2">
+                {isPlaying ? (
+                  <>
+                    <MusicalNoteIcon className="w-4 h-4" />
+                    <span>Reproduciendo...</span>
+                  </>
+                ) : (
+                  <>
+                    <PauseIcon className="w-4 h-4" />
+                    <span>En pausa</span>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -1238,14 +1270,24 @@ export default function ReproductorPage() {
                 <div className="flex items-center space-x-2">
                   <button
                     onClick={() => setMostrarSoloFavoritas(!mostrarSoloFavoritas)}
-                    className={`px-3 py-1 rounded-md text-xs transition-colors ${
+                    className={`px-3 py-1 rounded-md text-xs transition-colors flex items-center space-x-1 ${
                       mostrarSoloFavoritas
                         ? 'bg-red-100 text-red-700'
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                     }`}
                     title={mostrarSoloFavoritas ? "Mostrar todas" : "Solo favoritas"}
                   >
-                    {mostrarSoloFavoritas ? '❤️ Favoritas' : '🎵 Todas'}
+                    {mostrarSoloFavoritas ? (
+                      <>
+                        <HeartIcon className="w-3 h-3" />
+                        <span>Favoritas</span>
+                      </>
+                    ) : (
+                      <>
+                        <MusicalNoteIcon className="w-3 h-3" />
+                        <span>Todas</span>
+                      </>
+                    )}
                   </button>
                   <button
                     onClick={() => setMostrarPlaylist(!mostrarPlaylist)}

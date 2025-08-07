@@ -325,17 +325,17 @@ const renderProfileMenu = (
         <>
           <Link
             href="/admin/configuracion-sistema"
-            className="w-full flex items-center px-3 py-2 text-left rounded-md hover:bg-white dark:hover:bg-gray-600 hover:shadow-sm transition-all duration-200"
+            className="w-full flex items-center px-3 py-2 text-left rounded-md hover:bg-white hover:shadow-sm dark:hover:bg-gray-700 dark:hover:text-purple-300 transition-all duration-200"
           >
-            <Cog6ToothIcon className="w-4 h-4 mr-2 text-gray-500 dark:text-gray-400" />
+            <Cog6ToothIcon className="w-4 h-4 mr-2 text-gray-500 dark:text-gray-400 dark:hover:text-purple-300" />
             <span className="text-xs text-gray-700 dark:text-gray-200 font-medium">Configuración del Sistema</span>
           </Link>
 
           <Link
             href="/admin/configuracion-global"
-            className="w-full flex items-center px-3 py-2 text-left rounded-md hover:bg-white dark:hover:bg-gray-600 hover:shadow-sm transition-all duration-200"
+            className="w-full flex items-center px-3 py-2 text-left rounded-md hover:bg-white hover:shadow-sm dark:hover:bg-gray-700 dark:hover:text-purple-300 transition-all duration-200"
           >
-            <Cog6ToothIcon className="w-4 h-4 mr-2 text-gray-500 dark:text-gray-400" />
+            <Cog6ToothIcon className="w-4 h-4 mr-2 text-gray-500 dark:text-gray-400 dark:hover:text-purple-300" />
             <span className="text-xs text-gray-700 dark:text-gray-200 font-medium">Configuración Global</span>
           </Link>
         </>
@@ -352,28 +352,28 @@ const renderProfileMenu = (
 
       <Link
         href={getConfigUrl(isAdmin, isPremium, isArtist)}
-        className="w-full flex items-center px-3 py-2 text-left rounded-md hover:bg-white dark:hover:bg-gray-600 hover:shadow-sm transition-all duration-200"
+        className="w-full flex items-center px-3 py-2 text-left rounded-md hover:bg-white hover:shadow-sm dark:hover:bg-gray-700 dark:hover:text-purple-300 transition-all duration-200"
         onClick={onClose}
       >
-        <Cog6ToothIcon className="w-4 h-4 mr-2 text-gray-500 dark:text-gray-400" />
+        <Cog6ToothIcon className="w-4 h-4 mr-2 text-gray-500 dark:text-gray-400 dark:hover:text-purple-300" />
         <span className="text-xs text-gray-700 dark:text-gray-200 font-medium">Configuración</span>
       </Link>
 
       <Link
         href={getUpgradeUrl(isAdmin, isPremium, isArtist)}
-        className="w-full flex items-center px-3 py-2 text-left rounded-md hover:bg-white dark:hover:bg-gray-600 hover:shadow-sm transition-all duration-200"
+        className="w-full flex items-center px-3 py-2 text-left rounded-md hover:bg-white hover:shadow-sm dark:hover:bg-gray-700 dark:hover:text-purple-300 transition-all duration-200"
         onClick={onClose}
       >
-        <SparklesIcon className="w-4 h-4 mr-2 text-gray-500 dark:text-gray-400" />
+        <SparklesIcon className="w-4 h-4 mr-2 text-gray-500 dark:text-gray-400 dark:hover:text-purple-300" />
         <span className="text-xs text-gray-700 dark:text-gray-200 font-medium">Ver planes</span>
       </Link>
 
       <button
         onClick={handleLogout}
         disabled={isLoggingOut}
-        className="w-full flex items-center px-3 py-2 text-left rounded-md hover:bg-white dark:hover:bg-gray-600 hover:shadow-sm transition-all duration-200 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 disabled:opacity-50"
+        className="w-full flex items-center px-3 py-2 text-left rounded-md hover:bg-white dark:hover:bg-gray-700 dark:hover:text-purple-300 hover:shadow-sm transition-all duration-200 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-purple-300 disabled:opacity-50"
       >
-        <PowerIcon className="w-4 h-4 mr-2" />
+        <PowerIcon className="w-4 h-4 mr-2 dark:group-hover:text-purple-300" />
         <span className="text-xs font-medium">
           {isLoggingOut ? "Cerrando..." : "Cerrar Sesión"}
         </span>
@@ -575,19 +575,19 @@ export default function Sidebar({
   };
 
   const getActiveStyles = (isActive: boolean) => {
-    if (!isActive) return 'text-gray-700 hover:bg-gray-50 hover:text-gray-900';
+    if (!isActive) return 'text-gray-700 hover:text-purple-600 dark:text-gray-300 dark:hover:text-purple-400';
     
-    if (isAdmin) return 'bg-blue-50 text-blue-700 border border-blue-200';
-    if (isPremium && !isAdmin) return 'bg-purple-50 text-purple-700 border border-purple-200';
-    return 'bg-gray-50 text-gray-700 border border-gray-200';
+    if (isAdmin) return 'bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-700';
+    if (isPremium && !isAdmin) return 'bg-purple-50 text-purple-700 border border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-700';
+    return 'bg-gray-50 text-gray-700 border border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600';
   };
 
   const getIconStyles = (isActive: boolean) => {
-    if (!isActive) return 'text-gray-500 group-hover:text-gray-700';
+    if (!isActive) return 'text-gray-500 group-hover:text-purple-600 dark:text-gray-400 dark:group-hover:text-purple-400';
     
-    if (isAdmin) return 'text-blue-600';
-    if (isPremium && !isAdmin) return 'text-purple-600';
-    return 'text-gray-600';
+    if (isAdmin) return 'text-blue-600 dark:text-blue-400';
+    if (isPremium && !isAdmin) return 'text-purple-600 dark:text-purple-400';
+    return 'text-gray-600 dark:text-gray-400';
   };
 
   const getRoleColor = () => {
@@ -669,7 +669,7 @@ export default function Sidebar({
                       }}
                       className={`w-full flex items-center px-3 py-2.5 text-left rounded-lg transition-all duration-200 group ${
                         getActiveStyles(isItemActive)
-                      } hover:bg-gradient-to-r hover:from-[#f3e8ff] hover:to-[#fdf6fb] hover:shadow-md hover:shadow-[#ba319f22]`}
+                      } hover:bg-gray-50 dark:hover:bg-gray-700`}
                       title={isCollapsed ? item.name : undefined}
                     >
                       <Icon className={`w-5 h-5 ${isCollapsed ? 'mx-auto' : 'mr-3'} ${
@@ -713,8 +713,8 @@ export default function Sidebar({
                               }}
                               className={`w-full flex items-start px-3 py-2 text-left rounded-md transition-all duration-200 group ${
                                 isSubActive 
-                                  ? 'bg-gray-100 text-gray-900 border border-gray-200' 
-                                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                                  ? 'bg-gray-100 text-gray-900 border border-gray-200 dark:bg-gray-700 dark:text-purple-300 dark:border-gray-600' 
+                                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-purple-300'
                               }`}
                             >
                               <div className="flex-1 min-w-0">

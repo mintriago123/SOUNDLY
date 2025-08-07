@@ -8,7 +8,12 @@ import {
   MagnifyingGlassIcon,
   PencilIcon,
   TrashIcon,
-  ExclamationTriangleIcon
+  ExclamationTriangleIcon,
+  UsersIcon,
+  CheckCircleIcon,
+  MicrophoneIcon,
+  SparklesIcon,
+  ArrowPathIcon
 } from '@heroicons/react/24/outline';
 
 interface Usuario {
@@ -240,25 +245,25 @@ export default function AdminUsuariosPage() {
       {
         title: 'Total Usuarios',
         value: totalUsuarios,
-        icon: '👥',
+        icon: <UsersIcon className="h-8 w-8" />,
         color: 'text-blue-600'
       },
       {
         title: 'Usuarios Activos',
         value: usuariosActivos,
-        icon: '✅',
+        icon: <CheckCircleIcon className="h-8 w-8" />,
         color: 'text-green-600'
       },
       {
         title: 'Artistas',
         value: artistasCount,
-        icon: '🎤',
+        icon: <MicrophoneIcon className="h-8 w-8" />,
         color: 'text-purple-600'
       },
       {
         title: 'Premium',
         value: premiumCount,
-        icon: '💎',
+        icon: <SparklesIcon className="h-8 w-8" />,
         color: 'text-yellow-600'
       }
     ];
@@ -271,9 +276,10 @@ export default function AdminUsuariosPage() {
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex justify-between items-center">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                Gestión de Usuarios 👥
-              </h2>
+              <div className="flex items-center space-x-2 mb-2">
+                <UsersIcon className="h-6 w-6 text-blue-600" />
+                <h2 className="text-2xl font-bold text-gray-900">Gestión de Usuarios</h2>
+              </div>
               <p className="text-gray-600">
                 Administra los usuarios de la plataforma Soundly
               </p>
@@ -336,9 +342,10 @@ export default function AdminUsuariosPage() {
 
             <button
               onClick={fetchUsuarios}
-              className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
+              className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors flex items-center space-x-2"
             >
-              🔄 Actualizar
+              <ArrowPathIcon className="h-5 w-5" />
+              <span>Actualizar</span>
             </button>
           </div>
         </div>

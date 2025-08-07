@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import DashboardLayout from '../../../components/DashboardLayout';
 import { useSupabase } from '@/components/SupabaseProvider';
 import { useMusicPlayer } from '@/contexts/MusicPlayerContext';
-import { HeartIcon, MagnifyingGlassIcon, MusicalNoteIcon, PlayIcon } from '@heroicons/react/24/outline';
+import { HeartIcon, MagnifyingGlassIcon, MusicalNoteIcon, PlayIcon, ArrowUpTrayIcon, HeartIcon as HeartBrokenIcon } from '@heroicons/react/24/outline';
 import { HeartIcon as HeartSolidIcon } from '@heroicons/react/24/solid';
 
 interface CancionFavorita {
@@ -319,7 +319,7 @@ export default function FavoritosPage() {
           <div className="flex items-center space-x-3 mb-4">
             <HeartIcon className={`h-8 w-8 text-red-500`} />
             <h2 className={`text-2xl font-bold ${themeClasses.text}`}>
-              Mis Favoritos ❤️
+              Mis Favoritos
             </h2>
           </div>
           <p className={themeClasses.textSecondary}>
@@ -351,8 +351,9 @@ export default function FavoritosPage() {
                   <PlayIcon className="h-5 w-5" />
                   <span>Reproducir Todo</span>
                 </button>
-                <button className={`border ${themeClasses.border} ${themeClasses.text} px-4 py-2 rounded-lg ${themeClasses.bgHover} transition-colors`}>
-                  📤 Exportar
+                <button className={`border ${themeClasses.border} ${themeClasses.text} px-4 py-2 rounded-lg ${themeClasses.bgHover} transition-colors flex items-center space-x-2`}>
+                  <ArrowUpTrayIcon className="h-4 w-4" />
+                  <span>Exportar</span>
                 </button>
               </div>
               <div className="flex gap-2">
@@ -385,7 +386,9 @@ export default function FavoritosPage() {
               <>
                 {filteredCanciones.length === 0 ? (
                   <div className="text-center py-12">
-                    <div className="text-6xl mb-4">💔</div>
+                    <div className="flex justify-center mb-4">
+                      <HeartBrokenIcon className="h-16 w-16 text-gray-400" />
+                    </div>
                     <h4 className={`text-xl font-medium mb-2 ${themeClasses.text}`}>
                       {searchTerm ? 'No se encontraron canciones' : 'No tienes canciones favoritas'}
                     </h4>
@@ -393,8 +396,9 @@ export default function FavoritosPage() {
                       {searchTerm ? 'Intenta con otros términos de búsqueda' : 'Explora música y marca tus canciones favoritas'}
                     </p>
                     {!searchTerm && (
-                      <button className="bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition-colors">
-                        🎵 Explorar Música
+                      <button className="bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition-colors flex items-center space-x-2 mx-auto">
+                        <MusicalNoteIcon className="h-5 w-5" />
+                        <span>Explorar Música</span>
                       </button>
                     )}
                   </div>

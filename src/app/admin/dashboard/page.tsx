@@ -3,6 +3,17 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseCLient';
 import DashboardLayout from '@/components/DashboardLayout';
+import {
+  UserGroupIcon,
+  MusicalNoteIcon,
+  CheckBadgeIcon,
+  ArrowTrendingUpIcon,
+  ClockIcon,
+  FlagIcon,
+  UserIcon,
+  Cog6ToothIcon,
+  WrenchScrewdriverIcon
+} from '@heroicons/react/24/outline';
 
 interface AdminStats {
   totalUsuarios: number;
@@ -74,16 +85,19 @@ export default function AdminDashboard() {
       <div className="space-y-6">
         {/* Header */}
         <div className="bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg shadow p-6 text-white">
-          <h2 className="text-3xl font-bold mb-2">Panel de Administración 🛠️</h2>
+          <div className="flex items-center mb-2">
+            <WrenchScrewdriverIcon className="w-8 h-8 mr-3" />
+            <h2 className="text-3xl font-bold">Panel de Administración</h2>
+          </div>
           <p className="text-purple-100">Gestiona usuarios, contenido y supervisa el rendimiento de la plataforma SOUNDLY</p>
         </div>
 
         {/* Estadísticas principales */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <StatCard title="Total Usuarios" value={stats.totalUsuarios} icon="👥" color="bg-blue-500" loading={loading} />
-          <StatCard title="Total Canciones" value={stats.totalCanciones} icon="🎵" color="bg-green-500" loading={loading} />
-          <StatCard title="Artistas Verificados" value={stats.totalArtistas} icon="🎤" color="bg-purple-500" loading={loading} />
-          <StatCard title="Nuevos Usuarios Hoy" value={stats.nuevosUsuariosHoy} icon="📈" color="bg-orange-500" loading={loading} />
+          <StatCard title="Total Usuarios" value={stats.totalUsuarios} icon={<UserGroupIcon className="w-6 h-6" />} color="bg-blue-500" loading={loading} />
+          <StatCard title="Total Canciones" value={stats.totalCanciones} icon={<MusicalNoteIcon className="w-6 h-6" />} color="bg-green-500" loading={loading} />
+          <StatCard title="Artistas Verificados" value={stats.totalArtistas} icon={<CheckBadgeIcon className="w-6 h-6" />} color="bg-purple-500" loading={loading} />
+          <StatCard title="Nuevos Usuarios Hoy" value={stats.nuevosUsuariosHoy} icon={<ArrowTrendingUpIcon className="w-6 h-6" />} color="bg-orange-500" loading={loading} />
         </div>
 
         {/* Alertas */}
@@ -91,7 +105,7 @@ export default function AdminDashboard() {
           <AlertCard
             title="Contenido Pendiente"
             description={`${stats.cancionesPendientes} canciones esperan aprobación`}
-            icon="⏳"
+            icon={<ClockIcon className="w-6 h-6" />}
             actionText="Revisar Contenido"
             actionLink="/admin/contenido"
             urgent={stats.cancionesPendientes > 10}
@@ -99,7 +113,7 @@ export default function AdminDashboard() {
           <AlertCard
             title="Reportes de Usuarios"
             description={`${stats.reportesPendientes} reportes requieren atención`}
-            icon="🚩"
+            icon={<FlagIcon className="w-6 h-6" />}
             actionText="Ver Reportes"
             actionLink="/admin/moderacion"
             urgent={stats.reportesPendientes > 5}
@@ -110,9 +124,9 @@ export default function AdminDashboard() {
         <div className="bg-white rounded-lg shadow p-6">
           <h3 className="text-xl font-bold text-gray-900 mb-4">Acciones Rápidas</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <QuickActionButton title="Gestionar Usuarios" description="Ver, editar y administrar cuentas" icon="👤" link="/admin/usuarios" />
-            <QuickActionButton title="Contenido Musical" description="Aprobar y gestionar música" icon="🎶" link="/admin/biblioteca" />
-            <QuickActionButton title="Configuración" description="Ajustes del sistema" icon="⚙️" link="/admin/configuracion" />
+            <QuickActionButton title="Gestionar Usuarios" description="Ver, editar y administrar cuentas" icon={<UserIcon className="w-6 h-6" />} link="/admin/usuarios" />
+            <QuickActionButton title="Contenido Musical" description="Aprobar y gestionar música" icon={<MusicalNoteIcon className="w-6 h-6" />} link="/admin/biblioteca" />
+            <QuickActionButton title="Configuración" description="Ajustes del sistema" icon={<Cog6ToothIcon className="w-6 h-6" />} link="/admin/configuracion" />
           </div>
         </div>
       </div>
@@ -130,13 +144,13 @@ const StatCard = ({
 }: {
   title: string;
   value: number;
-  icon: string;
+  icon: React.ReactNode;
   color: string;
   loading: boolean;
 }) => (
   <div className="bg-white rounded-lg shadow p-6">
     <div className="flex items-center">
-      <div className={`${color} text-white p-3 rounded-lg text-2xl mr-4`}>{icon}</div>
+      <div className={`${color} text-white p-3 rounded-lg mr-4`}>{icon}</div>
       <div>
         <p className="text-sm font-medium text-gray-600">{title}</p>
         <p className="text-2xl font-bold text-gray-900">{loading ? '...' : value.toLocaleString()}</p>
@@ -156,14 +170,14 @@ const AlertCard = ({
 }: {
   title: string;
   description: string;
-  icon: string;
+  icon: React.ReactNode;
   actionText: string;
   actionLink: string;
   urgent: boolean;
 }) => (
   <div className={`rounded-lg shadow p-6 ${urgent ? 'bg-red-50 border-l-4 border-red-500' : 'bg-white'}`}>
     <div className="flex items-start">
-      <div className="text-2xl mr-3">{icon}</div>
+      <div className="mr-3 mt-1">{icon}</div>
       <div className="flex-1">
         <h4 className={`font-semibold ${urgent ? 'text-red-800' : 'text-gray-900'}`}>{title}</h4>
         <p className={`text-sm mt-1 ${urgent ? 'text-red-600' : 'text-gray-600'}`}>{description}</p>
@@ -189,11 +203,11 @@ const QuickActionButton = ({
 }: {
   title: string;
   description: string;
-  icon: string;
+  icon: React.ReactNode;
   link: string;
 }) => (
   <a href={link} className="block p-4 border border-gray-200 rounded-lg hover:border-blue-500 hover:shadow-md transition-all">
-    <div className="text-2xl mb-2">{icon}</div>
+    <div className="mb-2">{icon}</div>
     <h4 className="font-semibold text-gray-900">{title}</h4>
     <p className="text-sm text-gray-600 mt-1">{description}</p>
   </a>

@@ -2,6 +2,15 @@
 
 import Link from 'next/link';
 import DashboardLayout from '@/components/DashboardLayout';
+import { 
+  SparklesIcon,
+  MusicalNoteIcon,
+  ArrowDownTrayIcon,
+  NoSymbolIcon,
+  QueueListIcon,
+  ChartBarIcon,
+  BoltIcon
+} from '@heroicons/react/24/outline';
 
 export default function UpgradePage() {
   return (
@@ -9,7 +18,9 @@ export default function UpgradePage() {
       <div className="max-w-4xl mx-auto space-y-8">
         {/* Header */}
         <div className="text-center bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg p-8 text-white">
-          <div className="text-6xl mb-4">💎</div>
+          <div className="flex justify-center mb-4">
+            <SparklesIcon className="h-16 w-16" />
+          </div>
           <h1 className="text-3xl font-bold mb-2">
             ¡Desbloquea Soundly Premium!
           </h1>
@@ -21,7 +32,9 @@ export default function UpgradePage() {
         {/* Características Premium */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="bg-white rounded-lg shadow-lg p-6">
-            <div className="text-4xl mb-4">🎵</div>
+            <div className="flex justify-center mb-4">
+              <MusicalNoteIcon className="h-12 w-12 text-purple-600" />
+            </div>
             <h3 className="text-xl font-bold text-gray-900 mb-2">Música en HD</h3>
             <p className="text-gray-600">
               Disfruta de calidad de audio superior con archivos sin comprimir
@@ -29,7 +42,9 @@ export default function UpgradePage() {
           </div>
 
           <div className="bg-white rounded-lg shadow-lg p-6">
-            <div className="text-4xl mb-4">⬇️</div>
+            <div className="flex justify-center mb-4">
+              <ArrowDownTrayIcon className="h-12 w-12 text-blue-600" />
+            </div>
             <h3 className="text-xl font-bold text-gray-900 mb-2">Descargas Ilimitadas</h3>
             <p className="text-gray-600">
               Descarga toda tu música favorita para escuchar sin conexión
@@ -37,7 +52,9 @@ export default function UpgradePage() {
           </div>
 
           <div className="bg-white rounded-lg shadow-lg p-6">
-            <div className="text-4xl mb-4">🚫</div>
+            <div className="flex justify-center mb-4">
+              <NoSymbolIcon className="h-12 w-12 text-red-600" />
+            </div>
             <h3 className="text-xl font-bold text-gray-900 mb-2">Sin Anuncios</h3>
             <p className="text-gray-600">
               Disfruta de tu música sin interrupciones publicitarias
@@ -45,7 +62,9 @@ export default function UpgradePage() {
           </div>
 
           <div className="bg-white rounded-lg shadow-lg p-6">
-            <div className="text-4xl mb-4">∞</div>
+            <div className="flex justify-center mb-4">
+              <QueueListIcon className="h-12 w-12 text-green-600" />
+            </div>
             <h3 className="text-xl font-bold text-gray-900 mb-2">Playlists Ilimitadas</h3>
             <p className="text-gray-600">
               Crea tantas playlists como quieras sin límites
@@ -53,7 +72,9 @@ export default function UpgradePage() {
           </div>
 
           <div className="bg-white rounded-lg shadow-lg p-6">
-            <div className="text-4xl mb-4">📈</div>
+            <div className="flex justify-center mb-4">
+              <ChartBarIcon className="h-12 w-12 text-indigo-600" />
+            </div>
             <h3 className="text-xl font-bold text-gray-900 mb-2">Estadísticas Avanzadas</h3>
             <p className="text-gray-600">
               Analiza tus hábitos de escucha con métricas detalladas
@@ -61,7 +82,9 @@ export default function UpgradePage() {
           </div>
 
           <div className="bg-white rounded-lg shadow-lg p-6">
-            <div className="text-4xl mb-4">⚡</div>
+            <div className="flex justify-center mb-4">
+              <BoltIcon className="h-12 w-12 text-yellow-600" />
+            </div>
             <h3 className="text-xl font-bold text-gray-900 mb-2">Acceso Prioritario</h3>
             <p className="text-gray-600">
               Velocidad de carga más rápida y acceso anticipado a nuevas funciones

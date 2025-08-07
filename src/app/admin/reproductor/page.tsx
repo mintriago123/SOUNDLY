@@ -17,7 +17,15 @@ import {
   ShareIcon,
   QueueListIcon,
   ArrowPathIcon,
-  EllipsisHorizontalIcon
+  EllipsisHorizontalIcon,
+  UserIcon,
+  ChartBarIcon,
+  SparklesIcon,
+  ArrowsRightLeftIcon,
+  CheckCircleIcon,
+  ExclamationCircleIcon,
+  XMarkIcon,
+  LinkIcon
 } from '@heroicons/react/24/outline';
 import { HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid';
 
@@ -135,11 +143,11 @@ export default function ReproductorPage() {
    */
   const diagnosticarStorage = async () => {
     try {
-      console.log('🔍 Iniciando diagnóstico de Supabase Storage...');
+      console.log('Iniciando diagnóstico de Supabase Storage...');
       
       // Verificar conexión a Supabase
       const { data: { user } } = await supabase.auth.getUser();
-      console.log('✅ Usuario autenticado:', user?.email);
+      console.log('Usuario autenticado:', user?.email);
       
       // Listar archivos en el bucket music (no audio-files)
       const { data: files, error: listError } = await supabase.storage
@@ -147,11 +155,11 @@ export default function ReproductorPage() {
         .list('', { limit: 10 });
       
       if (listError) {
-        console.error('❌ Error listando archivos:', listError);
+        console.error('Error listando archivos:', listError);
         return;
       }
       
-      console.log('📁 Archivos en storage:', files);
+      console.log('Archivos en storage:', files);
       
       // Probar generar URL pública para el primer archivo
       if (files && files.length > 0) {
@@ -162,14 +170,14 @@ export default function ReproductorPage() {
           .from('music')
           .getPublicUrl(firstFile.name);
         
-        console.log('🔗 URL pública de prueba:', urlData.publicUrl);
+        console.log('URL pública de prueba:', urlData.publicUrl);
         
         // Verificar accesibilidad de URL pública
         try {
           const response = await fetch(urlData.publicUrl, { method: 'HEAD' });
-          console.log('✅ Estado de respuesta URL pública:', response.status, response.statusText);
+          console.log('Estado de respuesta URL pública:', response.status, response.statusText);
         } catch (fetchError) {
-          console.error('❌ Error accediendo a URL pública:', fetchError);
+          console.error('Error accediendo a URL pública:', fetchError);
           
           // Si falla la URL pública, probar URL firmada
           try {
@@ -178,21 +186,21 @@ export default function ReproductorPage() {
               .createSignedUrl(firstFile.name, 3600);
             
             if (signedData?.signedUrl && !signedError) {
-              console.log('🔗 URL firmada de prueba:', signedData.signedUrl);
+              console.log('URL firmada de prueba:', signedData.signedUrl);
               
               const signedResponse = await fetch(signedData.signedUrl, { method: 'HEAD' });
-              console.log('✅ Estado de respuesta URL firmada:', signedResponse.status, signedResponse.statusText);
+              console.log('Estado de respuesta URL firmada:', signedResponse.status, signedResponse.statusText);
             } else {
-              console.error('❌ Error generando URL firmada:', signedError);
+              console.error('Error generando URL firmada:', signedError);
             }
           } catch (signedFetchError) {
-            console.error('❌ Error accediendo a URL firmada:', signedFetchError);
+            console.error('Error accediendo a URL firmada:', signedFetchError);
           }
         }
       }
       
     } catch (error) {
-      console.error('❌ Error en diagnóstico:', error);
+      console.error('Error en diagnóstico:', error);
     }
   };
 
@@ -341,7 +349,7 @@ export default function ReproductorPage() {
 
       const playlistFavoritos = {
         id: 'favoritos-virtual',
-        nombre: '❤️ Mis Favoritos',
+        nombre: 'Mis Favoritos',
         descripcion: 'Tus canciones favoritas',
         usuario_id: usuarioData.id,
         es_publica: false,
@@ -715,7 +723,7 @@ export default function ReproductorPage() {
         }`}
         title="Modo aleatorio"
       >
-        🔀
+        <ArrowsRightLeftIcon className="h-5 w-5" />
       </button>
       
       <button
@@ -749,9 +757,13 @@ export default function ReproductorPage() {
     if (cancionesFiltradas.length === 0) {
       return (
         <div className="p-8 text-center text-gray-500">
-          <span className="text-4xl mb-2 block">
-            {mostrarSoloFavoritas ? '💔' : '🎵'}
-          </span>
+          <div className="flex justify-center mb-2">
+            {mostrarSoloFavoritas ? (
+              <HeartIcon className="h-12 w-12 text-gray-400" />
+            ) : (
+              <MusicalNoteIcon className="h-12 w-12 text-gray-400" />
+            )}
+          </div>
           <p>
             {mostrarSoloFavoritas 
               ? 'No hay canciones favoritas en la selección' 
@@ -795,11 +807,22 @@ export default function ReproductorPage() {
                 }`}>
                   {cancion.titulo}
                 </p>
-                <p className="text-sm text-gray-600 truncate">
-                  👤 {cancion.artista} • 🎵 {cancion.genero || 'Sin género'}
+                <p className="text-sm text-gray-600 truncate flex items-center space-x-2">
+                  <UserIcon className="h-4 w-4" />
+                  <span>{cancion.artista}</span>
+                  <span>•</span>
+                  <MusicalNoteIcon className="h-4 w-4" />
+                  <span>{cancion.genero || 'Sin género'}</span>
                 </p>
-                <p className="text-xs text-gray-500 truncate">
-                  📊 {cancion.reproducciones || 0} reproducciones • ❤️ {cancion.favoritos || 0} favoritos
+                <p className="text-xs text-gray-500 truncate flex items-center space-x-4">
+                  <span className="flex items-center space-x-1">
+                    <ChartBarIcon className="h-3 w-3" />
+                    <span>{cancion.reproducciones || 0} reproducciones</span>
+                  </span>
+                  <span className="flex items-center space-x-1">
+                    <HeartIcon className="h-3 w-3" />
+                    <span>{cancion.favoritos || 0} favoritos</span>
+                  </span>
                 </p>
               </div>
             </button>
@@ -1147,9 +1170,15 @@ export default function ReproductorPage() {
                         <span className="text-gray-500">Favorito:</span>
                         <span className="ml-2 font-medium">
                           {cancionesFavoritas.has(currentSong.id) ? (
-                            <span className="text-red-600">❤️ Sí</span>
+                            <span className="text-red-600 flex items-center space-x-1">
+                              <HeartIcon className="h-4 w-4" />
+                              <span>Sí</span>
+                            </span>
                           ) : (
-                            <span className="text-gray-400">🤍 No</span>
+                            <span className="text-gray-400 flex items-center space-x-1">
+                              <HeartIcon className="h-4 w-4" />
+                              <span>No</span>
+                            </span>
                           )}
                         </span>
                       </div>
@@ -1159,11 +1188,13 @@ export default function ReproductorPage() {
                     <div className="flex space-x-2 mt-6">
                       {usuario?.rol === 'premium' && (
                         <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-purple-100 to-pink-100 text-purple-800">
-                          💎 Calidad HD
+                          <SparklesIcon className="h-3 w-3 mr-1" />
+                          <span>Calidad HD</span>
                         </span>
                       )}
                       <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                        🎵 {currentSong.genero}
+                        <MusicalNoteIcon className="h-3 w-3 mr-1" />
+                        <span>{currentSong.genero}</span>
                       </span>
                     </div>
                   </div>
@@ -1205,8 +1236,18 @@ export default function ReproductorPage() {
                 ))}
               </div>
               
-              <div className="mt-4 text-center text-sm text-gray-500">
-                {isPlaying ? '🎵 Reproduciendo...' : '⏸️ En pausa'}
+              <div className="mt-4 text-center text-sm text-gray-500 flex items-center justify-center space-x-2">
+                {isPlaying ? (
+                  <>
+                    <MusicalNoteIcon className="h-4 w-4 text-green-600" />
+                    <span>Reproduciendo...</span>
+                  </>
+                ) : (
+                  <>
+                    <PauseIcon className="h-4 w-4 text-gray-600" />
+                    <span>En pausa</span>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -1238,14 +1279,24 @@ export default function ReproductorPage() {
                 <div className="flex items-center space-x-2">
                   <button
                     onClick={() => setMostrarSoloFavoritas(!mostrarSoloFavoritas)}
-                    className={`px-3 py-1 rounded-md text-xs transition-colors ${
+                    className={`px-3 py-1 rounded-md text-xs transition-colors flex items-center space-x-1 ${
                       mostrarSoloFavoritas
                         ? 'bg-red-100 text-red-700'
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                     }`}
                     title={mostrarSoloFavoritas ? "Mostrar todas" : "Solo favoritas"}
                   >
-                    {mostrarSoloFavoritas ? '❤️ Favoritas' : '🎵 Todas'}
+                    {mostrarSoloFavoritas ? (
+                      <>
+                        <HeartIcon className="h-3 w-3" />
+                        <span>Favoritas</span>
+                      </>
+                    ) : (
+                      <>
+                        <MusicalNoteIcon className="h-3 w-3" />
+                        <span>Todas</span>
+                      </>
+                    )}
                   </button>
                   <button
                     onClick={() => setMostrarPlaylist(!mostrarPlaylist)}

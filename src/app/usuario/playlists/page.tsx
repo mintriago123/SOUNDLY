@@ -1,796 +1,506 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/DashboardLayout';
 import { useSupabase } from '@/components/SupabaseProvider';
-import { ClipboardDocumentListIcon, PlusIcon, MagnifyingGlassIcon, MusicalNoteIcon, EllipsisVerticalIcon, PlayIcon, PencilIcon, TrashIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { 
+  PlusIcon,
+  MagnifyingGlassIcon,
+  MusicalNoteIcon,
+  PlayIcon,
+  EllipsisVerticalIcon,
+  PencilIcon,
+  TrashIcon,
+  ShareIcon,
+  EyeIcon,
+  EyeSlashIcon
+} from '@heroicons/react/24/outline';
 
 interface Playlist {
   id: string;
   nombre: string;
   descripcion?: string;
-  usuario_id: string;
+  numero_canciones: number;
+  duracion_total: number;
   es_publica: boolean;
   imagen_url?: string;
   created_at: string;
-  canciones_count?: number;
-}
-
-interface Cancion {
-  id: string;
-  titulo: string;
-  artista: string;
-  album?: string;
-  duracion: string;
-  archivo_audio: string;
-  imagen_url?: string;
 }
 
 export default function PlaylistsPage() {
-  const [playlists, setPlaylists] = useState<Playlist[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [newPlaylistName, setNewPlaylistName] = useState('');
-  const [newPlaylistDescription, setNewPlaylistDescription] = useState('');
-  const [showPlaylistMenu, setShowPlaylistMenu] = useState<string | null>(null);
-  const [user, setUser] = useState<any>(null);
-  
-  // Estados para agregar música
-  const [showAddMusicModal, setShowAddMusicModal] = useState(false);
-  const [selectedPlaylistId, setSelectedPlaylistId] = useState<string | null>(null);
-  const [availableSongs, setAvailableSongs] = useState<Cancion[]>([]);
-  const [playlistSongs, setPlaylistSongs] = useState<Cancion[]>([]);
-  const [showPlaylistDetails, setShowPlaylistDetails] = useState<string | null>(null);
-  const [songSearchTerm, setSongSearchTerm] = useState('');
-  const [songsInCurrentPlaylist, setSongsInCurrentPlaylist] = useState<string[]>([]);
-  
+  const router = useRouter();
   const { supabase } = useSupabase();
+  
+  const [playlists, setPlaylists] = useState<Playlist[]>([]);
+  const [cargando, setCargando] = useState(true);
+  const [terminoBusqueda, setTerminoBusqueda] = useState('');
+  const [user, setUser] = useState<any>(null);
+  const [mostrarModalCrear, setMostrarModalCrear] = useState(false);
+  const [nombrePlaylist, setNombrePlaylist] = useState('');
+  const [descripcionPlaylist, setDescripcionPlaylist] = useState('');
+  const [esPublica, setEsPublica] = useState(false);
+  
+  // Estados para menú de opciones
+  const [menuAbiertoId, setMenuAbiertoId] = useState<string | null>(null);
+  const [playlistEditando, setPlaylistEditando] = useState<Playlist | null>(null);
+  const [mostrarModalEditar, setMostrarModalEditar] = useState(false);
+  const [mostrarModalEliminar, setMostrarModalEliminar] = useState(false);
+  const [mensaje, setMensaje] = useState<string>('');
 
-  // Configuración de clases CSS - usando tema claro por defecto
+  // Tema oscuro
   const themeClasses = {
-    bg: 'bg-white',
-    bgCard: 'bg-white',
-    bgHover: 'hover:bg-gray-50',
-    text: 'text-gray-900',
-    textSecondary: 'text-gray-600',
-    textMuted: 'text-gray-500',
-    border: 'border-gray-200',
-    inputBg: 'bg-white',
-    inputBorder: 'border-gray-300',
+    bg: 'bg-gray-900',
+    bgCard: 'bg-gray-800',
+    text: 'text-white',
+    textMuted: 'text-gray-400',
+    border: 'border-gray-700',
+    hover: 'hover:bg-gray-700',
+    button: 'bg-blue-600 hover:bg-blue-500 text-white',
+    buttonSecondary: 'bg-gray-700 hover:bg-gray-600 text-white',
+    input: 'bg-gray-700 border-gray-600 text-white placeholder-gray-400'
   };
 
   useEffect(() => {
-    // Obtener usuario actual
-    const getCurrentUser = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        setUser(user);
-        console.log('Usuario obtenido:', user ? 'Sí' : 'No');
-      } catch (error) {
-        console.warn('Error obteniendo usuario:', error);
-        setUser(null);
-      }
-    };
-    
-    getCurrentUser();
-    
-    // Inicializar base de datos y cargar playlists
-    initializeDatabase();
+    cargarPlaylists();
+    obtenerUsuario();
   }, []);
 
   useEffect(() => {
-    if (user) {
-      cargarPlaylists();
-    }
-  }, [user]);
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (!target.closest('.menu-dropdown')) {
+        setMenuAbiertoId(null);
+      }
+    };
 
-  // Función para crear las tablas necesarias si no existen
-  const initializeDatabase = async () => {
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
+
+  const obtenerUsuario = async () => {
     try {
-      // Crear tabla playlists si no existe
-      const { error: playlistsError } = await supabase.rpc('create_playlists_table', {});
-      
-      if (playlistsError && !playlistsError.message.includes('already exists')) {
-        console.log('Intentando crear tabla playlists manualmente...');
-        
-        // Intentar crear la tabla directamente
-        const createPlaylistsSQL = `
-          CREATE TABLE IF NOT EXISTS playlists (
-            id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-            nombre varchar(255) NOT NULL,
-            descripcion text,
-            usuario_id uuid NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
-            es_publica boolean DEFAULT false,
-            imagen_url text,
-            created_at timestamp with time zone DEFAULT now()
-          );
-        `;
-        
-        const { error } = await supabase.rpc('execute_sql', { sql: createPlaylistsSQL });
-        if (error) {
-          console.warn('No se pudo crear tabla playlists:', error);
-        }
-      }
-
-      // Crear tabla playlist_canciones si no existe
-      const createPlaylistCancionesSQL = `
-        CREATE TABLE IF NOT EXISTS playlist_canciones (
-          id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-          playlist_id uuid NOT NULL REFERENCES playlists(id) ON DELETE CASCADE,
-          cancion_id uuid NOT NULL REFERENCES canciones(id) ON DELETE CASCADE,
-          posicion integer NOT NULL DEFAULT 0,
-          created_at timestamp with time zone DEFAULT now(),
-          UNIQUE(playlist_id, cancion_id)
-        );
-      `;
-      
-      const { error: playlistCancionesError } = await supabase.rpc('execute_sql', { sql: createPlaylistCancionesSQL });
-      if (playlistCancionesError) {
-        console.warn('No se pudo crear tabla playlist_canciones:', playlistCancionesError);
-      }
-
-      console.log('Base de datos inicializada');
-      
-      // Cargar playlists después de inicializar
-      if (user) {
-        cargarPlaylists();
-      }
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
     } catch (error) {
-      console.warn('Error inicializando base de datos:', error);
-      setLoading(false);
+      console.error('Error al obtener usuario:', error);
     }
   };
 
   const cargarPlaylists = async () => {
     try {
-      setLoading(true);
+      setCargando(true);
+      const { data: { user } } = await supabase.auth.getUser();
       
-      // Verificar que hay usuario autenticado
       if (!user) {
-        console.log('No hay usuario autenticado');
-        setPlaylists([]);
+        router.push('/auth/login');
         return;
       }
 
-      // Cargar playlists desde Supabase con conteo de canciones
-      const { data: playlistsData, error } = await supabase
+      const { data, error } = await supabase
         .from('playlists')
         .select(`
           id,
           nombre,
           descripcion,
-          usuario_id,
           es_publica,
           imagen_url,
-          created_at
+          created_at,
+          numero_canciones,
+          duracion_total
         `)
         .eq('usuario_id', user.id)
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error cargando playlists:', error);
-        setPlaylists([]);
+        console.error('Error al cargar playlists:', error);
+        setMensaje('Error al cargar las playlists');
         return;
       }
 
-      // Agregar conteo de canciones a cada playlist
-      const playlistsWithCount = await Promise.all(
-        (playlistsData || []).map(async (playlist) => {
-          const { count } = await supabase
-            .from('playlist_canciones')
-            .select('*', { count: 'exact', head: true })
-            .eq('playlist_id', playlist.id);
-          
-          return {
-            ...playlist,
-            canciones_count: count || 0
-          };
-        })
-      );
-
-      console.log('Playlists cargadas desde BD:', playlistsWithCount);
-      setPlaylists(playlistsWithCount);
-      
+      setPlaylists(data || []);
     } catch (error) {
-      console.error('Error general cargando playlists:', error);
-      setPlaylists([]);
+      console.error('Error:', error);
+      setMensaje('Error al cargar las playlists');
     } finally {
-      setLoading(false);
+      setCargando(false);
     }
   };
 
-  // Función para cargar canciones que ya están en la playlist
-  const cargarCancionesEnPlaylist = async (playlistId: string) => {
-    try {
-      const { data: playlistCanciones, error } = await supabase
-        .from('playlist_canciones')
-        .select('cancion_id')
-        .eq('playlist_id', playlistId);
-
-      if (error) {
-        console.error('Error cargando canciones en playlist:', error);
-        setSongsInCurrentPlaylist([]);
-        return;
-      }
-
-      const cancionIds = playlistCanciones?.map(item => item.cancion_id) || [];
-      setSongsInCurrentPlaylist(cancionIds);
-      console.log('Canciones en playlist actual:', cancionIds.length);
-    } catch (error) {
-      console.error('Error general cargando canciones en playlist:', error);
-      setSongsInCurrentPlaylist([]);
-    }
+  const toggleMenu = (playlistId: string) => {
+    setMenuAbiertoId(menuAbiertoId === playlistId ? null : playlistId);
   };
 
-  // Función para cargar canciones disponibles
-  const cargarCancionesDisponibles = async () => {
-    try {
-      console.log('Iniciando carga de canciones disponibles...');
-      
-      // Primero intentemos cargar las canciones básicas
-      const { data: canciones, error } = await supabase
-        .from('canciones')
-        .select('*')
-        .order('titulo');
-
-      if (error) {
-        console.error('Error cargando canciones:', error);
-        // Intentar consulta más simple
-        const { data: cancionesSimple, error: errorSimple } = await supabase
-          .from('canciones')
-          .select('id, titulo, duracion, archivo_audio, imagen_url, usuario_id');
-        
-        if (errorSimple) {
-          console.error('Error con consulta simple:', errorSimple);
-          setAvailableSongs([]);
-          return;
-        }
-        
-        console.log('Canciones cargadas (consulta simple):', cancionesSimple?.length || 0);
-        
-        const cancionesFormateadas = cancionesSimple?.map((cancion: any) => ({
-          id: cancion.id,
-          titulo: cancion.titulo,
-          artista: 'Artista desconocido',
-          duracion: cancion.duracion || '0:00',
-          archivo_audio: cancion.archivo_audio,
-          imagen_url: cancion.imagen_url
-        })) || [];
-
-        setAvailableSongs(cancionesFormateadas);
-        return;
-      }
-
-      console.log('Canciones cargadas exitosamente:', canciones?.length || 0);
-
-      // Si tenemos canciones, intentar obtener información del usuario
-      const cancionesFormateadas = await Promise.all(
-        (canciones || []).map(async (cancion: any) => {
-          let artista = 'Artista desconocido';
-          
-          // Intentar obtener el nombre del usuario/artista
-          if (cancion.usuario_id) {
-            try {
-              const { data: usuario } = await supabase
-                .from('usuarios')
-                .select('nombre_usuario')
-                .eq('id', cancion.usuario_id)
-                .single();
-              
-              if (usuario?.nombre_usuario) {
-                artista = usuario.nombre_usuario;
-              }
-            } catch (userError) {
-              console.warn('Error obteniendo usuario:', userError);
-            }
-          }
-
-          return {
-            id: cancion.id,
-            titulo: cancion.titulo,
-            artista: artista,
-            duracion: cancion.duracion || '0:00',
-            archivo_audio: cancion.archivo_audio,
-            imagen_url: cancion.imagen_url
-          };
-        })
-      );
-
-      console.log('Canciones formateadas:', cancionesFormateadas.length);
-      setAvailableSongs(cancionesFormateadas);
-      
-    } catch (error) {
-      console.error('Error general cargando canciones:', error);
-      setAvailableSongs([]);
-    }
+  const editarPlaylist = (playlist: Playlist) => {
+    setPlaylistEditando(playlist);
+    setNombrePlaylist(playlist.nombre);
+    setDescripcionPlaylist(playlist.descripcion || '');
+    setEsPublica(playlist.es_publica);
+    setMostrarModalEditar(true);
+    setMenuAbiertoId(null);
   };
 
-  // Función para cargar canciones de una playlist específica
-  const cargarCancionesPlaylist = async (playlistId: string) => {
-    try {
-      console.log('Cargando canciones de playlist:', playlistId);
-      
-      // Primero obtener los IDs de las canciones en la playlist
-      const { data: playlistCanciones, error: errorPlaylist } = await supabase
-        .from('playlist_canciones')
-        .select('cancion_id, posicion')
-        .eq('playlist_id', playlistId)
-        .order('posicion');
-
-      if (errorPlaylist) {
-        console.error('Error cargando canciones de playlist:', errorPlaylist);
-        setPlaylistSongs([]);
-        return;
-      }
-
-      if (!playlistCanciones || playlistCanciones.length === 0) {
-        console.log('No hay canciones en esta playlist');
-        setPlaylistSongs([]);
-        return;
-      }
-
-      console.log('Canciones en playlist encontradas:', playlistCanciones.length);
-
-      // Obtener los detalles de cada canción
-      const cancionesFormateadas = await Promise.all(
-        playlistCanciones.map(async (item) => {
-          try {
-            // Obtener detalles de la canción
-            const { data: cancion, error: errorCancion } = await supabase
-              .from('canciones')
-              .select('*')
-              .eq('id', item.cancion_id)
-              .single();
-
-            if (errorCancion || !cancion) {
-              console.warn('Error obteniendo canción:', errorCancion);
-              return null;
-            }
-
-            // Obtener nombre del artista
-            let artista = 'Artista desconocido';
-            if (cancion.usuario_id) {
-              try {
-                const { data: usuario } = await supabase
-                  .from('usuarios')
-                  .select('nombre_usuario')
-                  .eq('id', cancion.usuario_id)
-                  .single();
-                
-                if (usuario?.nombre_usuario) {
-                  artista = usuario.nombre_usuario;
-                }
-              } catch (userError) {
-                console.warn('Error obteniendo usuario para canción:', userError);
-              }
-            }
-
-            return {
-              id: cancion.id,
-              titulo: cancion.titulo,
-              artista: artista,
-              duracion: cancion.duracion || '0:00',
-              archivo_audio: cancion.archivo_audio,
-              imagen_url: cancion.imagen_url
-            };
-          } catch (error) {
-            console.error('Error procesando canción:', error);
-            return null;
-          }
-        })
-      );
-
-      // Filtrar las canciones válidas
-      const cancionesValidas = cancionesFormateadas.filter(cancion => cancion !== null);
-      console.log('Canciones válidas cargadas:', cancionesValidas.length);
-      
-      setPlaylistSongs(cancionesValidas);
-      
-    } catch (error) {
-      console.error('Error general cargando canciones de playlist:', error);
-      setPlaylistSongs([]);
-    }
+  const eliminarPlaylist = (playlist: Playlist) => {
+    setPlaylistEditando(playlist);
+    setMostrarModalEliminar(true);
+    setMenuAbiertoId(null);
   };
 
-  // Función para agregar canción a playlist
-  const agregarCancionAPlaylist = async (cancionId: string, playlistId: string) => {
-    try {
-      // Verificar si la canción ya está en la playlist
-      const { data: existe, error: errorExiste } = await supabase
-        .from('playlist_canciones')
-        .select('id')
-        .eq('playlist_id', playlistId)
-        .eq('cancion_id', cancionId)
-        .single();
-
-      if (existe) {
-        alert('Esta canción ya está en la playlist');
-        return;
-      }
-
-      // Obtener la siguiente posición
-      const { count } = await supabase
-        .from('playlist_canciones')
-        .select('*', { count: 'exact', head: true })
-        .eq('playlist_id', playlistId);
-
-      // Insertar la canción en la playlist
-      const { error } = await supabase
-        .from('playlist_canciones')
-        .insert([{
-          playlist_id: playlistId,
-          cancion_id: cancionId,
-          posicion: (count || 0) + 1
-        }]);
-
-      if (error) {
-        console.error('Error agregando canción a playlist:', error);
-        alert('Error al agregar la canción a la playlist');
-        return;
-      }
-
-      console.log('Canción agregada exitosamente');
-      
-      // Actualizar la lista de canciones en la playlist actual
-      setSongsInCurrentPlaylist(prev => [...prev, cancionId]);
-      
-      // Recargar las canciones de la playlist si está siendo visualizada
-      if (showPlaylistDetails === playlistId) {
-        cargarCancionesPlaylist(playlistId);
-      }
-      
-      // Recargar las playlists para actualizar el conteo
-      cargarPlaylists();
-      
-    } catch (error) {
-      console.error('Error general agregando canción:', error);
-      alert('Error al agregar la canción a la playlist');
-    }
-  };
-
-  // Función para quitar canción de playlist (desde el modal de agregar música)
-  const quitarCancionDePlaylist = async (cancionId: string, playlistId: string) => {
+  const togglePrivacidad = async (playlist: Playlist) => {
     try {
       const { error } = await supabase
-        .from('playlist_canciones')
-        .delete()
-        .eq('playlist_id', playlistId)
-        .eq('cancion_id', cancionId);
+        .from('playlists')
+        .update({ es_publica: !playlist.es_publica })
+        .eq('id', playlist.id);
 
       if (error) {
-        console.error('Error quitando canción de playlist:', error);
-        alert('Error al quitar la canción de la playlist');
+        console.error('Error al cambiar privacidad:', error);
+        setMensaje('Error al cambiar la privacidad');
         return;
       }
 
-      console.log('Canción quitada exitosamente');
-      
-      // Actualizar la lista de canciones en la playlist actual
-      setSongsInCurrentPlaylist(prev => prev.filter(id => id !== cancionId));
-      
-      // Recargar las canciones de la playlist si está siendo visualizada
-      if (showPlaylistDetails === playlistId) {
-        cargarCancionesPlaylist(playlistId);
-      }
-      
-      // Recargar las playlists para actualizar el conteo
+      setMensaje(playlist.es_publica ? 'Playlist marcada como privada' : 'Playlist marcada como pública');
       cargarPlaylists();
-      
     } catch (error) {
-      console.error('Error general quitando canción:', error);
-      alert('Error al quitar la canción de la playlist');
+      console.error('Error:', error);
+      setMensaje('Error al cambiar la privacidad');
     }
+    setMenuAbiertoId(null);
   };
 
-  // Función para eliminar canción de playlist
-  const eliminarCancionDePlaylist = async (cancionId: string, playlistId: string) => {
+  const compartirPlaylist = async (playlist: Playlist) => {
     try {
-      const { error } = await supabase
-        .from('playlist_canciones')
-        .delete()
-        .eq('playlist_id', playlistId)
-        .eq('cancion_id', cancionId);
-
-      if (error) {
-        console.error('Error eliminando canción de playlist:', error);
-        alert('Error al eliminar la canción de la playlist');
-        return;
-      }
-
-      console.log('Canción eliminada exitosamente');
-      
-      // Actualizar el estado de canciones en la playlist actual si está abierto el modal
-      if (selectedPlaylistId === playlistId) {
-        setSongsInCurrentPlaylist(prev => prev.filter(id => id !== cancionId));
-      }
-      
-      // Recargar las canciones de la playlist
-      cargarCancionesPlaylist(playlistId);
-      
-      // Recargar las playlists para actualizar el conteo
-      cargarPlaylists();
-      
+      const url = `${window.location.origin}/playlist/${playlist.id}`;
+      await navigator.clipboard.writeText(url);
+      setMensaje('Enlace copiado al portapapeles');
     } catch (error) {
-      console.error('Error general eliminando canción:', error);
-      alert('Error al eliminar la canción de la playlist');
+      console.error('Error al copiar enlace:', error);
+      setMensaje('Error al copiar el enlace');
     }
-  };
-
-  // Función para abrir modal de agregar música
-  const abrirModalAgregarMusica = (playlistId: string) => {
-    setSelectedPlaylistId(playlistId);
-    setShowAddMusicModal(true);
-    cargarCancionesDisponibles();
-    cargarCancionesEnPlaylist(playlistId);
-  };
-
-  // Función para ver detalles de playlist
-  const verDetallesPlaylist = (playlistId: string) => {
-    setShowPlaylistDetails(playlistId);
-    cargarCancionesPlaylist(playlistId);
+    setMenuAbiertoId(null);
   };
 
   const crearPlaylist = async () => {
-    if (!newPlaylistName.trim()) return;
-    
-    if (!user) {
-      console.error('Usuario no autenticado');
+    if (!nombrePlaylist.trim()) {
+      setMensaje('El nombre de la playlist es obligatorio');
       return;
     }
 
     try {
-      // Crear nueva playlist en Supabase
-      const { data, error } = await supabase
-        .from('playlists')
-        .insert([{
-          nombre: newPlaylistName.trim(),
-          descripcion: newPlaylistDescription.trim() || null,
-          usuario_id: user.id,
-          es_publica: false
-        }])
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Error creando playlist:', error);
-        alert('Error al crear la playlist. Por favor intenta de nuevo.');
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        router.push('/auth/login');
         return;
       }
 
-      if (data) {
-        // Agregar la nueva playlist al estado con conteo inicial
-        const newPlaylistWithCount = {
-          ...data,
-          canciones_count: 0
-        };
-        setPlaylists(prev => [newPlaylistWithCount, ...prev]);
-        console.log('Playlist creada exitosamente:', data);
+      const { error } = await supabase
+        .from('playlists')
+        .insert({
+          nombre: nombrePlaylist.trim(),
+          descripcion: descripcionPlaylist.trim() || null,
+          es_publica: esPublica,
+          usuario_id: user.id,
+          numero_canciones: 0,
+          duracion_total: 0
+        });
+
+      if (error) {
+        console.error('Error al crear playlist:', error);
+        setMensaje('Error al crear la playlist');
+        return;
       }
 
-      // Limpiar formulario y cerrar modal
-      setNewPlaylistName('');
-      setNewPlaylistDescription('');
-      setShowCreateModal(false);
-      
+      setMensaje('Playlist creada exitosamente');
+      setMostrarModalCrear(false);
+      setNombrePlaylist('');
+      setDescripcionPlaylist('');
+      setEsPublica(false);
+      cargarPlaylists();
     } catch (error) {
-      console.error('Error general creando playlist:', error);
-      alert('Error al crear la playlist. Por favor intenta de nuevo.');
+      console.error('Error:', error);
+      setMensaje('Error al crear la playlist');
     }
   };
 
-  const eliminarPlaylist = async (playlistId: string) => {
-    if (!confirm('¿Estás seguro de que quieres eliminar esta playlist?')) return;
-
-    if (!user) {
-      console.error('Usuario no autenticado');
+  const confirmarEditarPlaylist = async () => {
+    if (!nombrePlaylist.trim() || !playlistEditando) {
+      setMensaje('El nombre de la playlist es obligatorio');
       return;
     }
 
     try {
-      // Eliminar de Supabase
+      const { error } = await supabase
+        .from('playlists')
+        .update({
+          nombre: nombrePlaylist.trim(),
+          descripcion: descripcionPlaylist.trim() || null,
+          es_publica: esPublica
+        })
+        .eq('id', playlistEditando.id);
+
+      if (error) {
+        console.error('Error al editar playlist:', error);
+        setMensaje('Error al editar la playlist');
+        return;
+      }
+
+      setMensaje('Playlist editada exitosamente');
+      setMostrarModalEditar(false);
+      setPlaylistEditando(null);
+      setNombrePlaylist('');
+      setDescripcionPlaylist('');
+      setEsPublica(false);
+      cargarPlaylists();
+    } catch (error) {
+      console.error('Error:', error);
+      setMensaje('Error al editar la playlist');
+    }
+  };
+
+  const confirmarEliminarPlaylist = async () => {
+    if (!playlistEditando) return;
+
+    try {
+      // Primero eliminar las canciones de la playlist
+      const { error: errorCanciones } = await supabase
+        .from('playlist_canciones')
+        .delete()
+        .eq('playlist_id', playlistEditando.id);
+
+      if (errorCanciones) {
+        console.error('Error al eliminar canciones:', errorCanciones);
+        setMensaje('Error al eliminar las canciones de la playlist');
+        return;
+      }
+
+      // Luego eliminar la playlist
       const { error } = await supabase
         .from('playlists')
         .delete()
-        .eq('id', playlistId);
+        .eq('id', playlistEditando.id);
 
       if (error) {
-        console.error('Error eliminando playlist:', error);
-        alert('Error al eliminar la playlist. Por favor intenta de nuevo.');
+        console.error('Error al eliminar playlist:', error);
+        setMensaje('Error al eliminar la playlist');
         return;
       }
 
-      // Actualizar estado local
-      setPlaylists(prev => prev.filter(p => p.id !== playlistId));
-      setShowPlaylistMenu(null);
-      console.log('Playlist eliminada exitosamente');
-      
+      setMensaje('Playlist eliminada exitosamente');
+      setMostrarModalEliminar(false);
+      setPlaylistEditando(null);
+      cargarPlaylists();
     } catch (error) {
-      console.error('Error general eliminando playlist:', error);
-      alert('Error al eliminar la playlist. Por favor intenta de nuevo.');
+      console.error('Error:', error);
+      setMensaje('Error al eliminar la playlist');
     }
   };
 
-  const filteredPlaylists = playlists.filter(playlist =>
-    playlist.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    playlist.descripcion?.toLowerCase().includes(searchTerm.toLowerCase())
+  const playlistsFiltradas = playlists.filter(playlist =>
+    playlist.nombre.toLowerCase().includes(terminoBusqueda.toLowerCase())
   );
 
-  const filteredAvailableSongs = availableSongs.filter(song => 
-    song.titulo.toLowerCase().includes(songSearchTerm.toLowerCase()) ||
-    song.artista.toLowerCase().includes(songSearchTerm.toLowerCase())
-  );
+  const formatearDuracion = (segundos: number) => {
+    const horas = Math.floor(segundos / 3600);
+    const minutos = Math.floor((segundos % 3600) / 60);
+    
+    if (horas > 0) {
+      return `${horas}h ${minutos}m`;
+    }
+    return `${minutos}m`;
+  };
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className={`${themeClasses.bgCard} rounded-lg shadow p-6`}>
-          <div className="flex items-center space-x-3 mb-4">
-            <ClipboardDocumentListIcon className={`h-8 w-8 ${themeClasses.text}`} />
-            <h2 className={`text-2xl font-bold ${themeClasses.text}`}>
-              Mis Playlists 🎵
-            </h2>
-          </div>
-          <p className={themeClasses.textSecondary}>
-            Organiza tu música en listas de reproducción personalizadas
-          </p>
-        </div>
-
-        {/* Controles */}
-        <div className={`${themeClasses.bgCard} rounded-lg shadow p-6`}>
-          <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
-            <div className="flex gap-4">
-              <button 
-                onClick={() => setShowCreateModal(true)}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
-              >
-                <PlusIcon className="h-5 w-5" />
-                <span>Nueva Playlist</span>
-              </button>
-              <button className={`border ${themeClasses.border} ${themeClasses.text} px-4 py-2 rounded-lg ${themeClasses.bgHover} transition-colors`}>
-                📥 Importar
-              </button>
+      <div className={`min-h-screen ${themeClasses.bg}`}>
+        <div className="p-6">
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+            <div>
+              <h1 className={`text-3xl font-bold ${themeClasses.text}`}>Mis Playlists</h1>
+              <p className={`${themeClasses.textMuted} mt-1`}>
+                Gestiona tus playlists personalizadas
+              </p>
             </div>
-            <div className="flex gap-2">
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Buscar playlists..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className={`${themeClasses.inputBg} border ${themeClasses.inputBorder} rounded-lg px-3 py-2 pl-10 w-64 focus:ring-2 focus:ring-blue-400 outline-none ${themeClasses.text}`}
-                />
-                <MagnifyingGlassIcon className={`absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 ${themeClasses.textMuted}`} />
-              </div>
-            </div>
+            
+            <button
+              onClick={() => setMostrarModalCrear(true)}
+              className={`inline-flex items-center px-4 py-2 rounded-lg ${themeClasses.button} transition-colors`}
+            >
+              <PlusIcon className="h-5 w-5 mr-2" />
+              Nueva Playlist
+            </button>
           </div>
-        </div>
 
-        {/* Lista de Playlists */}
-        <div className={`${themeClasses.bgCard} rounded-lg shadow`}>
-          <div className={`p-6 border-b ${themeClasses.border}`}>
-            <div className="flex justify-between items-center">
-              <h3 className={`text-lg font-medium ${themeClasses.text}`}>
-                Tus Playlists ({filteredPlaylists.length})
+          {/* Barra de búsqueda */}
+          <div className="relative mb-6">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <MagnifyingGlassIcon className={`h-5 w-5 ${themeClasses.textMuted}`} />
+            </div>
+            <input
+              type="text"
+              placeholder="Buscar playlists..."
+              value={terminoBusqueda}
+              onChange={(e) => setTerminoBusqueda(e.target.value)}
+              className={`block w-full pl-10 pr-3 py-2 border rounded-lg ${themeClasses.input} ${themeClasses.border} focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
+            />
+          </div>
+
+          {/* Mensaje */}
+          {mensaje && (
+            <div className="mb-4 p-3 bg-blue-100 border border-blue-400 text-blue-700 rounded-lg">
+              {mensaje}
+            </div>
+          )}
+
+          {/* Lista de playlists */}
+          {cargando ? (
+            <div className="flex justify-center items-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+            </div>
+          ) : playlistsFiltradas.length === 0 ? (
+            <div className="text-center py-12">
+              <MusicalNoteIcon className={`mx-auto h-12 w-12 ${themeClasses.textMuted}`} />
+              <h3 className={`mt-2 text-sm font-medium ${themeClasses.text}`}>
+                {terminoBusqueda ? 'No se encontraron playlists' : 'No tienes playlists'}
               </h3>
-              <div className="flex gap-2">
-                <button className={`${themeClasses.textMuted} hover:${themeClasses.text} transition-colors`}>📊</button>
-                <button className={`${themeClasses.textMuted} hover:${themeClasses.text} transition-colors`}>⚙️</button>
-              </div>
-            </div>
-          </div>
-
-          <div className="p-6">
-            {loading && (
-              <div className="text-center py-12">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                <p className={themeClasses.textMuted}>Cargando playlists...</p>
-              </div>
-            )}
-
-            {!loading && filteredPlaylists.length === 0 && (
-              <div className="text-center py-12">
-                <div className="text-6xl mb-4">🎼</div>
-                <h4 className={`text-xl font-medium mb-2 ${themeClasses.text}`}>
-                  {searchTerm ? 'No se encontraron playlists' : 'No tienes playlists aún'}
-                </h4>
-                <p className={`${themeClasses.textMuted} mb-6`}>
-                  {searchTerm ? 'Intenta con otros términos de búsqueda' : 'Crea tu primera playlist para organizar tu música'}
-                </p>
-                {!searchTerm && (
-                  <button 
-                    onClick={() => setShowCreateModal(true)}
-                    className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2 mx-auto"
+              <p className={`mt-1 text-sm ${themeClasses.textMuted}`}>
+                {terminoBusqueda ? 'Intenta con otro término de búsqueda' : 'Comienza creando tu primera playlist'}
+              </p>
+              {!terminoBusqueda && (
+                <div className="mt-6">
+                  <button
+                    onClick={() => setMostrarModalCrear(true)}
+                    className={`inline-flex items-center px-4 py-2 rounded-lg ${themeClasses.button} transition-colors`}
                   >
-                    <PlusIcon className="h-5 w-5" />
-                    <span>Crear Primera Playlist</span>
+                    <PlusIcon className="h-5 w-5 mr-2" />
+                    Nueva Playlist
                   </button>
-                )}
-              </div>
-            )}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {playlistsFiltradas.map((playlist) => (
+                <div
+                  key={playlist.id}
+                  className={`${themeClasses.bgCard} rounded-lg overflow-hidden shadow-sm ${themeClasses.hover} transition-colors group cursor-pointer`}
+                >
+                  {/* Imagen de la playlist */}
+                  <div className="aspect-square bg-gradient-to-br from-purple-500 to-pink-500 relative">
+                    {playlist.imagen_url ? (
+                      <img
+                        src={playlist.imagen_url}
+                        alt={playlist.nombre}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <MusicalNoteIcon className="h-16 w-16 text-white/70" />
+                      </div>
+                    )}
+                    
+                    {/* Botón de reproducir */}
+                    <button
+                      onClick={() => router.push(`/usuario/playlist/${playlist.id}`)}
+                      className="absolute bottom-2 right-2 bg-green-500 hover:bg-green-400 text-white p-3 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                    >
+                      <PlayIcon className="h-6 w-6 ml-0.5" />
+                    </button>
+                  </div>
 
-            {!loading && filteredPlaylists.length > 0 && (
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {filteredPlaylists.map((playlist) => (
-                  <div key={playlist.id} className={`playlist-card ${themeClasses.bgHover} border ${themeClasses.border} rounded-lg p-4 transition-colors group relative`}>
-                    {/* Menú de opciones */}
-                    <div className="absolute top-3 right-3">
-                      <button
-                        onClick={() => setShowPlaylistMenu(showPlaylistMenu === playlist.id ? null : playlist.id)}
-                        className={`${themeClasses.textMuted} hover:${themeClasses.text} p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity`}
-                      >
-                        <EllipsisVerticalIcon className="h-5 w-5" />
-                      </button>
-                      {showPlaylistMenu === playlist.id && (
-                        <div className={`absolute right-0 mt-2 w-48 ${themeClasses.bgCard} rounded-md shadow-lg border ${themeClasses.border} z-10`}>
-                          <div className="py-1">
-                            <button className={`flex items-center space-x-2 w-full text-left px-4 py-2 text-sm ${themeClasses.text} ${themeClasses.bgHover}`}>
-                              <PlayIcon className="h-4 w-4" />
-                              <span>Reproducir</span>
-                            </button>
-                            <button 
-                              onClick={() => verDetallesPlaylist(playlist.id)}
-                              className={`flex items-center space-x-2 w-full text-left px-4 py-2 text-sm ${themeClasses.text} ${themeClasses.bgHover}`}
-                            >
-                              <MusicalNoteIcon className="h-4 w-4" />
-                              <span>Ver canciones</span>
-                            </button>
-                            <button 
-                              onClick={() => abrirModalAgregarMusica(playlist.id)}
-                              className={`flex items-center space-x-2 w-full text-left px-4 py-2 text-sm ${themeClasses.text} ${themeClasses.bgHover}`}
-                            >
-                              <PlusIcon className="h-4 w-4" />
-                              <span>Agregar música</span>
-                            </button>
-                            <button className={`flex items-center space-x-2 w-full text-left px-4 py-2 text-sm ${themeClasses.text} ${themeClasses.bgHover}`}>
-                              <PencilIcon className="h-4 w-4" />
-                              <span>Editar</span>
-                            </button>
-                            <button 
-                              onClick={() => eliminarPlaylist(playlist.id)}
-                              className="flex items-center space-x-2 w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
-                            >
-                              <TrashIcon className="h-4 w-4" />
-                              <span>Eliminar</span>
-                            </button>
-                          </div>
+                  {/* Información de la playlist */}
+                  <div className="p-4">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 min-w-0">
+                        <h3 
+                          className={`font-medium ${themeClasses.text} truncate cursor-pointer hover:underline`}
+                          onClick={() => router.push(`/usuario/playlist/${playlist.id}`)}
+                        >
+                          {playlist.nombre}
+                        </h3>
+                        {playlist.descripcion && (
+                          <p className={`text-sm ${themeClasses.textMuted} mb-2 line-clamp-2`}>
+                            {playlist.descripcion}
+                          </p>
+                        )}
+                        <div className={`text-xs ${themeClasses.textMuted} space-y-1`}>
+                          <p>{playlist.numero_canciones || 0} canciones</p>
+                          <p>
+                            {playlist.es_publica ? '🌍 Pública' : '🔒 Privada'} • 
+                            {new Date(playlist.created_at).toLocaleDateString('es-ES')}
+                          </p>
                         </div>
-                      )}
-                    </div>
+                      </div>
 
-                    {/* Imagen de playlist */}
-                    <div className="w-full h-32 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg mb-4 flex items-center justify-center">
-                      {playlist.imagen_url ? (
-                        <img src={playlist.imagen_url} alt={playlist.nombre} className="w-full h-full object-cover rounded-lg" />
-                      ) : (
-                        <MusicalNoteIcon className="h-12 w-12 text-white" />
-                      )}
-                    </div>
+                      {/* Menú de opciones */}
+                      <div className="relative menu-dropdown">
+                        <button
+                          onClick={() => toggleMenu(playlist.id)}
+                          className={`p-1 rounded-full ${themeClasses.hover} transition-colors`}
+                        >
+                          <EllipsisVerticalIcon className={`h-5 w-5 ${themeClasses.textMuted}`} />
+                        </button>
 
-                    {/* Información de playlist */}
-                    <div>
-                      <h4 className={`font-medium ${themeClasses.text} mb-1 pr-8`}>{playlist.nombre}</h4>
-                      {playlist.descripcion && (
-                        <p className={`text-sm ${themeClasses.textMuted} mb-2 line-clamp-2`}>{playlist.descripcion}</p>
-                      )}
-                      <div className={`text-xs ${themeClasses.textMuted} space-y-1`}>
-                        <p>{playlist.canciones_count || 0} canciones</p>
-                        <p>
-                          {playlist.es_publica ? '🌍 Pública' : '🔒 Privada'} • 
-                          {new Date(playlist.created_at).toLocaleDateString('es-ES')}
-                        </p>
+                        {menuAbiertoId === playlist.id && (
+                          <div className={`absolute right-0 top-8 w-48 ${themeClasses.bgCard} rounded-lg shadow-lg border ${themeClasses.border} z-10`}>
+                            <div className="py-1">
+                              <button
+                                onClick={() => editarPlaylist(playlist)}
+                                className={`flex items-center w-full px-4 py-2 text-sm ${themeClasses.text} ${themeClasses.hover} transition-colors`}
+                              >
+                                <PencilIcon className="h-4 w-4 mr-3" />
+                                Editar
+                              </button>
+                              
+                              <button
+                                onClick={() => togglePrivacidad(playlist)}
+                                className={`flex items-center w-full px-4 py-2 text-sm ${themeClasses.text} ${themeClasses.hover} transition-colors`}
+                              >
+                                {playlist.es_publica ? (
+                                  <>
+                                    <EyeSlashIcon className="h-4 w-4 mr-3" />
+                                    Hacer privada
+                                  </>
+                                ) : (
+                                  <>
+                                    <EyeIcon className="h-4 w-4 mr-3" />
+                                    Hacer pública
+                                  </>
+                                )}
+                              </button>
+                              
+                              <button
+                                onClick={() => compartirPlaylist(playlist)}
+                                className={`flex items-center w-full px-4 py-2 text-sm ${themeClasses.text} ${themeClasses.hover} transition-colors`}
+                              >
+                                <ShareIcon className="h-4 w-4 mr-3" />
+                                Compartir
+                              </button>
+                              
+                              <div className={`border-t ${themeClasses.border} my-1`}></div>
+                              
+                              <button
+                                onClick={() => eliminarPlaylist(playlist)}
+                                className="flex items-center w-full px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 transition-colors"
+                              >
+                                <TrashIcon className="h-4 w-4 mr-3" />
+                                Eliminar
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Modal de creación */}
-        {showCreateModal && (
+        {mostrarModalCrear && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className={`${themeClasses.bgCard} rounded-lg p-6 w-full max-w-md mx-4`}>
               <h3 className={`text-lg font-medium ${themeClasses.text} mb-4`}>Nueva Playlist</h3>
@@ -803,39 +513,56 @@ export default function PlaylistsPage() {
                   <input
                     id="playlist-name"
                     type="text"
-                    value={newPlaylistName}
-                    onChange={(e) => setNewPlaylistName(e.target.value)}
-                    placeholder="Ej: Mis favoritos"
-                    className={`w-full ${themeClasses.inputBg} border ${themeClasses.inputBorder} rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-400 outline-none ${themeClasses.text}`}
+                    value={nombrePlaylist}
+                    onChange={(e) => setNombrePlaylist(e.target.value)}
+                    className={`w-full px-3 py-2 border rounded-lg ${themeClasses.input} ${themeClasses.border} focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
+                    placeholder="Ingresa el nombre de la playlist"
                   />
                 </div>
-                
+
                 <div>
                   <label htmlFor="playlist-description" className={`block text-sm font-medium ${themeClasses.text} mb-2`}>
                     Descripción (opcional)
                   </label>
                   <textarea
                     id="playlist-description"
-                    value={newPlaylistDescription}
-                    onChange={(e) => setNewPlaylistDescription(e.target.value)}
-                    placeholder="Describe tu playlist..."
+                    value={descripcionPlaylist}
+                    onChange={(e) => setDescripcionPlaylist(e.target.value)}
                     rows={3}
-                    className={`w-full ${themeClasses.inputBg} border ${themeClasses.inputBorder} rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-400 outline-none ${themeClasses.text}`}
+                    className={`w-full px-3 py-2 border rounded-lg ${themeClasses.input} ${themeClasses.border} focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none`}
+                    placeholder="Describe tu playlist"
                   />
+                </div>
+
+                <div className="flex items-center">
+                  <input
+                    id="is-public"
+                    type="checkbox"
+                    checked={esPublica}
+                    onChange={(e) => setEsPublica(e.target.checked)}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor="is-public" className={`ml-2 text-sm ${themeClasses.text}`}>
+                    Hacer pública
+                  </label>
                 </div>
               </div>
 
               <div className="flex justify-end space-x-3 mt-6">
                 <button
-                  onClick={() => setShowCreateModal(false)}
-                  className={`px-4 py-2 border ${themeClasses.border} ${themeClasses.text} rounded-lg ${themeClasses.bgHover} transition-colors`}
+                  onClick={() => {
+                    setMostrarModalCrear(false);
+                    setNombrePlaylist('');
+                    setDescripcionPlaylist('');
+                    setEsPublica(false);
+                  }}
+                  className={`px-4 py-2 text-sm font-medium rounded-lg ${themeClasses.buttonSecondary} transition-colors`}
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={crearPlaylist}
-                  disabled={!newPlaylistName.trim()}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className={`px-4 py-2 text-sm font-medium rounded-lg ${themeClasses.button} transition-colors`}
                 >
                   Crear Playlist
                 </button>
@@ -844,154 +571,105 @@ export default function PlaylistsPage() {
           </div>
         )}
 
-        {/* Modal para agregar música */}
-        {showAddMusicModal && selectedPlaylistId && (
+        {/* Modal de edición */}
+        {mostrarModalEditar && playlistEditando && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className={`${themeClasses.bgCard} rounded-lg p-6 w-full max-w-2xl mx-4 max-h-[80vh] overflow-hidden flex flex-col`}>
-              <div className="flex justify-between items-center mb-4">
-                <h3 className={`text-lg font-medium ${themeClasses.text}`}>Agregar Música a la Playlist</h3>
+            <div className={`${themeClasses.bgCard} rounded-lg p-6 w-full max-w-md mx-4`}>
+              <h3 className={`text-lg font-medium ${themeClasses.text} mb-4`}>Editar Playlist</h3>
+              
+              <div className="space-y-4">
+                <div>
+                  <label htmlFor="edit-playlist-name" className={`block text-sm font-medium ${themeClasses.text} mb-2`}>
+                    Nombre de la playlist *
+                  </label>
+                  <input
+                    id="edit-playlist-name"
+                    type="text"
+                    value={nombrePlaylist}
+                    onChange={(e) => setNombrePlaylist(e.target.value)}
+                    className={`w-full px-3 py-2 border rounded-lg ${themeClasses.input} ${themeClasses.border} focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
+                    placeholder="Ingresa el nombre de la playlist"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="edit-playlist-description" className={`block text-sm font-medium ${themeClasses.text} mb-2`}>
+                    Descripción (opcional)
+                  </label>
+                  <textarea
+                    id="edit-playlist-description"
+                    value={descripcionPlaylist}
+                    onChange={(e) => setDescripcionPlaylist(e.target.value)}
+                    rows={3}
+                    className={`w-full px-3 py-2 border rounded-lg ${themeClasses.input} ${themeClasses.border} focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none`}
+                    placeholder="Describe tu playlist"
+                  />
+                </div>
+
+                <div className="flex items-center">
+                  <input
+                    id="edit-is-public"
+                    type="checkbox"
+                    checked={esPublica}
+                    onChange={(e) => setEsPublica(e.target.checked)}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor="edit-is-public" className={`ml-2 text-sm ${themeClasses.text}`}>
+                    Hacer pública
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex justify-end space-x-3 mt-6">
                 <button
                   onClick={() => {
-                    setShowAddMusicModal(false);
-                    setSelectedPlaylistId(null);
-                    setSongSearchTerm('');
+                    setMostrarModalEditar(false);
+                    setPlaylistEditando(null);
+                    setNombrePlaylist('');
+                    setDescripcionPlaylist('');
+                    setEsPublica(false);
                   }}
-                  className={`${themeClasses.textMuted} hover:${themeClasses.text} transition-colors`}
+                  className={`px-4 py-2 text-sm font-medium rounded-lg ${themeClasses.buttonSecondary} transition-colors`}
                 >
-                  <XMarkIcon className="h-6 w-6" />
+                  Cancelar
                 </button>
-              </div>
-              
-              <div className="mb-4">
-                <input
-                  type="text"
-                  placeholder="Buscar canciones..."
-                  value={songSearchTerm}
-                  onChange={(e) => setSongSearchTerm(e.target.value)}
-                  className={`w-full ${themeClasses.inputBg} border ${themeClasses.inputBorder} rounded-lg px-3 py-2 pl-10 focus:ring-2 focus:ring-blue-400 outline-none ${themeClasses.text}`}
-                />
-                <MagnifyingGlassIcon className={`absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 ${themeClasses.textMuted}`} />
-              </div>
-
-              <div className="flex-1 overflow-y-auto">
-                {availableSongs.length === 0 && (
-                  <div className="text-center py-8">
-                    <MusicalNoteIcon className={`h-12 w-12 ${themeClasses.textMuted} mx-auto mb-2`} />
-                    <p className={themeClasses.textMuted}>No hay canciones disponibles</p>
-                  </div>
-                )}
-
-                <div className="space-y-2">
-                  {filteredAvailableSongs.map((song) => {
-                    const isInPlaylist = songsInCurrentPlaylist.includes(song.id);
-                    return (
-                      <div key={song.id} className={`flex items-center justify-between p-3 border ${themeClasses.border} rounded-lg ${themeClasses.bgHover}`}>
-                        <div className="flex items-center space-x-3">
-                          <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-                            {song.imagen_url ? (
-                              <img src={song.imagen_url} alt={song.titulo} className="w-full h-full object-cover rounded-lg" />
-                            ) : (
-                              <MusicalNoteIcon className="h-6 w-6 text-white" />
-                            )}
-                          </div>
-                          <div>
-                            <h4 className={`font-medium ${themeClasses.text}`}>{song.titulo}</h4>
-                            <p className={`text-sm ${themeClasses.textMuted}`}>{song.artista}</p>
-                            <p className={`text-xs ${themeClasses.textMuted}`}>{song.duracion}</p>
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => isInPlaylist 
-                            ? quitarCancionDePlaylist(song.id, selectedPlaylistId!) 
-                            : agregarCancionAPlaylist(song.id, selectedPlaylistId!)
-                          }
-                          className={`px-3 py-1 rounded-lg transition-colors ${
-                            isInPlaylist 
-                              ? 'bg-red-100 text-red-600 hover:bg-red-200' 
-                              : 'bg-blue-100 text-blue-600 hover:bg-blue-200'
-                          }`}
-                        >
-                          {isInPlaylist ? 'Quitar' : 'Agregar'}
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
+                <button
+                  onClick={confirmarEditarPlaylist}
+                  className={`px-4 py-2 text-sm font-medium rounded-lg ${themeClasses.button} transition-colors`}
+                >
+                  Guardar Cambios
+                </button>
               </div>
             </div>
           </div>
         )}
 
-        {/* Modal para ver canciones de la playlist */}
-        {showPlaylistDetails && (
+        {/* Modal de eliminación */}
+        {mostrarModalEliminar && playlistEditando && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className={`${themeClasses.bgCard} rounded-lg p-6 w-full max-w-2xl mx-4 max-h-[80vh] overflow-hidden flex flex-col`}>
-              <div className="flex justify-between items-center mb-4">
-                <h3 className={`text-lg font-medium ${themeClasses.text}`}>Canciones de la Playlist</h3>
+            <div className={`${themeClasses.bgCard} rounded-lg p-6 w-full max-w-md mx-4`}>
+              <h3 className={`text-lg font-medium ${themeClasses.text} mb-4`}>Eliminar Playlist</h3>
+              <p className={`${themeClasses.textMuted} mb-6`}>
+                ¿Estás seguro de que quieres eliminar la playlist "{playlistEditando.nombre}"? 
+                Esta acción no se puede deshacer y se eliminarán todas las canciones de la playlist.
+              </p>
+
+              <div className="flex justify-end space-x-3">
                 <button
                   onClick={() => {
-                    setShowPlaylistDetails(null);
-                    setPlaylistSongs([]);
+                    setMostrarModalEliminar(false);
+                    setPlaylistEditando(null);
                   }}
-                  className={`${themeClasses.textMuted} hover:${themeClasses.text} transition-colors`}
+                  className={`px-4 py-2 text-sm font-medium rounded-lg ${themeClasses.buttonSecondary} transition-colors`}
                 >
-                  <XMarkIcon className="h-6 w-6" />
+                  Cancelar
                 </button>
-              </div>
-
-              <div className="flex-1 overflow-y-auto">
-                {playlistSongs.length === 0 && (
-                  <div className="text-center py-8">
-                    <MusicalNoteIcon className={`h-12 w-12 ${themeClasses.textMuted} mx-auto mb-2`} />
-                    <p className={themeClasses.textMuted}>Esta playlist está vacía</p>
-                    <button
-                      onClick={() => {
-                        setShowPlaylistDetails(null);
-                        abrirModalAgregarMusica(showPlaylistDetails!);
-                      }}
-                      className="mt-4 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-                    >
-                      Agregar Canciones
-                    </button>
-                  </div>
-                )}
-
-                <div className="space-y-2">
-                  {playlistSongs.map((song, index) => (
-                    <div key={song.id} className={`flex items-center justify-between p-3 border ${themeClasses.border} rounded-lg ${themeClasses.bgHover}`}>
-                      <div className="flex items-center space-x-3">
-                        <span className={`text-sm ${themeClasses.textMuted} w-6`}>{index + 1}</span>
-                        <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-                          {song.imagen_url ? (
-                            <img src={song.imagen_url} alt={song.titulo} className="w-full h-full object-cover rounded-lg" />
-                          ) : (
-                            <MusicalNoteIcon className="h-6 w-6 text-white" />
-                          )}
-                        </div>
-                        <div>
-                          <h4 className={`font-medium ${themeClasses.text}`}>{song.titulo}</h4>
-                          <p className={`text-sm ${themeClasses.textMuted}`}>{song.artista}</p>
-                          <p className={`text-xs ${themeClasses.textMuted}`}>{song.duracion}</p>
-                        </div>
-                      </div>
-                      <div className="flex space-x-2">
-                        <button
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="Reproducir"
-                        >
-                          <PlayIcon className="h-5 w-5" />
-                        </button>
-                        <button
-                          onClick={() => eliminarCancionDePlaylist(song.id, showPlaylistDetails!)}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Eliminar de playlist"
-                        >
-                          <TrashIcon className="h-5 w-5" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                <button
+                  onClick={confirmarEliminarPlaylist}
+                  className="px-4 py-2 text-sm font-medium rounded-lg bg-red-600 hover:bg-red-500 text-white transition-colors"
+                >
+                  Eliminar Playlist
+                </button>
               </div>
             </div>
           </div>
